@@ -323,6 +323,20 @@ def build_hourly(grid, now, hours=24):
     return out
 
 
+def build_wind_hourly(grid, now, hours=120):
+    """Hourly sustained wind / gust (mph) for the tropical wind timeline."""
+    out = []
+    t0 = now.replace(minute=0, second=0, microsecond=0) + HOUR
+    for i in range(hours):
+        t = t0 + i * HOUR
+        ws, wg = grid.value_at("windSpeed", t), grid.value_at("windGust", t)
+        if ws is None:
+            continue
+        out.append({"time": t.isoformat(), "wind": rnd(ws), "gust": rnd(wg) if wg is not None else None,
+                    "dir": compass(grid.value_at("windDirection", t))})
+    return out
+
+
 def what_to_know(days, alerts, start_idx):
     """Rule-based talking points, ranked; top 4 are used."""
     items = []
@@ -465,6 +479,7 @@ def build_package(grid, now, cfg, alerts_raw=None, obs_raw=None):
         "days": days,
         "what_to_know": what_to_know(days, [a for a in alerts if a.get("affects_home", True)], target),
         "hourly": build_hourly(grid, now),
+        "wind_hourly": build_wind_hourly(grid, now),
         "commute": build_commute(grid, now, cfg),
         "weekend": build_weekend(grid, now, days),
         "current": parse_obs(obs_raw, tz),

@@ -56,7 +56,7 @@ def holidays_for(year):
         (date(year, 7, 4), "Independence Day", "1f386", "Happy Fourth of July!"),
         (_nth(year, 9, 0, 1), "Labor Day", "1f6e0", "Happy Labor Day!"),
         (date(year, 10, 31), "Halloween", "1f383", "Happy Halloween!"),
-        (date(year, 11, 11), "Veterans Day", "1f396", "Thank you, veterans"),
+        (date(year, 11, 11), "Veterans Day", "1fa96", "Thank you, veterans"),
         (_nth(year, 11, 3, 4), "Thanksgiving", "1f983", "Happy Thanksgiving!"),
         (date(year, 12, 24), "Christmas Eve", "1f385", "Merry Christmas Eve!"),
         (date(year, 12, 25), "Christmas", "1f384", "Merry Christmas!"),
@@ -102,7 +102,7 @@ def holiday_countdown(pkg, cfg):
     if not hs:
         return None
     cv = Canvas(cfg)
-    cv.header("HOLIDAY COUNTDOWN", f"{pkg['location'].get('area', 'Hampton Roads Area').upper()}  ·  DAYS TO GO")
+    cv.header("HOLIDAY COUNTDOWN", f"{today.strftime('%A, %B').upper()} {today.day}, {today.year}  ·  DAYS TO GO")
     x, y, w, h = cv.M, cv.top, cv.W - 2 * cv.M, cv.bottom - cv.top
     first, rest = hs[0], hs[1:]
     if not cv.tall:

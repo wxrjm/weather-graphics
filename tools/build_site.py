@@ -19,6 +19,7 @@ from PIL import Image
 FORMATS = [("wide", "Wide", "16:9 · TV / YouTube", ""), ("vertical", "Vertical", "9:16 · Stories / Reels", "vertical"),
            ("post", "Post", "4:5 · FB / IG feed", "post"), ("square", "Square", "1:1 · FB / IG", "square")]
 SECTIONS = [  # (title, test on file stem) - first match wins
+    ("Hurricane Threat", lambda n: n.startswith("T_")),
     ("Alerts & Be Weather Aware", lambda n: n.startswith(("alert", "weather_aware", "warning_count"))),
     ("Forecast", lambda n: n in ("daily", "what_to_know", "7day", "hourly", "current", "commute", "weekend",
                                  "above_average", "holiday_countdown")),
@@ -39,6 +40,9 @@ NICE = {"7day": "7-Day Forecast", "what_to_know": "What To Know", "weather_aware
 
 
 def nice(stem):
+    if stem.startswith("T_"):  # Tropical folder: "T_05_wind_chances" -> "Wind Chances"
+        import re as _re
+        return _re.sub(r"^T_\d+_", "", stem).replace("_", " ").title().replace("Nhc", "NHC")
     if stem in NICE:
         return NICE[stem]
     full = stem.endswith("_full")
@@ -68,13 +72,17 @@ def build(src, dst, repo=None):
     for key, label, hint, sub in FORMATS:
         folder = src / sub if sub else src
         pngs = sorted(folder.glob("*.png")) if folder.exists() else []
-        if not pngs:
+        tfolder = src / "Tropical" / sub if sub else src / "Tropical"
+        tpngs = sorted(tfolder.glob("*.png")) if tfolder.exists() else []
+        if not pngs and not tpngs:
             continue
         (dst / "img" / key).mkdir(parents=True)
         (dst / "thumb" / key).mkdir(parents=True)
         groups = {t: [] for t, _ in SECTIONS}
-        for p in pngs:
-            shutil.copy2(p, dst / "img" / key / p.name)
+        for p in tpngs + pngs:
+            tgt = dst / "img" / key / (("T_" if p in tpngs else "") + p.name)
+            shutil.copy2(p, tgt)
+            p = tgt
             im = Image.open(p).convert("RGB")
             im.thumbnail((480, 480), Image.LANCZOS)
             im.save(dst / "thumb" / key / (p.stem + ".jpg"), quality=78, optimize=True)

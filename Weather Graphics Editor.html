@@ -119,7 +119,8 @@ const GRAPHICS = [
     ["ndfd_maps","Snowfall & wind maps","NDFD snow total, sustained wind, peak gusts."],
     ["winter_maps","Winter probability & WSSI maps","WPC chance of 4/8/12 in. snow and 0.25 in. ice (Days 1-3) + Winter Storm Severity Index. Skipped when nothing is forecast."],
     ["cpc_hazards","CPC hazards outlook","Days 8-14 hazards on an eastern U.S. map (Great Lakes to the Gulf), plus a separate heavy rain / flooding map."],
-    ["tropics","Tropical Outlook","Atlantic storms, cones and outlook areas."]]],
+    ["tropics","Tropical Outlook","Atlantic storms, cones and outlook areas."],
+    ["tropical_pack","Hurricane Threat set (Tropical folder)","25+ storm graphics (track, cone, wind chances & arrival, surge, threats, timeline, prep, evacuations...) saved to output/latest/Tropical. Only made while a storm threatens."]]],
   ["Coastal", [
     ["tides","Tides & Coastal Flooding","Sewells Point chart, peak level, next tides."],
     ["high_tides","High Tide Forecast","5 sites: time, level, flood category box."],
@@ -164,7 +165,7 @@ const SETTINGS = [
     ["abbreviations","kv","Name abbreviations (map + lists)"]]],
   ["Outlook & NDFD maps", [["spc_days","numlist","SPC days"],["ero_days","numlist","Excessive rainfall days"],["wpc_qpf","bool","WPC rainfall maps"],
     ["qpf_maps","list","WPC rainfall periods (1-2, 1-3, 1-5, 1-7)"],["qpf_state_map","bool","Also make a VA & NC statewide rainfall map"],["dma_counties","list","Hampton Roads DMA counties (FIPS) for the statewide map"],["snow_hours","number","Snowfall total window (hours)"],["wind_maps","list","Wind maps (wind, gust)"],
-    ["rain_reports_min","number","Rain reports: make the CoCoRaHS map when someone reports at least (in.)"],["storm_reports_hours","number","Storm reports: look back this many hours"],["cocorahs_states","list","CoCoRaHS states"],["ffg_hours","numlist","Flash flood guidance periods (hours: 1, 3, 6, 12, 24)"],["fullscreen_maps","bool","Also make full-screen versions of the maps (_full)"],["ndfd_sectors","list","NDFD sectors to try"]]],
+    ["tropical_threat_miles","number","Tropical: make the set when the track comes within (miles)"],["tropical_min_prob","number","Tropical: or 34-kt wind chance at Norfolk is at least (%)"],["tropical_always","bool","Tropical: make the set for any active Atlantic storm"],["tropical_zone","text","Tropical: NWS zone for threat breakdown (VAZ095 Norfolk/Portsmouth)"],["rain_reports_min","number","Rain reports: make the CoCoRaHS map when someone reports at least (in.)"],["storm_reports_hours","number","Storm reports: look back this many hours"],["cocorahs_states","list","CoCoRaHS states"],["ffg_hours","numlist","Flash flood guidance periods (hours: 1, 3, 6, 12, 24)"],["fullscreen_maps","bool","Also make full-screen versions of the maps (_full)"],["ndfd_sectors","list","NDFD sectors to try"]]],
   ["Winter maps", [["winter_days","numlist","Snow/ice probability days"],["snow_prob_thresholds","numlist","Snow amounts (in.) to map"],["ice_prob","bool","Ice (0.25 in.) probability maps"],
     ["wssi_periods","list","WSSI periods (1, 2, 3, 1-3)"],["winter_state_map","bool","Also make VA & NC statewide versions"],["winter_always","bool","Make winter maps even when nothing is forecast"]]],
   ["CPC hazards", [["cpc_periods","list","Periods (8-14, 3-7)"],["cpc_show_empty","bool","Make the Days 8-14 hazards map even with no hazards"],["cpc_rain_always","bool","Make the heavy rain map even with no rain area"]]],

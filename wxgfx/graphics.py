@@ -534,12 +534,13 @@ from .holidays import holiday_countdown  # noqa: E402
 from .drought import drought_graphic  # noqa: E402
 from .ffg import ffg_graphics  # noqa: E402
 from .reports import report_graphics  # noqa: E402
+from .tropicalgfx import tropical_graphics  # noqa: E402
 from . import extras as _extras  # noqa: E402
 
 GRAPHICS = {
     "daily": daily, "what_to_know": what_to_know, "7day": seven_day, "hourly": hourly,
     "feels_like": feels_like, "wind_chill": wind_chill, "dewpoints": dewpoints, "rain_totals": rain_totals,
     "wind": wind, "current": current, "alerts": alerts, "alert_maps": alert_maps, "outlooks": outlook_graphics,
-    "ndfd_maps": ndfd_maps, "winter_maps": winter_graphics, "cpc_hazards": cpc_graphics, "river_flooding": river_graphics, "tidal_flood_map": tidal_graphics, "holiday_countdown": holiday_countdown, "drought": drought_graphic, "ffg": ffg_graphics, "reports": report_graphics,
+    "ndfd_maps": ndfd_maps, "winter_maps": winter_graphics, "cpc_hazards": cpc_graphics, "river_flooding": river_graphics, "tidal_flood_map": tidal_graphics, "holiday_countdown": holiday_countdown, "drought": drought_graphic, "ffg": ffg_graphics, "reports": report_graphics, "tropical_pack": tropical_graphics,
     **_extras.GRAPHICS,
 }

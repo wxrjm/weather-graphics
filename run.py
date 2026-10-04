@@ -93,7 +93,12 @@ def render(pkg, cfg, out_dir, only=None):
                     print(f"  - {name}: not relevant today, skipped")
                 continue
             for fname, c in (cv if isinstance(cv, list) else [(name, cv)]):
-                path = fdir / f"{fname}.png"
+                if fname.startswith("Tropical/"):  # hurricane graphics: their own folder inside the run folder
+                    tdir = out_dir / "Tropical" / ("" if fmt == "wide" else fmt)
+                    tdir.mkdir(parents=True, exist_ok=True)
+                    path = tdir / f"{fname.split('/', 1)[1]}.png"
+                else:
+                    path = fdir / f"{fname}.png"
                 c.save(path)
                 made.append(path)
                 print(f"  + {path.relative_to(out_dir)}")
@@ -139,12 +144,20 @@ def _swap_in(src, dst):
 
 
 def update_latest(out, latest, prune=True):
-    """Mirror out/ (and its vertical/, post/, square/ subfolders) into latest/.
+    """Mirror out/ (and every subfolder: vertical/, post/, square/, Tropical/...) into latest/.
     prune=False (partial --only runs): keep the graphics that weren't remade this time."""
     _update_dir(out, latest, prune)
     for sub in out.iterdir():
         if sub.is_dir():
-            _update_dir(sub, latest / sub.name, prune)
+            update_latest(sub, latest / sub.name, prune)
+    if prune and latest.exists():  # e.g. Tropical/ once the storm is gone: empty it, keep the folder for OBS
+        for sub in latest.iterdir():
+            if sub.is_dir() and not (out / sub.name).exists():
+                for f in sub.rglob("*.png"):
+                    try:
+                        f.unlink()
+                    except OSError:
+                        pass
 
 
 def _update_dir(out, latest, prune=True):
@@ -213,6 +226,14 @@ def main():
         auto = outlookmap.spc_info(pkg["_outlooks"], cfg)
         auto.update(pkg.get("spc_outlook") or {})  # a --from file's own SPC text wins
         pkg["spc_outlook"] = auto
+    if "tropical_pack" in (cfg.get("graphics") or []) and (only_set is None or "tropical_pack" in only_set):
+        from wxgfx import tropical
+        if args.sample:
+            pkg["_tropical"] = tropical.sample(now, cfg)
+        else:
+            print("Checking the tropics (NHC + NWS hurricane products)...")
+            pkg["_tropical"] = tropical.fetch(cfg, now, debug=args.outlook_debug)
+        pkg["tropical_manual"] = (overrides.load(args.overrides) or {}).get("tropical") if not args.no_overrides else None
     if "reports" in (cfg.get("graphics") or []) and (only_set is None or "reports" in only_set):
         from wxgfx import reports
         if args.sample:

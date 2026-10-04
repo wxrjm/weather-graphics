@@ -1,2 +1,5 @@
 Pillow>=10
 tzdata
+# optional: NWS snowfall / wind / gust maps
+numpy
+eccodes

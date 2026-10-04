@@ -53,7 +53,8 @@
     "tropics",
     "warning_count",
     "aviation",
-    "holiday_countdown"
+    "holiday_countdown",
+    "tropical_pack"
   ],
   "_ndfd_maps": "Snowfall (next snow_hours) and 24-h max wind / gust maps from NDFD GRIB2. Needs: pip install eccodes numpy. Snow map is skipped when no snow is forecast.",
   "snow_hours": 72,
@@ -358,5 +359,10 @@
     "NC",
     "MD"
   ],
-  "storm_reports_hours": 24
+  "storm_reports_hours": 24,
+  "_tropical_pack": "Hurricane-threat graphics, saved to output/.../Tropical/ (+ vertical/post/square inside it). Only made while a storm threatens: cone over Norfolk, 34-kt wind chance >= tropical_min_prob, NWS Wakefield hurricane statements, or the track within tropical_threat_miles. tropical_always: true makes them for any active Atlantic storm. Evacuations / outages / checklist can be typed into overrides.json under \"tropical\".",
+  "tropical_min_prob": 5,
+  "tropical_threat_miles": 400,
+  "tropical_always": false,
+  "tropical_zone": "VAZ095"
 }

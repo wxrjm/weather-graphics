@@ -121,6 +121,26 @@ hazards, tidal flooding) also comes as `<name>_full.png`: the map fills the whol
 the top, and the information runs in bars along the bottom (headline card + local value chips + legend). Made in all
 four sizes. `"fullscreen_local_view"` sets the zoom for the local Hampton Roads versions.
 
+## Hurricane threat set (graphic key: `tropical_pack`) → `output/latest/Tropical/`
+
+Made only while a storm threatens (cone over Norfolk, 34-kt wind chance ≥ `tropical_min_prob`, NWS Wakefield
+hurricane statements in effect, or the track within `tropical_threat_miles`). Saved to its own folder:
+`output/<run>/Tropical/` (wide) with `vertical/`, `post/`, `square/` inside, mirrored to `output/latest/Tropical/`
+(emptied automatically once the storm is gone). Numbered in briefing order:
+
+01 storm snapshot · 02 track & cone (watches/warnings, forecast points) · 03 intensity forecast · 04 next NHC advisories ·
+05 wind chances (34/50/64 kt, map + cities) · 06 wind arrival (earliest / most likely) · 07 peak gusts · 08 Norfolk wind
+timeline · 09 storm surge map (NHC inundation) · 10 Sewells Point surge+tide vs historic storms · 11 tropical watches &
+warnings map · 12 high tides · 13 storm rainfall · 14 excessive rainfall · 15 river flooding · 16 Hurricane Local Statement ·
+17 threat matrix (wind/surge/rain/tornado from the TCV) · 18 evacuations · 19 preparedness checklist (highlights the
+current phase) · 20 tornado risk · 21 storm timeline · 22 history comparison · 23 closest approach · 24 after-storm
+reports · 25 power outages.
+
+Data (no keys): NHC CurrentStorms.json and NHC tropical map service (cone, track, points, watches/warnings, wind speed
+probabilities, arrival times, potential storm surge flooding), api.weather.gov HLS/TCV from NWS Wakefield, NWPS SWPV2
+forecast + historic crests. Evacuations, outages and the checklist are typed in under `"tropical"` in overrides.json
+(see the example there). Test the look any time with `python run.py --sample --only tropical_pack`.
+
 ## Rain & storm reports (graphic key: `reports`)
 
 - `rain_reports.png` - CoCoRaHS 24-hour rain totals (ending 7 AM) as colored value tags on the county map (NWS rain

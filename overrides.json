@@ -58,6 +58,27 @@
       ],
       "action": "Be ready to move indoors quickly.",
       "color": "#FFA500"
+    },
+    "tropical": {
+      "evacuations": [
+        {
+          "locality": "Norfolk",
+          "zones": "A, B",
+          "type": "Mandatory",
+          "when": "Starting 8 AM Tue"
+        },
+        {
+          "locality": "Virginia Beach",
+          "zones": "A",
+          "type": "Voluntary",
+          "when": ""
+        }
+      ],
+      "outages": {
+        "Virginia Beach": 61240,
+        "Norfolk": 38410
+      },
+      "_note": "Copy this 'tropical' block to the top level (next to 'days') to use it. prepare = optional [[title, [items...]], ...] to replace the checklist."
     }
   }
 }
