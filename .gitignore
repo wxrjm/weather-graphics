@@ -1,0 +1,9 @@
+# generated each run (the cloud workflow keeps its own copy in the Actions cache)
+output/
+cache/
+_site/
+__pycache__/
+*.pyc
+*.bak
+*.tmp
+manual_forecast.json

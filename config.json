@@ -1,0 +1,362 @@
+{
+  "location": {
+    "station": "KORF",
+    "name": "Norfolk International Airport",
+    "short": "Norfolk",
+    "lat": 36.8946,
+    "lon": -76.2012,
+    "fips": "51710",
+    "area": "Hampton Roads Area"
+  },
+  "timezone": "America/New_York",
+  "user_agent": "(Meteorologist Ricky Matthews graphics, rickymatthewswx@gmail.com)",
+  "logo_path": "logo.png",
+  "brand_name": "Ricky Matthews",
+  "evening_switch_hour": 15,
+  "heat_index_min": 90,
+  "graphics": [
+    "weather_aware",
+    "daily",
+    "what_to_know",
+    "7day",
+    "hourly",
+    "feels_like",
+    "wind_chill",
+    "dewpoints",
+    "rain_totals",
+    "wind",
+    "current",
+    "alerts",
+    "alert_maps",
+    "outlooks",
+    "ffg",
+    "ndfd_maps",
+    "winter_maps",
+    "cpc_hazards",
+    "tides",
+    "high_tides",
+    "high_tides_2",
+    "tidal_flood_map",
+    "river_flooding",
+    "beach",
+    "yesterday",
+    "month_rain",
+    "reports",
+    "drought",
+    "record_watch",
+    "above_average",
+    "first_freeze",
+    "commute",
+    "weekend",
+    "sun_uv",
+    "air_quality",
+    "tropics",
+    "warning_count",
+    "aviation",
+    "holiday_countdown"
+  ],
+  "_ndfd_maps": "Snowfall (next snow_hours) and 24-h max wind / gust maps from NDFD GRIB2. Needs: pip install eccodes numpy. Snow map is skipped when no snow is forecast.",
+  "snow_hours": 72,
+  "wind_maps": [
+    "wind",
+    "gust"
+  ],
+  "ndfd_sectors": [
+    "midatlan",
+    "conus"
+  ],
+  "colors": {},
+  "alert_states": [
+    "VA",
+    "NC",
+    "MD"
+  ],
+  "_alert_counties": "FIPS codes of the localities you cover; alerts touching none of these are ignored. Empty list = every alert in alert_states.",
+  "alert_counties": [
+    "51710",
+    "51810",
+    "51550",
+    "51740",
+    "51800",
+    "51650",
+    "51700",
+    "51735",
+    "51830",
+    "51095",
+    "51199",
+    "51073",
+    "51115",
+    "51093",
+    "51175",
+    "51620",
+    "51181",
+    "51001",
+    "51131",
+    "37053",
+    "37029",
+    "37139",
+    "37143",
+    "37041",
+    "37073",
+    "37091"
+  ],
+  "alert_graphics_max": 6,
+  "abbreviations": {
+    "Virginia Beach": "VA Beach",
+    "Elizabeth City": "Eliz. City"
+  },
+  "extended_rainfall": true,
+  "_extended_rainfall": "NDFD rainfall amounts stop ~72 h out. true = fill later days with NBM guidance (Open-Meteo, no key); those bars are marked as model guidance.",
+  "wind_chill_start": 30,
+  "spc_days": [
+    1,
+    2,
+    3
+  ],
+  "ero_days": [
+    1,
+    2,
+    3
+  ],
+  "wpc_qpf": true,
+  "_outlooks": "SPC Day 1 is always drawn; other days are skipped when there's no risk area on the map.",
+  "formats": [
+    "wide",
+    "vertical",
+    "post",
+    "square"
+  ],
+  "_formats": "wide = 1920x1080 (TV/OBS/YouTube, top of output folder); vertical = 1080x1920 (Stories/Reels/TikTok) in output/.../vertical; post = 1080x1350 (Facebook/Instagram feed, 4:5) in output/.../post; square = 1080x1080 (1:1, Facebook/Instagram square) in output/.../square",
+  "tide_station": "8638610",
+  "tide_nwps_gauge": "SWPV2",
+  "tide_station_name": "Sewells Point (Norfolk)",
+  "_tide_flood_stages": "Used only if the NWS gauge's official stages can't be fetched (ft MLLW).",
+  "tide_flood_stages": {
+    "action": 4.0,
+    "minor": 4.5,
+    "moderate": 5.5,
+    "major": 6.5
+  },
+  "srf_office": "AKQ",
+  "cwf_office": "AKQ",
+  "marine_zones": {
+    "ANZ632": "Lower Bay",
+    "ANZ634": "Bay Mouth / CBBT",
+    "ANZ656": "Coastal Waters"
+  },
+  "cli_location": "ORF",
+  "acis_station": "ORFthr",
+  "uv_zip": "23510",
+  "airport": "KORF",
+  "warning_count_states": [
+    "VA"
+  ],
+  "first_freeze_always": false,
+  "tropics_always": false,
+  "warning_count_always": false,
+  "_tide_sites": "High tide graphic sites. 'nwps' = NWS gauge ID (official forecast + flood stages); 'search' finds the gauge ID by name automatically (run --outlook-debug to see what it found, then pin it as nwps); 'coops' = NOAA tide station used as a backup (astronomical tide).",
+  "tide_sites": [
+    {
+      "name": "Sewells Point",
+      "nwps": "SWPV2",
+      "coops": "8638610"
+    },
+    {
+      "name": "Yorktown",
+      "nwps": "YKTV2",
+      "coops": "8637689"
+    },
+    {
+      "name": "Jamestown",
+      "search": "Jamestown",
+      "nwps": "JSFV2"
+    },
+    {
+      "name": "Lynnhaven Inlet",
+      "search": "Lynnhaven",
+      "nwps": "LHNV2"
+    },
+    {
+      "name": "Nassawadox",
+      "search": "Nassawadox",
+      "nwps": "NSWV2"
+    }
+  ],
+  "qpf_state_map": true,
+  "_dma_counties": "Hampton Roads DMA counties/cities (FIPS), outlined on the statewide rainfall map.",
+  "dma_counties": [
+    "51710",
+    "51810",
+    "51550",
+    "51740",
+    "51800",
+    "51650",
+    "51700",
+    "51735",
+    "51830",
+    "51095",
+    "51199",
+    "51073",
+    "51115",
+    "51093",
+    "51175",
+    "51620",
+    "51181",
+    "51001",
+    "51131",
+    "37053",
+    "37029",
+    "37139",
+    "37143",
+    "37041",
+    "37073",
+    "37091",
+    "37055"
+  ],
+  "qpf_maps": [
+    "1-2",
+    "1-3",
+    "1-5",
+    "1-7"
+  ],
+  "_qpf_maps": "WPC rainfall maps to make (days). Each gets a Hampton Roads map and, with qpf_state_map, a Virginia & North Carolina map.",
+  "_winter_maps": "WPC snow/ice probability maps (chance of 4\", 8\", 12\" snow and 0.25\" ice, Days 1-3) and Winter Storm Severity Index maps. Maps with nothing in the area are skipped (winter_always: true makes them anyway). winter_state_map adds a Virginia & North Carolina version of each.",
+  "winter_days": [
+    1,
+    2,
+    3
+  ],
+  "snow_prob_thresholds": [
+    4,
+    8,
+    12
+  ],
+  "ice_prob": true,
+  "wssi_periods": [
+    "1",
+    "2",
+    "3",
+    "1-3"
+  ],
+  "winter_state_map": true,
+  "winter_always": false,
+  "cli_today_after_hour": 17,
+  "_cli_today_after_hour": "From this hour on (local), the climate graphics use today's afternoon NWS climate report so they include today. Before then (or until that report is out) they use yesterday's complete report.",
+  "_cpc_hazards": "CPC U.S. Hazards Outlook on an eastern U.S. map (Great Lakes to the Gulf): one graphic for all hazards and a separate heavy rain / flooding graphic. cpc_periods: '8-14' (and '3-7' when CPC's map service has it). The Days 8-14 hazards map is always made (cpc_show_empty); the heavy rain map only when there's a rain area (cpc_rain_always forces it).",
+  "cpc_periods": [
+    "8-14",
+    "3-7"
+  ],
+  "cpc_show_empty": true,
+  "cpc_rain_always": false,
+  "tide_sites_2": [
+    {
+      "name": "Kiptopeke",
+      "nwps": "KPTV2",
+      "coops": "8632200"
+    },
+    {
+      "name": "Hudgins",
+      "nwps": "WCKV2",
+      "search": "Hudgins"
+    },
+    {
+      "name": "Smithfield",
+      "nwps": "SMSV2",
+      "search": "Smithfield"
+    },
+    {
+      "name": "Suffolk",
+      "nwps": "NMDV2",
+      "search": "Nansemond River at Suffolk"
+    },
+    {
+      "name": "Money Point",
+      "nwps": "MNPV2",
+      "coops": "8639348"
+    }
+  ],
+  "_tide_sites_2": "Sites for the second high tide graphic (high_tides_2.png). Same fields as tide_sites.",
+  "aqi_area": "Hampton Roads",
+  "aqi_state": "VA",
+  "_aqi_area": "AirNow reporting area for the air quality graphic (official current AQI + state forecast; no key). If it isn't found, the nearest reporting area is used. Days without an official forecast use CAMS model guidance (Open-Meteo), marked with *.",
+  "_river_flooding": "NWS river forecast points. Graphics are ONLY exported when a gauge's forecast reaches river_min_category (action stage) or higher: a summary list (river_flooding.png) plus one hydrograph per gauge (river_1.png, river_2.png ... in output/latest).",
+  "river_min_category": "action",
+  "river_graphics_max": 6,
+  "river_gauges": [
+    {
+      "lid": "FKNV2",
+      "name": "Blackwater River at Franklin"
+    },
+    {
+      "lid": "SEBV2",
+      "name": "Nottoway River near Sebrell"
+    },
+    {
+      "lid": "ZUNV2",
+      "name": "Blackwater River near Zuni"
+    },
+    {
+      "lid": "DNDV2",
+      "name": "Blackwater River at Dendron"
+    },
+    {
+      "lid": "RVDV2",
+      "name": "Nottoway River near Riverdale"
+    },
+    {
+      "lid": "STYV2",
+      "name": "Nottoway River near Stony Creek"
+    },
+    {
+      "lid": "RAWV2",
+      "name": "Nottoway River near Rawlings"
+    },
+    {
+      "lid": "EPOV2",
+      "name": "Meherrin River at Emporia"
+    },
+    {
+      "lid": "LAWV2",
+      "name": "Meherrin River near Lawrenceville"
+    },
+    {
+      "lid": "MTCV2",
+      "name": "Appomattox River at Matoaca"
+    },
+    {
+      "lid": "WONN7",
+      "name": "Chowan River near Winton"
+    }
+  ],
+  "_tidal_flood_map": "Map of the bay, rivers and shoreline shaded by forecast tidal flood category for each high tide that reaches tidal_map_min_category. Built from the NWS tide gauge forecasts (tide_sites + tide_sites_2 + tidal_map_sites), each gauge scored on its own flood stages and blended between gauges (inverse-distance), carried out to tidal_radius_km from the nearest gauge.",
+  "tidal_map_min_category": "minor",
+  "tidal_map_shade_from": "action",
+  "tidal_radius_km": 22,
+  "tidal_map_max": 2,
+  "tidal_map_always": false,
+  "tidal_ref_gauge": "SWPV2",
+  "warm_departure_min": 5,
+  "_warm_departure_min": "Above-average graphic: days whose forecast high is at least this many degrees above the 1991-2020 average high. One day = single-day spotlight; several = warm stretch. No warm days = no graphic.",
+  "holiday_count": 6,
+  "holidays_off": [],
+  "holidays_extra": [],
+  "_holidays": "Holiday countdown: holiday_count = how many to show (1 spotlight + the rest listed). holidays_off = names to skip, e.g. [\"Valentine's Day\"]. holidays_extra = your own, e.g. {\"name\": \"Hanukkah\", \"date\": \"2026-12-04\", \"icon\": \"1f54e\"} or a yearly {\"name\": \"Harborfest\", \"date\": \"06-12\", \"icon\": \"1f389\"}. Icons: any code in wxgfx/data/holiday_icons.",
+  "_drought": "Drought Monitor (full-screen map of VA & NC from the weekly U.S. Drought Monitor) with Norfolk's drought category and rainfall vs normal for the last 30/60/90 days and since Jan 1 (ACIS, ORFthr).",
+  "fullscreen_maps": true,
+  "_fullscreen_maps": "Also make a full-screen version (map fills the image, info bars along the bottom) of every map graphic, saved as <name>_full.png. fullscreen_local_view = [w, e, s, n] zoom for the local maps.",
+  "ffg_hours": [
+    1,
+    3,
+    6
+  ],
+  "_ffg": "Flash Flood Guidance maps (ffg_1hr, ffg_3hr, ffg_6hr + _full versions): rain needed in that many hours to start flooding small streams, from the NWS River Forecast Centers' hourly gridded FFG. ffg_hours can include 1, 3, 6, 12, 24.",
+  "_reports": "Observed reports: rain_reports = CoCoRaHS 24-hour totals (made when someone reports rain_reports_min or more); storm_snow/rain/wind_reports = NWS Wakefield Local Storm Reports + Public Information Statements from the last storm_reports_hours (made only when there are reports).",
+  "rain_reports_min": 0.1,
+  "cocorahs_states": [
+    "VA",
+    "NC",
+    "MD"
+  ],
+  "storm_reports_hours": 24
+}

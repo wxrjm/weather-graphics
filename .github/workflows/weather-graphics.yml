@@ -1,0 +1,113 @@
+# Weather graphics in the cloud: runs run.py on GitHub's servers, publishes the phone gallery page
+# (GitHub Pages) and copies the graphics to Google Drive. Run it any time from the GitHub app:
+# Actions -> Weather Graphics -> Run workflow.
+name: Weather Graphics
+
+on:
+  schedule:  # times are UTC: 9,15,20 UTC = 5 AM, 11 AM, 4 PM EDT (an hour earlier in winter); 01 UTC = 9 PM EDT
+    - cron: "5 9,15,20 * * *"
+    - cron: "5 1 * * *"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Only these graphics, comma list (blank = all). e.g. daily,7day,alert_maps"
+        required: false
+        default: ""
+      sample:
+        description: "Test run with sample data"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: weather-graphics
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TZ: America/New_York
+      HAS_DRIVE: ${{ secrets.RCLONE_CONF != '' }}
+      DRIVE_FOLDER: ${{ vars.DRIVE_FOLDER || 'Weather Graphics' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libeccodes-dev > /dev/null
+          pip install -q -r requirements.txt eccodes numpy
+
+      - name: Restore last graphics and data cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/latest
+            cache
+          key: wx-${{ github.run_id }}
+          restore-keys: wx-
+
+      - name: Make graphics
+        env:
+          ONLY: ${{ inputs.only }}
+          SAMPLE: ${{ inputs.sample }}
+        run: |
+          ARGS=()
+          if [ "$SAMPLE" = "true" ]; then ARGS+=(--sample); fi
+          ONLY="$(echo "$ONLY" | tr -d ' ')"
+          if [ -n "$ONLY" ]; then
+            if ! [[ "$ONLY" =~ ^[a-z0-9_,]+$ ]]; then echo "Bad graphic list: $ONLY"; exit 1; fi
+            ARGS+=(--only "$ONLY")
+          fi
+          python run.py "${ARGS[@]}"
+
+      - name: Save graphics and data cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            output/latest
+            cache
+          key: wx-${{ github.run_id }}
+
+      - name: Build phone page
+        run: python tools/build_site.py output/latest _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Copy to Google Drive
+        if: env.HAS_DRIVE == 'true'
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+          ONLY: ${{ inputs.only }}
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash > /dev/null
+          mkdir -p ~/.config/rclone
+          printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+          REMOTE="$(rclone listremotes | head -n1)"
+          # full runs mirror the folder (old alert maps are removed); partial runs only add/replace
+          if [ -z "$(echo "$ONLY" | tr -d ' ')" ]; then MODE=sync; else MODE=copy; fi
+          rclone "$MODE" output/latest "${REMOTE}${DRIVE_FOLDER}" --exclude "*.tmp" --transfers 8 --stats-one-line -v
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - id: pages
+        uses: actions/deploy-pages@v4

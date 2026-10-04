@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather Graphics Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1526; --bg2:#1b2b46; --panel:#16233b; --panel2:#1d2d4a; --line:#2c3f62; --text:#f4f7fb; --muted:#9fb0cc;
+  --accent:#58aaff; --ok:#46b464; --warn:#f59628; --bad:#e43c3c; --chip:#243758;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:linear-gradient(180deg,var(--bg2),var(--bg));background-attachment:fixed;color:var(--text);
+  font:15px/1.45 Poppins,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 22px;
+  background:rgba(13,21,38,.92);backdrop-filter:blur(6px);border-bottom:2px solid #fff}
+header h1{margin:0;font-size:22px;letter-spacing:.3px;text-transform:uppercase}
+header .sp{flex:1}
+.pill{font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;background:var(--chip);color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.pill.on{background:var(--ok);color:#0d1526}.pill.dirty{background:var(--warn);color:#0d1526}
+button,.btn{font:600 14px Poppins,system-ui,sans-serif;border:0;border-radius:10px;padding:9px 16px;cursor:pointer;
+  background:var(--chip);color:var(--text)}
+button:hover,.btn:hover{filter:brightness(1.2)}
+button.primary{background:var(--accent);color:#0d1526}
+button.danger{background:transparent;color:#ff8a8a;border:1px solid #6b2c3a}
+button.small{padding:5px 10px;font-size:12px;border-radius:8px}
+.wrap{display:grid;grid-template-columns:230px 1fr;min-height:calc(100% - 70px)}
+nav{padding:18px 12px;border-right:1px solid var(--line);position:sticky;top:70px;height:calc(100vh - 70px);overflow:auto}
+nav a{display:block;padding:10px 14px;margin-bottom:4px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:600;cursor:pointer}
+nav a.active{background:var(--panel2);color:var(--text);box-shadow:inset 4px 0 0 #fff}
+nav .hint{font-size:12px;color:var(--muted);margin:18px 10px 0;line-height:1.5}
+main{padding:22px 28px 80px;max-width:1300px}
+h2{font-size:26px;margin:0 0 4px;text-transform:uppercase}
+h3{font-size:16px;margin:26px 0 10px;text-transform:uppercase;color:var(--muted);letter-spacing:.5px}
+p.lead{color:var(--muted);margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+.card.accent{border-left:6px solid #fff}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.g3{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+label.chk{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--panel2);cursor:pointer;border:1px solid transparent}
+label.chk:hover{border-color:var(--line)}
+label.chk input{margin-top:4px;width:18px;height:18px;accent-color:var(--accent);flex:none}
+label.chk b{display:block}
+label.chk small{color:var(--muted);display:block;line-height:1.35}
+.field{display:flex;flex-direction:column;gap:5px}
+.field>span{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.field>small{color:var(--muted);font-size:12px}
+input[type=text],input[type=number],select,textarea{font:14px Poppins,system-ui,sans-serif;color:var(--text);background:#0f1a2e;
+  border:1px solid var(--line);border-radius:9px;padding:8px 10px;width:100%}
+input::placeholder,textarea::placeholder{color:#6f809e}
+input.set,textarea.set,select.set{border-color:var(--accent);background:#10233f}
+textarea{min-height:64px;resize:vertical}
+table{width:100%;border-collapse:separate;border-spacing:0 6px}
+th{font-size:11px;text-align:left;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:0 6px;font-weight:700}
+td{padding:0 4px;vertical-align:top}
+td.day{font-weight:700;white-space:nowrap;padding-top:8px}
+td.day small{display:block;color:var(--muted);font-weight:500}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.toggle{display:inline-flex;gap:10px;align-items:center;font-weight:700;cursor:pointer}
+.toggle input{width:20px;height:20px;accent-color:var(--ok)}
+pre{background:#0a1222;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;font:12.5px/1.45 ui-monospace,Consolas,monospace;max-height:520px;white-space:pre-wrap}
+.note{font-size:13px;color:var(--muted)}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--chip);color:var(--muted);margin-left:6px}
+.lvl{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.hidden{display:none!important}
+#toast{position:fixed;right:22px;bottom:22px;background:var(--panel2);border:1px solid var(--line);border-left:6px solid var(--ok);
+  padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;transform:translateY(10px);transition:.25s;z-index:20;max-width:420px}
+#toast.show{opacity:1;transform:none}#toast.err{border-left-color:var(--bad)}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:18px;text-align:center;color:var(--muted)}
+.kv td{padding:3px 4px}
+@media (max-width:900px){.wrap{grid-template-columns:1fr}nav{position:static;height:auto;display:flex;flex-wrap:wrap;gap:6px;border-right:0;border-bottom:1px solid var(--line)}
+  nav a{margin:0}nav .hint{display:none}main{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Weather Graphics Editor</h1>
+  <span id="mode" class="pill">Loading…</span>
+  <span id="dirty" class="pill hidden">Unsaved changes</span>
+  <span class="sp"></span>
+  <button id="saveBtn" class="primary">Save</button>
+  <button id="dlCfg" class="hidden">Download config.json</button>
+  <button id="dlOv" class="hidden">Download overrides.json</button>
+</header>
+<div class="wrap">
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+<div id="toast"></div>
+<input type="file" id="fileIn" accept=".json,application/json" multiple class="hidden">
+<script>
+"use strict";
+// ------------------------------------------------------------------ metadata
+const GRAPHICS = [
+  ["Daily forecast", [
+    ["weather_aware","Be Weather Aware","The day's main concern, when, what to know, what to do. Skipped on quiet days."],
+    ["daily","Today's / Tomorrow's Forecast","Icon, high/low, headline, morning→overnight, summary."],
+    ["what_to_know","What To Know","Top 4 talking points."],
+    ["7day","7-Day Forecast","Tonight/Today + 6 days."],
+    ["hourly","Next 24 Hours","Temperature line, icons, rain chance."],
+    ["current","Current Conditions","Latest KORF observation."]]],
+  ["Charts", [
+    ["feels_like","Heat Index","Only when it's hot enough to matter."],
+    ["wind_chill","Wind Chill","Blue bands from 30° down; only when cold."],
+    ["dewpoints","Dewpoints","Awesome → Instant Sweat scale."],
+    ["rain_totals","Rainfall (bar chart)","Daily totals, 7 days."],
+    ["wind","Peak Wind Gusts (bar chart)","7 days on a banded scale."]]],
+  ["Alerts", [
+    ["alerts","Weather Alerts list","All active alerts for the area."],
+    ["alert_maps","Alert maps","One map per alert with counties shaded."],
+    ["warning_count","Today's Warnings","Warning totals, Hampton Roads vs Virginia."]]],
+  ["Maps", [
+    ["outlooks","SPC / ERO / WPC rainfall maps","Severe outlook with hazards, excessive rainfall outlook, WPC rainfall maps (Days 1-2, 1-3, 1-5, 1-7; local + VA/NC)."],
+    ["ffg","Flash Flood Guidance","Rain needed in 1/3/6 hours to flood small streams (NWS RFC gridded FFG), local values + full-screen version."],
+    ["ndfd_maps","Snowfall & wind maps","NDFD snow total, sustained wind, peak gusts."],
+    ["winter_maps","Winter probability & WSSI maps","WPC chance of 4/8/12 in. snow and 0.25 in. ice (Days 1-3) + Winter Storm Severity Index. Skipped when nothing is forecast."],
+    ["cpc_hazards","CPC hazards outlook","Days 8-14 hazards on an eastern U.S. map (Great Lakes to the Gulf), plus a separate heavy rain / flooding map."],
+    ["tropics","Tropical Outlook","Atlantic storms, cones and outlook areas."]]],
+  ["Coastal", [
+    ["tides","Tides & Coastal Flooding","Sewells Point chart, peak level, next tides."],
+    ["high_tides","High Tide Forecast","5 sites: time, level, flood category box."],
+    ["high_tides_2","High Tide Forecast (2nd set)","Kiptopeke, Hudgins, Smithfield, Suffolk, Money Point."],
+    ["tidal_flood_map","Tidal Flooding Forecast map","Bay, rivers and shoreline shaded by forecast flood category for each flooding high tide (only when flooding is forecast)."],
+    ["river_flooding","River Flood Forecast","Hydrograph + crest for each river forecast at action stage or higher (only exported when flooding)."],
+    ["beach","Beach & Boating","Rip currents, surf, water temp, marine forecast."]]],
+  ["Climate", [
+    ["yesterday","Yesterday at ORF","High/low vs normal & record, rainfall."],
+    ["month_rain","Rainfall So Far","Month & year vs normal."],
+    ["drought","Drought Monitor","Full-screen VA/NC drought map + Norfolk drought level and rainfall vs normal (30/60/90 days, since Jan 1)."],
+    ["reports","Rain & Storm Reports","CoCoRaHS 24-hr rain totals map + NWS storm report maps (snow, rain, wind gusts) from LSRs/PNS. Only made when there are reports."],
+    ["record_watch","Record Watch","Forecast vs normal vs record, next 5 days."],
+    ["above_average","Warmer Than Average","How many degrees above the average high: one-day spotlight or multi-day warm stretch (only when warm)."],
+    ["holiday_countdown","Holiday Countdown","Days until the next holiday (emoji spotlight) and the next few after it."],
+    ["first_freeze","First Freeze","Freeze climatology (mid-Sep until first freeze)."]]],
+  ["Everyday", [
+    ["commute","Commute Forecast","Next two drives."],
+    ["weekend","Weekend Planner","Sat/Sun with 'good for' tags."],
+    ["sun_uv","Sun & UV","Sunrise/sunset, daylight, hourly UV."],
+    ["air_quality","Air Quality","Current AQI and 5-day forecast (AirNow + model guidance)."],
+    ["aviation","ORF Aviation","Flight category, METAR, TAF."]]],
+];
+const ALWAYS = {first_freeze:"first_freeze_always", tropics:"tropics_always", warning_count:"warning_count_always", ndfd_maps:"snow_map_always"};
+const FORMATS = [["wide","Wide 1920×1080","TV, OBS, YouTube"],["vertical","Vertical 1080×1920","Stories, Reels, TikTok"],["post","Post 1080×1350","Facebook & Instagram feed"],["square","Square 1080×1080","Facebook/Instagram square posts"]];
+const ICONS = ["","clear","few","partly","mostly_cloudy","cloudy","showers","rain","tstorm","snow","mix","fog","wind"];
+const LEVELS = ["","NOT EXPECTED","LOW","POSSIBLE","ELEVATED","HIGH","VERY HIGH"];
+const LEVEL_COL = {"NOT EXPECTED":"#465670","LOW":"#66a366","POSSIBLE":"#f6e25a","ELEVATED":"#f0a03c","HIGH":"#e43c3c","VERY HIGH":"#e65ae6"};
+const SPC_CATS = [["","(automatic)"],["TSTM","General thunder"],["MRGL","1 Marginal"],["SLGT","2 Slight"],["ENH","3 Enhanced"],["MDT","4 Moderate"],["HIGH","5 High"]];
+const AWARE_COLORS = [["#FF0000","Tornado Warning red"],["#FFA500","Severe T-storm orange"],["#8B0000","Flash flood dark red"],["#FFFF00","Tornado Watch yellow"],
+  ["#DB7093","Severe Watch pink"],["#2E8B57","Flood watch green"],["#228B22","Coastal flood green"],["#FF7F50","Heat coral"],["#C71585","Extreme heat magenta"],
+  ["#DAA520","Wind gold"],["#7B68EE","Winter purple"],["#483D8B","Freeze indigo"],["#708090","Fog slate"],["#40E0D0","Rip current turquoise"],["#1E90FF","Rain blue"]];
+const SETTINGS = [
+  ["Location", [["location.name","text","Station name"],["location.short","text","Short name"],["location.area","text","Area name shown on graphics"],
+    ["location.station","text","Station ID"],["location.lat","number","Latitude"],["location.lon","number","Longitude"],["location.fips","text","County/city FIPS"],
+    ["timezone","text","Time zone"],["user_agent","text","NWS User-Agent (your contact)"]]],
+  ["Branding", [["logo_path","text","Logo PNG (in this folder)"],["brand_name","text","Text logo fallback"]]],
+  ["Forecast text & charts", [["evening_switch_hour","number","Hour (24h) to switch to tomorrow's forecast"],["heat_index_min","number","Heat index needed to show the chart"],
+    ["wind_chill_start","number","Top wind chill band (°F)"],["wind_chill_margin","number","Show wind chill when ≤ start + this"],
+    ["gust_round_to","number","Gust map rounding (mph)"],["extended_rainfall","bool","Fill days 4-7 rain with NBM guidance"]]],
+  ["Alerts", [["alert_states","list","States to check"],["alert_counties","list","Your localities (FIPS)"],["alert_graphics_max","number","Max alert maps per run"],
+    ["abbreviations","kv","Name abbreviations (map + lists)"]]],
+  ["Outlook & NDFD maps", [["spc_days","numlist","SPC days"],["ero_days","numlist","Excessive rainfall days"],["wpc_qpf","bool","WPC rainfall maps"],
+    ["qpf_maps","list","WPC rainfall periods (1-2, 1-3, 1-5, 1-7)"],["qpf_state_map","bool","Also make a VA & NC statewide rainfall map"],["dma_counties","list","Hampton Roads DMA counties (FIPS) for the statewide map"],["snow_hours","number","Snowfall total window (hours)"],["wind_maps","list","Wind maps (wind, gust)"],
+    ["rain_reports_min","number","Rain reports: make the CoCoRaHS map when someone reports at least (in.)"],["storm_reports_hours","number","Storm reports: look back this many hours"],["cocorahs_states","list","CoCoRaHS states"],["ffg_hours","numlist","Flash flood guidance periods (hours: 1, 3, 6, 12, 24)"],["fullscreen_maps","bool","Also make full-screen versions of the maps (_full)"],["ndfd_sectors","list","NDFD sectors to try"]]],
+  ["Winter maps", [["winter_days","numlist","Snow/ice probability days"],["snow_prob_thresholds","numlist","Snow amounts (in.) to map"],["ice_prob","bool","Ice (0.25 in.) probability maps"],
+    ["wssi_periods","list","WSSI periods (1, 2, 3, 1-3)"],["winter_state_map","bool","Also make VA & NC statewide versions"],["winter_always","bool","Make winter maps even when nothing is forecast"]]],
+  ["CPC hazards", [["cpc_periods","list","Periods (8-14, 3-7)"],["cpc_show_empty","bool","Make the Days 8-14 hazards map even with no hazards"],["cpc_rain_always","bool","Make the heavy rain map even with no rain area"]]],
+  ["Coastal", [["tide_station","text","Tide chart CO-OPS station"],["tide_nwps_gauge","text","Tide chart NWS gauge"],["tide_station_name","text","Tide chart label"],
+    ["tide_flood_stages","kv","Backup flood stages (ft MLLW)"],["tide_sites","table:name,nwps,search,coops","High tide sites"],["tide_sites_2","table:name,nwps,search,coops","High tide sites (2nd graphic)"],["tidal_map_min_category","text","Tidal map: make it at this category (action/minor/moderate/major)"],["tidal_map_shade_from","text","Tidal map: shade from this category"],["tidal_radius_km","number","Tidal map: shade water within this many km of a gauge"],["tidal_map_always","bool","Tidal map: make it even with no flooding"],
+    ["river_min_category","text","Rivers: export at this category or higher (action/minor/...)"],["river_gauges","table:lid,name","River forecast points"],
+    ["marine_zones","kv","Marine zones (ID → label)"],["srf_office","text","Surf zone forecast office"],["cwf_office","text","Coastal waters forecast office"]]],
+  ["Climate, UV, aviation", [["cli_location","text","Climate report location"],["cli_today_after_hour","number","Use today's climate report after this hour (0-23)"],["acis_station","text","ACIS station"],["uv_zip","text","UV ZIP code"],["warm_departure_min","number","Warmer-than-average: degrees above average to count a day"],["holiday_count","number","Holiday countdown: how many holidays to show"],["holidays_off","list","Holidays to skip (names)"],["holidays_extra","table:name,date,icon","Your own holidays/events (date MM-DD or YYYY-MM-DD, icon = Twemoji code)"],["aqi_area","text","AirNow reporting area (air quality)"],["aqi_state","text","AirNow reporting area state"],
+    ["airport","text","Airport (ICAO)"],["warning_count_states","list","Warning counter states"]]],
+];
+
+// ------------------------------------------------------------------ state
+let cfg = null, ov = null, fc = null, server = false, dirty = false, tab = "graphics";
+const $ = (s, el = document) => el.querySelector(s);
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "html") el.innerHTML = v;
+    else if (k === "value") el.value = v;
+    else if (k === "checked") el.checked = !!v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat()) if (c !== null && c !== undefined && c !== false) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return el;
+}
+function toast(msg, err) { const t = $("#toast"); t.textContent = msg; t.className = "show" + (err ? " err" : ""); clearTimeout(t._t); t._t = setTimeout(() => t.className = "", 3200); }
+function markDirty() { dirty = true; $("#dirty").classList.remove("hidden"); }
+function getPath(o, p) { return p.split(".").reduce((a, k) => a == null ? undefined : a[k], o); }
+function setPath(o, p, v) { const ks = p.split("."); let a = o; ks.slice(0, -1).forEach(k => { if (typeof a[k] !== "object" || a[k] === null) a[k] = {}; a = a[k]; });
+  if (v === undefined) delete a[ks.at(-1)]; else a[ks.at(-1)] = v; }
+function prune(o) {  // drop empty objects/strings so overrides stay minimal
+  if (Array.isArray(o)) return o;
+  if (o && typeof o === "object") { for (const k of Object.keys(o)) { o[k] = prune(o[k]); const v = o[k];
+    if (v === undefined || v === "" || (v && typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length)) delete o[k]; } }
+  return o;
+}
+function num(v) { if (v === "" || v === null || v === undefined) return undefined; const n = Number(v); return isNaN(n) ? undefined : n; }
+function inp(value, placeholder, onchange, type = "text", extra = {}) {
+  const el = h("input", { type, value: value ?? "", placeholder: placeholder ?? "", class: (value ?? "") !== "" ? "set" : "", ...extra });
+  el.addEventListener("input", () => { el.classList.toggle("set", el.value !== ""); onchange(el.value); markDirty(); });
+  return el;
+}
+function area(value, placeholder, onchange, rows = 2) {
+  const el = h("textarea", { placeholder: placeholder ?? "", rows, class: (value ?? "") !== "" ? "set" : "" }); el.value = value ?? "";
+  el.addEventListener("input", () => { el.classList.toggle("set", el.value !== ""); onchange(el.value); markDirty(); });
+  return el;
+}
+function sel(options, value, onchange) {
+  const el = h("select", { class: value ? "set" : "" }, options.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o || "(automatic)"]; return h("option", { value: v }, l); }));
+  el.value = value ?? ""; el.addEventListener("change", () => { el.classList.toggle("set", !!el.value); onchange(el.value); markDirty(); });
+  return el;
+}
+
+// ------------------------------------------------------------------ load / save
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+}
+async function init() {
+  try { await api("/api/ping"); server = true; } catch (e) { server = false; }
+  if (server) {
+    cfg = await api("/api/config"); ov = await api("/api/overrides") || {}; fc = await api("/api/forecast");
+    $("#mode").textContent = "Connected: saves directly"; $("#mode").classList.add("on");
+  } else {
+    $("#mode").textContent = "Standalone: load & download files";
+    $("#saveBtn").textContent = "Load files…"; $("#dlCfg").classList.remove("hidden"); $("#dlOv").classList.remove("hidden");
+    cfg = cfg || { graphics: [], formats: ["wide", "vertical", "post"], location: {} }; ov = ov || { enabled: false };
+  }
+  renderNav(); render();
+}
+async function save() {
+  if (!server) { $("#fileIn").click(); return; }
+  try { prune(ov); await api("/api/config", cfg); await api("/api/overrides", ov); dirty = false; $("#dirty").classList.add("hidden"); toast("Saved config.json and overrides.json"); }
+  catch (e) { toast("Save failed: " + e.message, true); }
+}
+function download(name, obj) {
+  const a = h("a", { href: URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2) + "\n"], { type: "application/json" })), download: name });
+  document.body.append(a); a.click(); a.remove(); dirty = false; $("#dirty").classList.add("hidden");
+}
+function loadFiles(files) {
+  [...files].forEach(f => f.text().then(t => {
+    let j; try { j = JSON.parse(t); } catch (e) { toast(`${f.name}: not valid JSON`, true); return; }
+    if (j.graphics || j.location) cfg = j; else if (j.days && j.issued) fc = j; else ov = j;
+    toast(`Loaded ${f.name}`); render();
+  }));
+}
+$("#saveBtn").onclick = save;
+$("#dlCfg").onclick = () => download("config.json", cfg);
+$("#dlOv").onclick = () => download("overrides.json", prune(ov));
+$("#fileIn").onchange = e => loadFiles(e.target.files);
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => { e.preventDefault(); loadFiles(e.dataTransfer.files); });
+document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); server ? save() : download("overrides.json", prune(ov)); } });
+window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+// ------------------------------------------------------------------ nav
+const TABS = [["graphics","Graphics & sizes"],["forecast","Forecast edits"],["spc","SPC hazards"],["aware","Be Weather Aware"],
+  ["settings","Settings"],["advanced","Raw JSON"],["render","Render"]];
+function renderNav() {
+  const nav = $("#nav"); nav.innerHTML = "";
+  TABS.forEach(([id, label]) => { if (id === "render" && !server) return;
+    nav.append(h("a", { class: tab === id ? "active" : "", onclick: () => { tab = id; renderNav(); render(); } }, label)); });
+  nav.append(h("div", { class: "hint", html: server ? "Blue-outlined boxes are your edits.<br>Grey text = the automatic forecast.<br><b>Ctrl+S</b> saves." :
+    "Drop <b>config.json</b>, <b>overrides.json</b> and <b>output/latest/forecast.json</b> anywhere on this page, or open <b>Weather Graphics Editor.bat</b> to save directly." }));
+}
+function render() {
+  const m = $("#main"); m.innerHTML = "";
+  if (!server && (!cfg.graphics || !cfg.graphics.length) && tab !== "advanced")
+    m.append(h("div", { class: "card drop" }, h("b", {}, "Standalone mode: "), "drop config.json, overrides.json (and output/latest/forecast.json to see the automatic values) here, or ",
+      h("button", { class: "small", onclick: () => $("#fileIn").click() }, "choose files")));
+  ({ graphics: tGraphics, forecast: tForecast, spc: tSpc, aware: tAware, settings: tSettings, advanced: tAdvanced, render: tRender })[tab](m);
+}
+
+// ------------------------------------------------------------------ tab: graphics
+function tGraphics(m) {
+  m.append(h("h2", {}, "Graphics & sizes"), h("p", { class: "lead" }, "Pick which graphics each run makes, and in which sizes."));
+  const on = new Set(cfg.graphics || []);
+  const setOn = (id, v) => { const g = cfg.graphics = cfg.graphics || []; if (v && !g.includes(id)) g.push(id); if (!v) cfg.graphics = g.filter(x => x !== id); markDirty(); };
+  m.append(h("h3", {}, "Output sizes"));
+  const fm = new Set(cfg.formats || ["wide", "vertical", "post"]);
+  m.append(h("div", { class: "grid g3" }, FORMATS.map(([id, t, d]) => h("label", { class: "chk" },
+    h("input", { type: "checkbox", checked: fm.has(id), onchange: e => { const f = new Set(cfg.formats || ["wide", "vertical", "post"]);
+      e.target.checked ? f.add(id) : f.delete(id); cfg.formats = FORMATS.map(x => x[0]).filter(x => f.has(x)); markDirty(); } }),
+    h("div", {}, h("b", {}, t), h("small", {}, d))))));
+  for (const [group, items] of GRAPHICS) {
+    const allOn = items.every(i => on.has(i[0]));
+    m.append(h("h3", {}, group, " ", h("button", { class: "small", onclick: () => { items.forEach(i => setOn(i[0], !allOn)); render(); } }, allOn ? "none" : "all")));
+    m.append(h("div", { class: "grid g2" }, items.map(([id, t, d]) => h("label", { class: "chk" },
+      h("input", { type: "checkbox", checked: on.has(id), onchange: e => setOn(id, e.target.checked) }),
+      h("div", {}, h("b", {}, t, h("span", { class: "badge" }, id)), h("small", {}, d),
+        ALWAYS[id] ? h("label", { class: "toggle", style: "margin-top:6px;font-size:12px", onclick: e => e.stopPropagation() },
+          h("input", { type: "checkbox", checked: !!cfg[ALWAYS[id]], onchange: e => { cfg[ALWAYS[id]] = e.target.checked; markDirty(); } }),
+          id === "ndfd_maps" ? "Always show snow map" : "Always show (even out of season / when zero)") : null)))));
+  }
+  const known = new Set(GRAPHICS.flatMap(g => g[1].map(i => i[0])));
+  const extra = (cfg.graphics || []).filter(g => !known.has(g));
+  if (extra.length) m.append(h("p", { class: "note" }, "Also enabled (not listed above): " + extra.join(", ")));
+}
+
+// ------------------------------------------------------------------ tab: forecast overrides
+function tForecast(m) {
+  ov.days = ov.days || {}; ov.today = ov.today || {};
+  m.append(h("h2", {}, "Forecast edits"), h("p", { class: "lead" }, "Type only what you want to change. Empty boxes keep the automatic value (shown in grey). If you change a day's numbers but not its headline or summary, those are rewritten to match."));
+  m.append(h("div", { class: "card accent row" }, h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: !!ov.enabled,
+    onchange: e => { ov.enabled = e.target.checked; markDirty(); } }), "Use my forecast edits"),
+    h("span", { class: "note" }, "Turn off to go back to the automatic forecast without deleting your edits."), h("span", { class: "sp", style: "flex:1" }),
+    h("button", { class: "danger small", onclick: () => { if (confirm("Clear all day, today and What To Know edits?")) { ov.days = {}; ov.today = {}; delete ov.what_to_know; markDirty(); render(); } } }, "Clear forecast edits")));
+  if (!fc) m.append(h("p", { class: "note" }, "Tip: with output/latest/forecast.json loaded you'll see the automatic values and days are matched by date."));
+  // days
+  m.append(h("h3", {}, "Days (7-day, daily, charts)"));
+  const days = fc ? fc.days.slice(0, 8) : ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map(d => ({ dow: d, date: null }));
+  const tbl = h("table", {}, h("tr", {}, ["Day", "High", "Low", "Rain %", "Condition", "Icon", "Headline", "Summary"].map(t => h("th", {}, t))));
+  for (const d of days) {
+    const key = d.date || d.dow;
+    const e = () => ov.days[key] = ov.days[key] || {};
+    const cur = ov.days[key] || ov.days[d.dow] || {};
+    const upd = (f, v, isNum) => { const o = e(); const val = isNum ? num(v) : (v || undefined); if (val === undefined) delete o[f]; else o[f] = val; if (!Object.keys(o).length) delete ov.days[key]; };
+    tbl.append(h("tr", {},
+      h("td", { class: "day" }, d.dow, d.date_label ? h("small", {}, d.date_label) : null),
+      h("td", { style: "width:78px" }, inp(cur.high, d.high, v => upd("high", v, 1), "number")),
+      h("td", { style: "width:78px" }, inp(cur.low, d.low, v => upd("low", v, 1), "number")),
+      h("td", { style: "width:78px" }, inp(cur.pop, d.pop, v => upd("pop", v, 1), "number")),
+      h("td", {}, inp(cur.cond, d.cond, v => upd("cond", v))),
+      h("td", { style: "width:130px" }, sel(ICONS.map(i => [i, i || (d.icon ? `auto (${d.icon})` : "(automatic)")]), cur.icon, v => upd("icon", v))),
+      h("td", {}, inp(cur.headline, d.headline, v => upd("headline", v))),
+      h("td", { style: "min-width:260px" }, area(cur.text, d.text, v => upd("text", v), 2))));
+  }
+  m.append(h("div", { class: "card", style: "overflow:auto" }, tbl));
+  const stale = Object.keys(ov.days).filter(k => fc && !days.some(d => d.date === k || d.dow === k));
+  if (stale.length) m.append(h("div", { class: "card row" }, h("span", { class: "note" }, "Edits for days no longer in the forecast: " + stale.join(", ")),
+    h("button", { class: "small", onclick: () => { stale.forEach(k => delete ov.days[k]); markDirty(); render(); } }, "Remove them")));
+  // today
+  const t = fc ? fc.today : {}; const td = fc ? fc.days[t.day_index || 0] : {};
+  m.append(h("h3", {}, "Daily forecast graphic", fc ? h("span", { class: "badge" }, (t.title || "") + " · " + (td.dow_long || "")) : null));
+  const tu = (f, v) => { if (v) ov.today[f] = v; else delete ov.today[f]; };
+  const card = h("div", { class: "card grid g2" },
+    h("div", { class: "field" }, h("span", {}, "Title"), inp(ov.today.title, t.title, v => tu("title", v))),
+    h("div", { class: "field" }, h("span", {}, "Headline (under the icon)"), inp(ov.today.headline, td.headline, v => tu("headline", v))),
+    h("div", { class: "field", style: "grid-column:1/-1" }, h("span", {}, "Summary (bottom box)"), area(ov.today.text, td.text, v => tu("text", v), 3)));
+  ov.today.timeline = ov.today.timeline && !Array.isArray(ov.today.timeline) ? ov.today.timeline : {};
+  const tl = (t.timeline || [{ label: "MORNING" }, { label: "AFTERNOON" }, { label: "EVENING" }, { label: "OVERNIGHT" }]);
+  tl.forEach(r => card.append(h("div", { class: "field" }, h("span", {}, r.label),
+    area((ov.today.timeline[r.label] || {}).text, r.text, v => { if (v) ov.today.timeline[r.label] = { text: v }; else delete ov.today.timeline[r.label]; }, 2))));
+  m.append(card);
+  // what to know
+  m.append(h("h3", {}, "What To Know"));
+  const wk = h("div", { class: "card" });
+  const custom = Array.isArray(ov.what_to_know);
+  wk.append(h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: custom, onchange: e => {
+    ov.what_to_know = e.target.checked ? (fc?.what_to_know || []).map(x => ({ ...x })) : undefined; if (!e.target.checked) delete ov.what_to_know; markDirty(); render(); } }),
+    "Use my own list (starts from the automatic one)"));
+  if (custom) {
+    ov.what_to_know.forEach((it, i) => wk.append(h("div", { class: "row", style: "margin-top:10px" },
+      h("div", { style: "width:240px" }, inp(it.label, "LABEL:", v => it.label = v)),
+      h("div", { style: "flex:1;min-width:260px" }, inp(it.text, "Text", v => it.text = v)),
+      h("button", { class: "small", onclick: () => { if (i) { [ov.what_to_know[i - 1], ov.what_to_know[i]] = [ov.what_to_know[i], ov.what_to_know[i - 1]]; markDirty(); render(); } } }, "↑"),
+      h("button", { class: "danger small", onclick: () => { ov.what_to_know.splice(i, 1); markDirty(); render(); } }, "Remove"))));
+    if (ov.what_to_know.length < 4) wk.append(h("button", { class: "small", style: "margin-top:10px", onclick: () => { ov.what_to_know.push({ label: "", text: "" }); markDirty(); render(); } }, "+ Add item"));
+    wk.append(h("p", { class: "note" }, "Up to 4 items are shown."));
+  } else if (fc?.what_to_know) wk.append(h("ul", { class: "note" }, fc.what_to_know.map(x => h("li", {}, h("b", {}, x.label + " "), x.text))));
+  m.append(wk);
+}
+
+// ------------------------------------------------------------------ tab: SPC hazards
+function tSpc(m) {
+  ov.spc = ov.spc || {};
+  m.append(h("h2", {}, "SPC hazards"), h("p", { class: "lead" }, "Change the risk box, summary or any hazard row on the Severe Weather Outlook graphics. These edits apply even when \"Use my forecast edits\" is off."));
+  for (const day of ["1", "2", "3"]) {
+    const auto = fc?.spc_outlook?.[day] || {};
+    const e = ov.spc[day] = ov.spc[day] || {};
+    const c = h("div", { class: "card accent" });
+    c.append(h("div", { class: "row" }, h("b", { style: "font-size:18px" }, `DAY ${day}`), auto.headline ? h("span", { class: "badge" }, "Auto: " + auto.headline) : null,
+      h("span", { style: "flex:1" }), h("button", { class: "danger small", onclick: () => { delete ov.spc[day]; markDirty(); render(); } }, "Clear day")));
+    const set = (f, v) => { if (v) e[f] = v; else delete e[f]; };
+    c.append(h("div", { class: "grid g3", style: "margin-top:10px" },
+      h("div", { class: "field" }, h("span", {}, "Risk box text"), inp(e.headline, auto.headline, v => set("headline", v))),
+      h("div", { class: "field" }, h("span", {}, "Risk box color"), sel(SPC_CATS, e.category, v => set("category", v))),
+      h("div", { class: "field" }, h("span", {}, "Hazards title"), inp(e.hazards_title, auto.hazards_title || "POSSIBLE HAZARDS", v => set("hazards_title", v))),
+      h("div", { class: "field", style: "grid-column:1/-1" }, h("span", {}, "Summary line"), area(e.meaning, auto.meaning, v => set("meaning", v), 2))));
+    e.hazards = e.hazards && !Array.isArray(e.hazards) ? e.hazards : {};
+    const names = [...new Set([...(auto.hazards || []).map(x => x.label), ...Object.keys(e.hazards).map(k => k.toUpperCase())])];
+    const tbl = h("table", {}, h("tr", {}, ["Hazard", "Level", "Text", "Hide"].map(x => h("th", {}, x))));
+    for (const name of names) {
+      const a = (auto.hazards || []).find(x => x.label === name) || {};
+      const k = Object.keys(e.hazards).find(x => x.toUpperCase() === name) || name;
+      const cur = e.hazards[k] || {};
+      const up = (f, v) => { const o = e.hazards[k] = e.hazards[k] || {}; if (v === "" || v === false) delete o[f]; else o[f] = v; if (!Object.keys(o).length) delete e.hazards[k]; };
+      tbl.append(h("tr", {},
+        h("td", { class: "day" }, h("span", { class: "lvl", style: `background:${LEVEL_COL[cur.level || a.level] || "#465670"}` }), name,
+          a.prob ? h("small", {}, `SPC ${a.prob}% · ${a.level}`) : a.level ? h("small", {}, a.level) : h("small", {}, "added by you")),
+        h("td", { style: "width:170px" }, sel(LEVELS.map(l => [l, l || `auto (${a.level || "none"})`]), cur.level, v => { up("level", v); render(); })),
+        h("td", {}, area(cur.text, a.text, v => up("text", v), 2)),
+        h("td", { style: "width:60px;padding-top:10px" }, h("input", { type: "checkbox", checked: !!cur.hide, style: "width:18px;height:18px",
+          onchange: ev => { up("hide", ev.target.checked); markDirty(); } }))));
+    }
+    const addName = h("input", { type: "text", placeholder: "New hazard, e.g. FLOODING" });
+    c.append(h("div", { style: "overflow:auto;margin-top:12px" }, tbl),
+      h("div", { class: "row", style: "margin-top:8px" }, h("div", { style: "width:280px" }, addName),
+        h("button", { class: "small", onclick: () => { const n = addName.value.trim().toUpperCase(); if (!n) return; e.hazards[n] = { level: "POSSIBLE", text: "" }; markDirty(); render(); } }, "+ Add hazard row")));
+    if (!auto.headline && !Object.keys(e).length) c.append(h("p", { class: "note" }, "No automatic outlook for this day yet (load forecast.json / run the graphics)."));
+    m.append(c);
+  }
+}
+
+// ------------------------------------------------------------------ tab: be weather aware
+function tAware(m) {
+  const auto = fc?.weather_aware || {};
+  const e = ov.weather_aware = ov.weather_aware || {};
+  m.append(h("h2", {}, "Be Weather Aware"), h("p", { class: "lead" }, "The system picks the day's main concern automatically. Anything you fill in here replaces that part. Applies even when forecast edits are off."));
+  m.append(h("div", { class: "card accent row" },
+    h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: !!e.hide, onchange: ev => { if (ev.target.checked) e.hide = true; else delete e.hide; markDirty(); } }), "Don't make this graphic today"),
+    h("span", { style: "flex:1" }), auto.title ? h("span", { class: "badge" }, "Auto: " + auto.title) : h("span", { class: "badge" }, "Auto: nothing notable (graphic skipped unless you fill it in)"),
+    h("button", { class: "danger small", onclick: () => { ov.weather_aware = {}; markDirty(); render(); } }, "Clear")));
+  const set = (f, v) => { if (v) e[f] = v; else delete e[f]; };
+  const c = h("div", { class: "card grid g2" },
+    h("div", { class: "field" }, h("span", {}, "Main concern (big title)"), inp(e.title, auto.title, v => set("title", v))),
+    h("div", { class: "field" }, h("span", {}, "When"), inp(e.when, auto.when, v => set("when", v))));
+  const colorSel = sel([["", auto.color ? `auto (${auto.color})` : "(automatic)"], ...AWARE_COLORS.map(([v, l]) => [v, l])], e.color, v => { set("color", v); swatch.style.background = v || auto.color || "#465670"; });
+  const swatch = h("span", { style: `display:inline-block;width:38px;height:38px;border-radius:9px;background:${e.color || auto.color || "#465670"}` });
+  const picker = h("input", { type: "color", value: e.color || auto.color || "#ffa500", style: "width:48px;height:38px;border:0;background:none", oninput: ev => { set("color", ev.target.value.toUpperCase()); swatch.style.background = ev.target.value; colorSel.value = ""; markDirty(); } });
+  c.append(h("div", { class: "field" }, h("span", {}, "Color"), h("div", { class: "row" }, h("div", { style: "flex:1" }, colorSel), picker, swatch)));
+  c.append(h("div", { class: "field" }, h("span", {}, "What to do"), area(e.action, auto.action, v => set("action", v), 2)));
+  const det = Array.isArray(e.details) ? e.details : null;
+  const dwrap = h("div", { class: "field", style: "grid-column:1/-1" }, h("span", {}, "What to know (bullets)"));
+  if (!det) {
+    dwrap.append(h("ul", { class: "note" }, (auto.details || []).map(x => h("li", {}, x))),
+      h("button", { class: "small", onclick: () => { e.details = [...(auto.details || [])]; if (!e.details.length) e.details.push(""); markDirty(); render(); } }, "Edit bullets"));
+  } else {
+    det.forEach((d, i) => dwrap.append(h("div", { class: "row" }, h("div", { style: "flex:1" }, area(d, "Bullet", v => det[i] = v, 2)),
+      h("button", { class: "danger small", onclick: () => { det.splice(i, 1); markDirty(); render(); } }, "Remove"))));
+    dwrap.append(h("div", { class: "row" }, det.length < 4 ? h("button", { class: "small", onclick: () => { det.push(""); markDirty(); render(); } }, "+ Add bullet") : null,
+      h("button", { class: "small", onclick: () => { delete e.details; markDirty(); render(); } }, "Use automatic bullets")));
+  }
+  c.append(dwrap);
+  m.append(c);
+}
+
+// ------------------------------------------------------------------ tab: settings
+function fieldFor(path, type, label) {
+  const v = getPath(cfg, path);
+  const wrap = h("div", { class: "field" }, h("span", {}, label));
+  const put = x => { setPath(cfg, path, x); markDirty(); };
+  if (type === "text") wrap.append(inp(v, "", x => put(x)));
+  else if (type === "number") wrap.append(inp(v, "", x => put(num(x)), "number", { step: "any" }));
+  else if (type === "bool") wrap.append(h("label", { class: "toggle" }, h("input", { type: "checkbox", checked: !!v, onchange: e => put(e.target.checked) }), "On"));
+  else if (type === "list" || type === "numlist") {
+    wrap.append(inp((v || []).join(", "), "comma separated", x => put(x.split(",").map(s => s.trim()).filter(Boolean).map(s => type === "numlist" ? Number(s) : s))));
+    if (path === "alert_counties") wrap.append(h("small", {}, `${(v || []).length} localities`));
+  } else if (type === "kv") {
+    const obj = v || {}; const tb = h("table", { class: "kv" });
+    const numeric = Object.values(obj).every(x => typeof x === "number");
+    Object.entries(obj).forEach(([k, val]) => tb.append(h("tr", {},
+      h("td", {}, inp(k, "key", nk => { const o = getPath(cfg, path) || {}; const vv = o[k]; delete o[k]; if (nk) o[nk] = vv; k = nk; put(o); })),
+      h("td", {}, inp(val, "value", nv => { const o = getPath(cfg, path) || {}; o[k] = numeric ? num(nv) : nv; put(o); }, numeric ? "number" : "text")),
+      h("td", { style: "width:40px" }, h("button", { class: "danger small", onclick: () => { const o = getPath(cfg, path) || {}; delete o[k]; put(o); render(); } }, "×")))));
+    wrap.append(tb, h("button", { class: "small", onclick: () => { const o = getPath(cfg, path) || {}; o["NEW"] = numeric && Object.keys(o).length ? 0 : ""; put(o); render(); } }, "+ Add"));
+  } else if (type.startsWith("table:")) {
+    const cols = type.slice(6).split(","); const rows = v || [];
+    const tb = h("table", {}, h("tr", {}, cols.map(c => h("th", {}, c)), h("th", {})));
+    rows.forEach((r, i) => tb.append(h("tr", {}, cols.map(c => h("td", {}, inp(r[c], "", x => { if (x) r[c] = x; else delete r[c]; put(rows); }))),
+      h("td", { style: "width:40px" }, h("button", { class: "danger small", onclick: () => { rows.splice(i, 1); put(rows); render(); } }, "×")))));
+    wrap.append(tb, h("button", { class: "small", onclick: () => { rows.push({ name: "" }); put(rows); render(); } }, "+ Add row"));
+    if (path === "tide_sites") wrap.append(h("small", {}, "nwps = NWS gauge ID (best). search = find the gauge by name. coops = NOAA tide station backup."));
+  }
+  if (["kv", "table:name,nwps,search,coops"].includes(type) || type.startsWith("table")) wrap.style.gridColumn = "1/-1";
+  return wrap;
+}
+function tSettings(m) {
+  m.append(h("h2", {}, "Settings"), h("p", { class: "lead" }, "Stations, zones and behavior. Everything not shown here is still available on the Raw JSON tab."));
+  for (const [sec, fields] of SETTINGS) {
+    m.append(h("h3", {}, sec));
+    m.append(h("div", { class: "card grid g2" }, fields.map(([p, t, l]) => fieldFor(p, t, l))));
+  }
+}
+
+// ------------------------------------------------------------------ tab: raw JSON
+function tAdvanced(m) {
+  m.append(h("h2", {}, "Raw JSON"), h("p", { class: "lead" }, "Edit the files directly. Apply checks the JSON before anything changes."));
+  for (const [name, get, putv] of [["config.json", () => cfg, x => cfg = x], ["overrides.json", () => prune(ov), x => ov = x]]) {
+    const ta = h("textarea", { style: "min-height:380px;font:12.5px/1.45 ui-monospace,Consolas,monospace" }); ta.value = JSON.stringify(get(), null, 2);
+    const msg = h("span", { class: "note" });
+    m.append(h("h3", {}, name), h("div", { class: "card" }, ta, h("div", { class: "row", style: "margin-top:10px" },
+      h("button", { class: "primary small", onclick: () => { try { putv(JSON.parse(ta.value)); markDirty(); msg.textContent = "Applied. Remember to save."; msg.style.color = "var(--ok)"; }
+        catch (e) { msg.textContent = "Invalid JSON: " + e.message; msg.style.color = "#ff8a8a"; } } }, "Apply"),
+      !server ? h("button", { class: "small", onclick: () => download(name, get()) }, "Download " + name) : null, msg)));
+  }
+}
+
+// ------------------------------------------------------------------ tab: render
+function tRender(m) {
+  m.append(h("h2", {}, "Render"), h("p", { class: "lead" }, "Saves your changes, then runs the graphics. Output goes to output/latest (and vertical/, post/)."));
+  const flags = { "--sample": false, "--no-overrides": false, "--outlook-debug": false };
+  const onlySel = new Set();
+  const c = h("div", { class: "card" });
+  c.append(h("div", { class: "row" }, Object.keys(flags).map(f => h("label", { class: "toggle", style: "margin-right:18px" },
+    h("input", { type: "checkbox", onchange: e => flags[f] = e.target.checked }), { "--sample": "Test data (no internet)", "--no-overrides": "Ignore my edits", "--outlook-debug": "Show data-source details" }[f]))));
+  c.append(h("h3", {}, "Only these graphics (leave empty for all enabled)"));
+  c.append(h("div", { class: "row" }, (cfg.graphics || []).map(g => h("label", { class: "toggle", style: "font-weight:500;margin-right:14px" },
+    h("input", { type: "checkbox", onchange: e => e.target.checked ? onlySel.add(g) : onlySel.delete(g) }), g))));
+  const log = h("pre", {}, "Ready.");
+  const btn = h("button", { class: "primary", style: "margin-top:14px", onclick: async () => {
+    btn.disabled = true; btn.textContent = "Rendering…"; log.textContent = "Saving and rendering. This can take a minute or two…";
+    try { if (dirty) await save(); const r = await api("/api/run", { flags: Object.keys(flags).filter(f => flags[f]), only: [...onlySel] });
+      log.textContent = r.log || "(no output)"; toast(r.ok ? "Render finished" : "Render finished with errors", !r.ok);
+      fc = await api("/api/forecast"); }
+    catch (e) { log.textContent = e.message; toast(e.message, true); }
+    btn.disabled = false; btn.textContent = "Save & render"; } }, "Save & render");
+  c.append(btn); m.append(c, log);
+}
+
+init();
+</script>
+</body>
+</html>

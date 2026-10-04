@@ -1,0 +1,63 @@
+{
+  "enabled": false,
+  "_how": "Set enabled to true, then add only the fields you want to change. Delete the _example block or copy pieces out of it. Days can be keyed by weekday (THU), date (2026-10-01) or position (0).",
+  "_example": {
+    "days": {
+      "THU": {
+        "high": 86,
+        "pop": 60,
+        "cond": "Scattered Storms",
+        "icon": "tstorm"
+      }
+    },
+    "today": {
+      "headline": "HOT & HUMID, PM STORMS",
+      "timeline": {
+        "AFTERNOON": {
+          "text": "Storms fire along the sea breeze after 2 PM. A few could be strong."
+        }
+      }
+    },
+    "what_to_know": [
+      {
+        "label": "STORMS:",
+        "text": "Best chance 3-8 PM. Damaging wind gusts the main threat."
+      },
+      {
+        "label": "FLOODING:",
+        "text": "Poor-drainage spots in Norfolk could see water on roads."
+      }
+    ],
+    "spc": {
+      "_how": "Key is the SPC day. Hazard names: tornado, wind, hail, lightning, or any new name to add a row. Levels: NOT EXPECTED, LOW, POSSIBLE, ELEVATED, HIGH, VERY HIGH.",
+      "1": {
+        "headline": "SLIGHT RISK  (2 OF 5)",
+        "meaning": "Your own one-line summary of the day.",
+        "hazards": {
+          "tornado": {
+            "level": "POSSIBLE",
+            "text": "A quick spin-up is possible along the sea breeze."
+          },
+          "hail": {
+            "hide": true
+          },
+          "flooding": {
+            "level": "LOW",
+            "text": "Brief street flooding in poor-drainage spots."
+          }
+        }
+      }
+    },
+    "weather_aware": {
+      "_how": "Replace any part of Be Weather Aware. Use {\"hide\": true} to skip it today.",
+      "title": "STORMS THIS AFTERNOON",
+      "when": "2 PM - 8 PM",
+      "details": [
+        "Line of storms crosses Hampton Roads after 2 PM.",
+        "Damaging gusts to 60 mph the main threat."
+      ],
+      "action": "Be ready to move indoors quickly.",
+      "color": "#FFA500"
+    }
+  }
+}
