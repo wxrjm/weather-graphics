@@ -156,6 +156,20 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
 
 
 # ------------------------------------------------------------------ drawing
+def _box_blur(a, r, passes=3):
+    """Separable box blur repeated `passes` times (~Gaussian), edge-padded. a: 2-D float array."""
+    import numpy as np
+    for _ in range(passes):
+        for ax in (0, 1):
+            pad = [(0, 0), (0, 0)]
+            pad[ax] = (r + 1, r)
+            c = np.cumsum(np.pad(a, pad, mode="edge"), axis=ax, dtype=np.float64)
+            hi = np.take(c, range(2 * r + 1, c.shape[ax]), axis=ax)
+            lo = np.take(c, range(0, c.shape[ax] - 2 * r - 1), axis=ax)
+            a = ((hi - lo) / (2 * r + 1)).astype(np.float32)
+    return a
+
+
 def _cell_painter(field, bins, alpha=255):
     """Draw every grid cell as a quad whose corners are midpoints between cell centres."""
     import numpy as np
@@ -172,19 +186,44 @@ def _cell_painter(field, bins, alpha=255):
     clat, clon = pad(lat), pad(lon)
 
     def paint(d, proj):
+        """Rasterize each cell's id, look up its value, blur the *values* (normalized by coverage so
+        no-data doesn't drag edges down), then bin -> contours follow the interpolated field smoothly."""
+        from PIL import Image, ImageDraw
+        base = d._image
+        W, H = base.size
+        ids = Image.new("I", (W, H), 0)
+        di = ImageDraw.Draw(ids)
         ny, nx = val.shape
+        flat = np.full(ny * nx + 1, np.nan, dtype=np.float32)
         for j in range(ny):
             row = val[j]
             for i in range(nx):
                 v = row[i]
-                if v != v:  # NaN
+                if v != v:
                     continue
-                col = _bin(v, bins)
-                if not col:
-                    continue
-                d.polygon([proj(clon[j, i], clat[j, i]), proj(clon[j, i + 1], clat[j, i + 1]),
-                           proj(clon[j + 1, i + 1], clat[j + 1, i + 1]), proj(clon[j + 1, i], clat[j + 1, i])],
-                          fill=(*col, alpha))
+                k = j * nx + i + 1
+                flat[k] = v
+                di.polygon([proj(clon[j, i], clat[j, i]), proj(clon[j, i + 1], clat[j, i + 1]),
+                            proj(clon[j + 1, i + 1], clat[j + 1, i + 1]), proj(clon[j + 1, i], clat[j + 1, i])], fill=k)
+        idarr = np.asarray(ids, dtype=np.int64)
+        v = flat[idarr]
+        m = (~np.isnan(v)).astype(np.float32)
+        v = np.nan_to_num(v) * m
+        cx0, cy0 = proj(clon[ny // 2, nx // 2], clat[ny // 2, nx // 2])
+        cx1, _ = proj(clon[ny // 2, nx // 2 + 1], clat[ny // 2, nx // 2 + 1])
+        cell = max(1.0, abs(cx1 - cx0))
+        r = max(2, int(round(cell * 0.75)))
+        vs, ms = _box_blur(v, r, 3), _box_blur(m, r, 3)
+        field_ = np.where(ms > 1e-3, vs / np.maximum(ms, 1e-3), np.nan)
+        cls = np.zeros((H, W), dtype=np.uint8)
+        for k, (t, _) in enumerate(bins):
+            cls[field_ + 1e-9 >= t] = k + 1
+        cols = np.array([(0, 0, 0)] + [c for _, c in bins], dtype=np.uint8)
+        rgb = cols[cls]
+        edge = np.clip((ms - 0.35) / 0.3, 0, 1)  # soft, anti-aliased outer edge
+        a = (edge * alpha * (cls > 0)).astype(np.uint8)
+        layer = Image.fromarray(np.dstack([rgb, a]), "RGBA")
+        base.alpha_composite(layer)
     return paint
 
 

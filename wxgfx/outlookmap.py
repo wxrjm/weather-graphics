@@ -54,7 +54,7 @@ def _rgb(c):
     return alertinfo.hex_rgb(c) if isinstance(c, str) else tuple(c)
 
 
-def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=None, cities=None, water_alpha=0.35):
+def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=None, cities=None, water_alpha=0.78):
     """layers: list of (rgb, polys) drawn bottom -> top.
     painter(draw, proj): optional extra fill layer (e.g. gridded NDFD snow/wind cells)."""
     W_, H_ = z(pw), z(ph)
@@ -102,7 +102,7 @@ def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=Non
     if painter:
         painter(ImageDraw.Draw(ov), proj)
     a = ov.getchannel("A")
-    alpha = Image.composite(a.point(lambda v: int(v * 0.9)), a.point(lambda v: int(v * water_alpha)), land)
+    alpha = Image.composite(a.point(lambda v: int(v * 0.85)), a.point(lambda v: int(v * water_alpha)), land)
     ov.putalpha(alpha)
     lay.alpha_composite(ov)
     d = ImageDraw.Draw(lay, "RGBA")
@@ -129,6 +129,46 @@ def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=Non
                     d.line(pts + [pts[0]], fill=(255, 255, 255, 255), width=z(1.6), joint="curve")
     draw_cities(d, proj, W_, H_, cfg, bottom_pad=80, cities=cities)
     return lay
+
+
+def smooth_classes(idx, size, colors, blur, alpha=255):
+    """Class grid -> smooth RGBA layer.
+    idx: 'L' image, 0 = no data, k+1 = class k (any resolution). colors: [rgb per class].
+    The class field is filled under no-data, scaled up, blurred and re-quantized, so boundaries come out as
+    smooth curves instead of stair-stepped cells/pixels (adjacent classes blend along true contours)."""
+    from PIL import ImageFilter
+    step = max(1, 250 // (len(colors) + 1))
+    mask = idx.point(lambda v: 255 if v else 0)
+    v = idx.point(lambda x: x * step)
+    m = mask
+    for _ in range(4):  # spread values a little into no-data so edges don't sag toward class 0
+        v = Image.composite(v, v.filter(ImageFilter.MaxFilter(3)), m)
+        m = m.filter(ImageFilter.MaxFilter(3))
+    if v.size != size:
+        v = v.resize(size, Image.BILINEAR)
+        mask = mask.resize(size, Image.BILINEAR)
+    if blur > 0:
+        v = v.filter(ImageFilter.GaussianBlur(blur))
+        mask = mask.filter(ImageFilter.GaussianBlur(blur))
+    q = v.point(lambda x: min(len(colors), int(x / step + 0.5)))
+    lut = [(0, 0, 0)] + [tuple(c) for c in colors] + [(0, 0, 0)] * (256 - len(colors) - 1)
+    rgb = [q.point([lut[i][ch] for i in range(256)]) for ch in range(3)]
+    a = mask.point(lambda x: int(alpha * min(1.0, max(0.0, (x - 96) / 64))))  # soft, anti-aliased outer edge
+    a = Image.composite(a, Image.new("L", size, 0), q.point(lambda x: 255 if x else 0))
+    return Image.merge("RGBA", (*rgb, a))
+
+
+def composite_at(base, layer, x, y):
+    """alpha_composite that tolerates negative/off-canvas offsets."""
+    x, y = int(round(x)), int(round(y))
+    cx, cy = max(0, -x), max(0, -y)
+    if cx or cy:
+        layer = layer.crop((cx, cy, layer.width, layer.height))
+        x, y = x + cx, y + cy
+    if x >= base.width or y >= base.height or layer.width <= 0 or layer.height <= 0:
+        return
+    layer = layer.crop((0, 0, min(layer.width, base.width - x), min(layer.height, base.height - y)))
+    base.alpha_composite(layer, (x, y))
 
 
 def _legend_chips(cv, x, y, items, maxw):

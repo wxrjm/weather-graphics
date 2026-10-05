@@ -13,7 +13,7 @@ One map per high tide cycle that reaches `tidal_map_min_category` (minor by defa
 import math
 from datetime import timedelta
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import ImageChops, Image, ImageDraw, ImageFilter
 
 from . import alertinfo
 from .alertmap import STENCIL, STENCIL_EDGE, _paste_rounded, draw_cities
@@ -125,7 +125,7 @@ def draw_tidal_map(ev, pw, ph, cfg, view=None):
                 mp[gx, gy] = 255
     idx_full = idx_img.resize((W_, H_), Image.BICUBIC).filter(ImageFilter.GaussianBlur(z(7)))
     msk_full = msk_img.resize((W_, H_), Image.BILINEAR).filter(ImageFilter.GaussianBlur(z(6))).point(
-        lambda v: 255 if v > 127 else 0)
+        lambda v: max(0, min(255, (v - 96) * 4)))  # soft edge instead of a hard cut
     water = land.point(lambda v: 255 - v)
     shore = water.filter(ImageFilter.MaxFilter(max(3, (z(cfg.get("tidal_shore_px", 7)) // 2) * 2 + 1)))  # water grown a few px onto land
     area = Image.composite(shore, Image.new("L", (W_, H_), 0), msk_full)
@@ -138,8 +138,8 @@ def draw_tidal_map(ev, pw, ph, cfg, view=None):
     for t, key, lab, col in CATS:
         if t < min_t:
             continue
-        band = idx_full.point(lambda v, t=t: 255 if v / 50.0 >= t - 1e-6 else 0)
-        band = Image.composite(band, Image.new("L", (W_, H_), 0), area)
+        band = idx_full.point(lambda v, t=t: max(0, min(255, int((v - (t * 50 - 4)) * 32))))  # ~8-level ramp
+        band = ImageChops.multiply(band, area.filter(ImageFilter.GaussianBlur(z(1.2))))
         layer = Image.new("RGBA", (W_, H_), (*col, 0))
         layer.putalpha(band.point(lambda v: int(v * 0.86)))
         ov.alpha_composite(layer)

@@ -129,8 +129,12 @@ def _rgb_grid(grid):
     return out
 
 
-def _painter(rgba, bbox):
+def _painter(grid, bbox):
+    """Smoothly upscale the class grid (0 = no data, k+1 = class k) so FFG cells blend into soft
+    contours instead of stair-stepped blocks."""
+    from .outlookmap import smooth_classes, composite_at
     w, s, e, n = bbox
+    cols = [c[2] for c in CLASSES]
 
     def paint(d, proj):
         x0, y0 = proj(w, n)
@@ -138,8 +142,9 @@ def _painter(rgba, bbox):
         tw, th = int(round(x1 - x0)), int(round(y1 - y0))
         if tw <= 0 or th <= 0:
             return
-        im = rgba.resize((tw, th), Image.NEAREST)
-        d._image.paste(im, (int(round(x0)), int(round(y0))), im)  # d draws on draw_map's overlay layer
+        cell = tw / max(1, grid.width)
+        im = smooth_classes(grid, (tw, th), cols, blur=max(2.0, cell * 1.2))
+        composite_at(d._image, im, x0, y0)  # d draws on draw_map's overlay layer
     return paint
 
 
@@ -169,8 +174,7 @@ def ffg_graphic(hrs, grid, bbox, pkg, cfg):
     subtitle = f"RAIN NEEDED IN {hrs} HOUR{'S' if hrs > 1 else ''} TO FLOOD SMALL STREAMS  ·  NWS RIVER FORECAST CENTERS"
     cv.header(title, subtitle)
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
-    rgba = _rgb_grid(grid)
-    paint = _painter(rgba, bbox)
+    paint = _painter(grid, bbox)
     _paste_rounded(cv, draw_map([], mw, mh, cfg, outline=False, painter=paint, water_alpha=0), mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
     _bar(cv, mx + 16, my + mh - 74, mw - 32)
