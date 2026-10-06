@@ -121,6 +121,24 @@ hazards, tidal flooding) also comes as `<name>_full.png`: the map fills the whol
 the top, and the information runs in bars along the bottom (headline card + local value chips + legend). Made in all
 four sizes. `"fullscreen_local_view"` sets the zoom for the local Hampton Roads versions.
 
+## Big-text maps (`"bigtext_maps": true`) → `square/<name>_big.png`
+
+Social-feed version of every map graphic: a giant two-line headline across the top, the map filling the middle,
+colored value boxes dropped right on the map (e.g. `3–4"`, `SLGT (2/5)`, spread out so they don't overlap), a white
+time-period caption, a bold tagline banner across the bottom, and the logo (`logo_path`) in the lower-left of the map.
+Square only by default; `"bigtext_formats": ["square", "post"]` adds other sizes. `"bigtext_callouts"` = how many
+value boxes (default 4, 0 = none).
+
+Change the words for a storm in `overrides.json` (or `config.json` → `bigtext_text`); `"*"` applies to all of them:
+
+```json
+"bigtext": {
+  "*": {"tagline": "HEAVY RAIN AND WIND INTO NEXT WEEK"},
+  "wpc_qpf_3day": {"title": "NOR'EASTER RAIN ACCUMULATIONS", "caption": "Saturday Through Monday", "callouts": 3}
+}
+```
+Defaults: title = the graphic's title, caption = the time period, tagline = `HAMPTON ROADS AREA: <headline value>`.
+
 ## Hurricane threat set (graphic key: `tropical_pack`) → `output/latest/Tropical/`
 
 Made only while a storm threatens (cone over Norfolk, 34-kt wind chance ≥ `tropical_min_prob`, NWS Wakefield
@@ -221,6 +239,19 @@ Maps with nothing in the map area are skipped, so nothing is made out of season 
 
 If a winter map is missing during a storm, run `python run.py --outlook-debug --only winter_maps` to see the WPC
 layers and attributes it found.
+
+## Frost & freeze risk (graphic key: `frost_risk`)
+
+- `frost_risk_table.png` - every local spot (`frost_points`, default the outlook points) × the next `frost_nights` (3)
+  nights: forecast low and risk level in colored cells.
+- `frost_map_1.png`, `frost_map_2.png`... - a risk map for each night that has frost somewhere (+ `_full` and square
+  `_big` versions).
+
+Risk = the NWS (NDFD) overnight low, adjusted for wind and cloud cover overnight (frost needs calm, clear skies):
+28° or colder **Hard Freeze** · 29-32° **Freeze** · 33-36° **Frost Likely** (calm & clear) · 37-38° calm & clear, or
+33-36° breezy/cloudy **Patchy Frost** · otherwise none. "Calm & clear" = wind under 8 mph and under 50% sky cover.
+Only made when something reaches Patchy Frost (`frost_min_level`: 1-4); `"frost_always": true` forces it. Needs
+`eccodes` + `numpy` for the map; without them the table falls back to the KORF point forecast.
 
 ## Snowfall & wind maps (graphic key: `ndfd_maps`)
 Full-resolution (2.5 km) NWS NDFD grids on the county stencil, with a color bar and a local list:

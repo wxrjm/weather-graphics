@@ -59,7 +59,7 @@ def attach(cv, **spec):
 
 
 def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_col, meaning, rows,
-           overlay=None, source=None):
+           overlay=None, source=None, callout_rows=None):
     """overlay(cv, x, y, maxw) draws a legend / color bar just above the bars (returns nothing)."""
     from . import alertmap
     from .outlookmap import VIEW_BOX

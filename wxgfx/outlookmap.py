@@ -313,6 +313,18 @@ def _day_label(day, feats, pkg, cfg):
     return f"DAY {day}  ·  {name}, {dt.strftime('%b').upper()} {dt.day}"
 
 
+def _risk_rows(feats, cats, top_n, cfg):
+    rows = []
+    for name, la, lo in cfg.get("outlook_points") or POINTS:
+        f = _level_at(feats, lo, la)
+        if f:
+            c = next(c for c in cats if c[1] == f["code"])
+            rows.append((name, _rgb(c[3]), c[1] if not c[0] else f"{c[1]} ({c[0]}/{top_n})"))
+        else:
+            rows.append((name, None, "NONE"))
+    return rows
+
+
 def _cat_graphic(kind, day, feats, pkg, cfg):
     cats = outlooks.SPC_CATS if kind == "spc" else outlooks.ERO_CATS
     title = "SEVERE WEATHER OUTLOOK" if kind == "spc" else "EXCESSIVE RAINFALL OUTLOOK"
@@ -358,17 +370,10 @@ def _cat_graphic(kind, day, feats, pkg, cfg):
                           map_fn=lambda pw, ph, view: draw_map(layers, pw, ph, cfg, view=view),
                           box=tuple(cfg.get("outlook_view") or VIEW_BOX), head_label=area_label,
                           head_value=info.get("headline") or val, head_col=head_col,
-                          meaning=info.get("meaning") or meaning, rows=hz,
+                          meaning=info.get("meaning") or meaning, rows=hz, callout_rows=_risk_rows(feats, cats, top_n, cfg),
                           overlay=lambda c, x, y, mw_: _legend_chips(c, x, y, chips, mw_), source=src)
         return cv
-    rows = []
-    for name, la, lo in cfg.get("outlook_points") or POINTS:
-        f = _level_at(feats, lo, la)
-        if f:
-            c = next(c for c in cats if c[1] == f["code"])
-            rows.append((name, _rgb(c[3]), c[1] if not c[0] else f"{c[1]} ({c[0]}/{top_n})"))
-        else:
-            rows.append((name, None, "NONE"))
+    rows = _risk_rows(feats, cats, top_n, cfg)
     _side(cv, px, py, pw_, ph_, head_col, area_label, val, meaning, rows, "LOCAL RISK")
     src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else \
         ("NOAA Storm Prediction Center" if kind == "spc" else "NOAA Weather Prediction Center")

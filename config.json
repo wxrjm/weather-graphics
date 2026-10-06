@@ -46,6 +46,7 @@
     "record_watch",
     "above_average",
     "first_freeze",
+    "frost_risk",
     "commute",
     "weekend",
     "sun_uv",
@@ -364,5 +365,15 @@
   "tropical_min_prob": 5,
   "tropical_threat_miles": 400,
   "tropical_always": false,
-  "tropical_zone": "VAZ095"
+  "tropical_zone": "VAZ095",
+  "_bigtext": "Big-text social twins (<name>_big.png) of every map: giant headline, value callouts on the map, caption box, tagline banner, logo. Text options: overrides.json -> bigtext (see README).",
+  "bigtext_maps": true,
+  "bigtext_formats": [
+    "square"
+  ],
+  "bigtext_callouts": 4,
+  "_frost_risk": "Frost & freeze risk: table of forecast lows + risk by location for the next frost_nights nights, plus a risk map per night with frost. NDFD lows adjusted for wind/cloud. Only made when frost is possible (frost_always forces it).",
+  "frost_nights": 3,
+  "frost_min_level": 1,
+  "frost_always": false
 }

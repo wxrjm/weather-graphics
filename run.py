@@ -106,12 +106,21 @@ def render(pkg, cfg, out_dir, only=None):
                 if spec and cfg.get("fullscreen_maps", True):  # full-screen twin: map fills the image
                     try:
                         from wxgfx import fullscreen
-                        fpath = fdir / f"{fname}_full.png"
+                        fpath = path.with_name(f"{path.stem}_full.png")
                         fullscreen.render(pkg, cfg, **spec).save(fpath)
                         made.append(fpath)
                         print(f"  + {fpath.relative_to(out_dir)}")
                     except Exception as e:
                         print(f"  ! {fname}_full ({fmt}) failed: {e!r}")
+                if spec and cfg.get("bigtext_maps", True) and fmt in (cfg.get("bigtext_formats") or ["square"]):
+                    try:  # "big text" social twin: giant headline, callouts on the map, tagline banner, logo
+                        from wxgfx import bigtext
+                        bpath = path.with_name(f"{path.stem}_big.png")
+                        bigtext.render(pkg, cfg, fname, **spec).save(bpath)
+                        made.append(bpath)
+                        print(f"  + {bpath.relative_to(out_dir)}")
+                    except Exception as e:
+                        print(f"  ! {fname}_big ({fmt}) failed: {e!r}")
     theme.set_format("wide")
     saved = {k: v for k, v in pkg.items() if not k.startswith("_")}
     prev = ROOT / "output" / "latest" / "forecast.json"
@@ -217,6 +226,8 @@ def main():
             pkg = overrides.apply(pkg, overrides.load(args.overrides))
 
     only_set = set(args.only.split(",")) if args.only else None
+    if not args.no_overrides:  # big-text wording for the square social maps
+        pkg["bigtext"] = (overrides.load(args.overrides) or {}).get("bigtext") or pkg.get("bigtext")
     if "outlooks" in (cfg.get("graphics") or []) and (only_set is None or "outlooks" in only_set):
         if args.sample:
             pkg["_outlooks"] = sample.sample_outlooks()
@@ -276,6 +287,14 @@ def main():
         else:
             print("Fetching WPC snow/ice probabilities and the Winter Storm Severity Index...")
             pkg["_winter"] = wintermap.fetch_all(cfg, debug=args.outlook_debug)
+    if "frost_risk" in (cfg.get("graphics") or []) and (only_set is None or "frost_risk" in only_set):
+        from wxgfx import frost
+        utc_now = now.astimezone(timezone.utc)
+        if args.sample:
+            pkg["_frost"] = frost.sample(utc_now, tz)
+        else:
+            print("Fetching NDFD lows, wind and sky cover for frost risk...")
+            pkg["_frost"] = frost.fetch(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
     if "ndfd_maps" in (cfg.get("graphics") or []) and (only_set is None or "ndfd_maps" in only_set):
         from wxgfx import ndfdmap
         utc_now = now.astimezone(timezone.utc)

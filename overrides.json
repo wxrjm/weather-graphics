@@ -79,6 +79,16 @@
         "Norfolk": 38410
       },
       "_note": "Copy this 'tropical' block to the top level (next to 'days') to use it. prepare = optional [[title, [items...]], ...] to replace the checklist."
+    },
+    "bigtext": {
+      "*": {
+        "tagline": "HEAVY RAIN AND WIND INTO NEXT WEEK"
+      },
+      "wpc_qpf_3day": {
+        "title": "NOR'EASTER RAIN ACCUMULATIONS",
+        "caption": "Saturday Through Monday",
+        "callouts": 3
+      }
     }
   }
 }
