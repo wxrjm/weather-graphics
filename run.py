@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from wxgfx import extended, graphics, outlookmap, outlooks, overrides, sample, spchazards, summarize, theme  # noqa: E402
+from wxgfx import extended, folders, graphics, outlookmap, outlooks, overrides, sample, spchazards, summarize, theme  # noqa: E402
 from wxgfx.ndfd import Grid  # noqa: E402
 from wxgfx.nws import NWSClient  # noqa: E402
 
@@ -73,8 +73,6 @@ def render(pkg, cfg, out_dir, only=None):
     formats = [f for f in (cfg.get("formats") or ["wide", "vertical", "post"]) if f in theme.FORMATS]
     for fmt in formats:
         theme.set_format(fmt)
-        fdir = out_dir if fmt == "wide" else out_dir / fmt  # wide stays at the top level (OBS)
-        fdir.mkdir(parents=True, exist_ok=True)
         if len(formats) > 1:
             print(f" [{fmt} {theme.FORMATS[fmt][0]}x{theme.FORMATS[fmt][1]}]")
         for name in enabled:
@@ -93,12 +91,8 @@ def render(pkg, cfg, out_dir, only=None):
                     print(f"  - {name}: not relevant today, skipped")
                 continue
             for fname, c in (cv if isinstance(cv, list) else [(name, cv)]):
-                if fname.startswith("Tropical/"):  # hurricane graphics: their own folder inside the run folder
-                    tdir = out_dir / "Tropical" / ("" if fmt == "wide" else fmt)
-                    tdir.mkdir(parents=True, exist_ok=True)
-                    path = tdir / f"{fname.split('/', 1)[1]}.png"
-                else:
-                    path = fdir / f"{fname}.png"
+                path = folders.path_for(out_dir, fname, fmt, cfg)  # "<NN Category>/<Size>/<name>.png"
+                path.parent.mkdir(parents=True, exist_ok=True)
                 c.save(path)
                 made.append(path)
                 print(f"  + {path.relative_to(out_dir)}")
@@ -153,7 +147,7 @@ def _swap_in(src, dst):
 
 
 def update_latest(out, latest, prune=True):
-    """Mirror out/ (and every subfolder: vertical/, post/, square/, Tropical/...) into latest/.
+    """Mirror out/ (and every subfolder: "04 Rain & Flooding/Square/"...) into latest/.
     prune=False (partial --only runs): keep the graphics that weren't remade this time."""
     _update_dir(out, latest, prune)
     for sub in out.iterdir():
@@ -167,6 +161,12 @@ def update_latest(out, latest, prune=True):
                         f.unlink()
                     except OSError:
                         pass
+                if sub.name in ("vertical", "post", "square", "Tropical"):  # old flat layout: tidy away
+                    for d in sorted(sub.rglob("*"), key=lambda p: -len(p.parts)) + [sub]:
+                        try:
+                            d.rmdir() if d.is_dir() else None
+                        except OSError:
+                            pass
 
 
 def _update_dir(out, latest, prune=True):

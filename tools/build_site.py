@@ -42,18 +42,49 @@ NICE = {"7day": "7-Day Forecast", "what_to_know": "What To Know", "weather_aware
 
 
 def nice(stem):
-    if stem.startswith("T_"):  # Tropical folder: "T_05_wind_chances" -> "Wind Chances"
-        import re as _re
-        return _re.sub(r"^T_\d+_", "", stem).replace("_", " ").title().replace("Nhc", "NHC")
+    import re as _re
+    if _re.match(r"^(T_)?\d+_", stem):  # hurricane set: "05_wind_chances" -> "Wind Chances"
+        return _re.sub(r"^(T_)?\d+_", "", stem).replace("_", " ").title().replace("Nhc", "NHC")
     if stem in NICE:
         return NICE[stem]
-    full = stem.endswith("_full")
-    s = stem[:-5] if full else stem
+    full, big = stem.endswith("_full"), stem.endswith("_big")
+    s = stem[:-5] if full else stem[:-4] if big else stem
     s = NICE.get(s, s.replace("wpc_qpf_", "Rain ").replace("_state", " (VA/NC)").replace("_", " ").title()
                  .replace("Day1", "Day 1").replace("Day2", "Day 2").replace("Day3", "Day 3").replace("Days1-3", "Days 1-3")
                  .replace("In ", '" ').replace("Cpc", "CPC").replace("Wssi", "WSSI").replace("Spc", "SPC")
                  .replace("Ero", "Excessive Rain").replace("D8 14", "Days 8-14").replace("D3 7", "Days 3-7"))
-    return s + (" · Full Screen" if full else "")
+    return s + (" · Full Screen" if full else " · Big Text" if big else "")
+
+
+def _collect(src):
+    """-> {format key: [(section title, png path)]} for both the category layout
+    ("04 Rain & Flooding/Square/x.png") and the old flat one (x.png, square/x.png, Tropical/square/x.png)."""
+    import re as _re
+    sizes = {"Wide": "wide", "Vertical": "vertical", "Post": "post", "Square": "square"}
+    out = {}
+    for p in sorted(src.rglob("*.png")):
+        parts = p.relative_to(src).parts[:-1]
+        m = _re.match(r"^\d+ (.+)$", parts[0]) if parts else None
+        if m and len(parts) >= 2 and parts[1] in sizes:  # category layout
+            sect, key = m.group(1), sizes[parts[1]]
+            if sect == "Tropical" and _re.match(r"^\d+_", p.stem):
+                sect = "Hurricane Threat"
+            ORDER[sect] = 0 if sect == "Hurricane Threat" else int(parts[0].split()[0])  # storm set first, then 01, 02...
+        else:  # flat layout
+            trop = bool(parts) and parts[0] == "Tropical"
+            rest = parts[1:] if trop else parts
+            key = rest[0] if rest else "wide"
+            if key not in sizes.values() or len(rest) > 1:
+                continue
+            sect = "Hurricane Threat" if trop else next(t for t, test in SECTIONS if test(p.stem))
+            if trop:
+                out.setdefault(key, []).append((sect, p, "T_" + p.name))
+                continue
+        out.setdefault(key, []).append((sect, p, p.name))
+    return out
+
+
+ORDER = {t: i for i, (t, _) in enumerate([("Hurricane Threat", 0)] + [(t, 0) for t, _ in SECTIONS])}
 
 
 def build(src, dst, repo=None):
@@ -71,26 +102,22 @@ def build(src, dst, repo=None):
     if (src / "caption.txt").exists():
         caption = (src / "caption.txt").read_text(encoding="utf-8").strip()
     tabs = []
+    found = _collect(src)
     for key, label, hint, sub in FORMATS:
-        folder = src / sub if sub else src
-        pngs = sorted(folder.glob("*.png")) if folder.exists() else []
-        tfolder = src / "Tropical" / sub if sub else src / "Tropical"
-        tpngs = sorted(tfolder.glob("*.png")) if tfolder.exists() else []
-        if not pngs and not tpngs:
+        items = found.get(key) or []
+        if not items:
             continue
         (dst / "img" / key).mkdir(parents=True)
         (dst / "thumb" / key).mkdir(parents=True)
-        groups = {t: [] for t, _ in SECTIONS}
-        for p in tpngs + pngs:
-            tgt = dst / "img" / key / (("T_" if p in tpngs else "") + p.name)
+        groups = {}
+        for sect, p, pub in items:
+            tgt = dst / "img" / key / pub
             shutil.copy2(p, tgt)
-            p = tgt
-            im = Image.open(p).convert("RGB")
+            im = Image.open(tgt).convert("RGB")
             im.thumbnail((480, 480), Image.LANCZOS)
-            im.save(dst / "thumb" / key / (p.stem + ".jpg"), quality=78, optimize=True)
-            sect = next(t for t, test in SECTIONS if test(p.stem))
-            groups[sect].append(p)
-        tabs.append((key, label, hint, groups))
+            im.save(dst / "thumb" / key / (tgt.stem + ".jpg"), quality=78, optimize=True)
+            groups.setdefault(sect, []).append(tgt)
+        tabs.append((key, label, hint, dict(sorted(groups.items(), key=lambda kv: ORDER.get(kv[0], 99)))))
     stamp = issued or datetime.now().strftime("%-I:%M %p %a %b %-d")
     run_url = f"https://github.com/{repo}/actions/workflows/weather-graphics.yml" if repo else None
     parts = []

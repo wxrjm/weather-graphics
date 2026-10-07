@@ -121,7 +121,7 @@ hazards, tidal flooding) also comes as `<name>_full.png`: the map fills the whol
 the top, and the information runs in bars along the bottom (headline card + local value chips + legend). Made in all
 four sizes. `"fullscreen_local_view"` sets the zoom for the local Hampton Roads versions.
 
-## Big-text maps (`"bigtext_maps": true`) → `square/<name>_big.png`
+## Big-text maps (`"bigtext_maps": true`) → `<category>/Square/<name>_big.png`
 
 Social-feed version of every map graphic: a giant two-line headline across the top, the map filling the middle,
 colored value boxes dropped right on the map (e.g. `3–4"`, `SLGT (2/5)`, spread out so they don't overlap), a white
@@ -139,12 +139,11 @@ Change the words for a storm in `overrides.json` (or `config.json` → `bigtext_
 ```
 Defaults: title = the graphic's title, caption = the time period, tagline = `HAMPTON ROADS AREA: <headline value>`.
 
-## Hurricane threat set (graphic key: `tropical_pack`) → `output/latest/Tropical/`
+## Hurricane threat set (graphic key: `tropical_pack`) → `output/latest/08 Tropical/`
 
 Made only while a storm threatens (cone over Norfolk, 34-kt wind chance ≥ `tropical_min_prob`, NWS Wakefield
-hurricane statements in effect, or the track within `tropical_threat_miles`). Saved to its own folder:
-`output/<run>/Tropical/` (wide) with `vertical/`, `post/`, `square/` inside, mirrored to `output/latest/Tropical/`
-(emptied automatically once the storm is gone). Numbered in briefing order:
+hurricane statements in effect, or the track within `tropical_threat_miles`). Saved to the Tropical folder:
+`output/latest/08 Tropical/Wide/` (plus `Vertical/`, `Post/`, `Square/`), emptied automatically once the storm is gone. Numbered in briefing order:
 
 01 storm snapshot · 02 track & cone (watches/warnings, forecast points) · 03 intensity forecast · 04 next NHC advisories ·
 05 wind chances (34/50/64 kt, map + cities) · 06 wind arrival (earliest / most likely) · 07 peak gusts · 08 Norfolk wind
@@ -298,23 +297,44 @@ show `N/A` instead of pretending it will be dry. Turn off with `"extended_rainfa
 Stations, zones and ZIP are in `config.json` (`tide_station`, `marine_zones`, `uv_zip`, `airport`...).
 If one source is down, only its graphic is skipped. `--outlook-debug` also prints details for these.
 
-## Output sizes
-Every graphic is made in three shapes (turn any off with `"formats"` in `config.json`):
-| folder | size | use |
+## Output folders
+`output/latest/` (and each dated run folder) is sorted by type, then by size:
+
+```
+output/latest/
+  01 Forecast/            daily, what_to_know, 7day, hourly, current, commute, weekend, holiday_countdown
+  02 Severe & Alerts/     spc_*, alerts, alert_1..N, weather_aware, warning_count
+  03 Temperature/         feels_like, wind_chill, dewpoints, above_average, record_watch, first_freeze, frost_*
+  04 Rain & Flooding/     rain_totals, wpc_qpf_*, ero_*, ffg_*, rain_reports, storm_rain_reports, river_*
+  05 Snow & Ice/          snow_map, snow_prob_*, ice_prob_*, wssi_*
+  06 Wind/                wind, wind_map, gust_map, storm_wind_reports
+  07 Tides & Coast/       tides, high_tides, high_tides_2, tidal_flood_map_*, beach
+  08 Tropical/            tropics + the hurricane threat set (01_storm_snapshot ... 25_power_outages)
+  09 Long Range/          cpc_hazards_d8_14, cpc_heavy_rain_d8_14
+  10 Climate & Drought/   yesterday, month_rain, drought
+  11 Air Quality & Sun/   air_quality, sun_uv
+  12 Aviation/            aviation
+     each one has:  Wide/  Vertical/  Post/  Square/
+```
+A folder only appears once something has been made for it (no snow = no Snow & Ice folder). Full-screen
+(`_full`) and big-text (`_big`) versions sit next to the regular graphic. Want the old layout back (wide at the
+top, `vertical/`, `post/`, `square/`, `Tropical/`)? Set `"output_layout": "flat"` in `config.json`.
+
+| size folder | size | use |
 |---|---|---|
-| `output/latest/` | 1920x1080 (16:9) | TV / OBS / YouTube / Restream |
-| `output/latest/vertical/` | 1080x1920 (9:16) | Instagram & Facebook Stories, Reels, TikTok, YouTube Shorts |
-| `output/latest/post/` | 1080x1350 (4:5) | Facebook & Instagram feed posts (largest size the feed allows) |
-| `output/latest/square/` | 1080x1080 (1:1) | Square Facebook/Instagram posts, link posts, profile grids |
-Tall versions are re-laid-out, not squeezed: maps stack over their info panel, the 7-day becomes
-one row per day, charts reflow. File names are identical across folders.
+| `Wide/` | 1920x1080 (16:9) | TV / OBS / YouTube / Restream |
+| `Vertical/` | 1080x1920 (9:16) | Instagram & Facebook Stories, Reels, TikTok, YouTube Shorts |
+| `Post/` | 1080x1350 (4:5) | Facebook & Instagram feed posts (largest size the feed allows) |
+| `Square/` | 1080x1080 (1:1) | Square Facebook/Instagram posts, link posts, profile grids |
+Turn any size off with `"formats"` in `config.json`. Tall versions are re-laid-out, not squeezed: maps stack over
+their info panel, the 7-day becomes one row per day, charts reflow. File names are identical across size folders.
 
 ## Using the graphics in OBS / Restream
-`output/latest/` is updated in place every run (files swapped atomically, folder never deleted),
+`output/latest/` is updated in place every run (files swapped atomically, folders never deleted),
 so OBS can point at it permanently. Alert graphics there use fixed names `alert_1.png`, `alert_2.png`...
 (most dangerous first); files for alerts that expired are removed.
-- One graphic per scene: Image source -> `output/latest/7day.png` (OBS reloads it when it changes).
-- Rotation: Image Slide Show source -> add the `output/latest` folder.
+- One graphic per scene: Image source -> `output/latest/01 Forecast/Wide/7day.png` (OBS reloads it when it changes).
+- Rotation: Image Slide Show source -> add the `Wide` folders you want (e.g. `01 Forecast/Wide`).
 - Restream: stream OBS to Restream (Settings -> Stream -> Restream), or upload PNGs in Restream Studio.
 
 ## Scheduling

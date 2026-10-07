@@ -375,5 +375,7 @@
   "_frost_risk": "Frost & freeze risk: table of forecast lows + risk by location for the next frost_nights nights, plus a risk map per night with frost. NDFD lows adjusted for wind/cloud. Only made when frost is possible (frost_always forces it).",
   "frost_nights": 3,
   "frost_min_level": 1,
-  "frost_always": false
+  "frost_always": false,
+  "_output_layout": "\"category\" = output/latest/<NN Category>/<Wide|Vertical|Post|Square>/  (01 Forecast, 02 Severe & Alerts, 03 Temperature, 04 Rain & Flooding, 05 Snow & Ice, 06 Wind, 07 Tides & Coast, 08 Tropical, 09 Long Range, 10 Climate & Drought, 11 Air Quality & Sun, 12 Aviation). \"flat\" = the old layout (wide at the top, vertical/ post/ square/ Tropical/).",
+  "output_layout": "category"
 }
