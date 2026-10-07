@@ -162,6 +162,8 @@ def composite_at(base, layer, x, y):
     """alpha_composite that tolerates negative/off-canvas offsets."""
     x, y = int(round(x)), int(round(y))
     cx, cy = max(0, -x), max(0, -y)
+    if cx >= layer.width or cy >= layer.height:  # entirely off the left / top edge
+        return
     if cx or cy:
         layer = layer.crop((cx, cy, layer.width, layer.height))
         x, y = x + cx, y + cy

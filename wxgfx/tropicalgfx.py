@@ -1,4 +1,4 @@
-"""Hurricane-threat graphics, written to output/<run>/Tropical/ (and output/latest/Tropical/).
+"""Hurricane-threat graphics, written to output/<run>/Tropical/ (and output/latest_rickywx/08 Tropical/).
 Made only while a storm threatens the area (see tropical.is_threat). Numbered so they sort in briefing order.
 
 New graphics: storm snapshot, local track & cone, intensity forecast, advisory schedule, wind chances, wind
@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageDraw
 
+from . import stormicons
 from . import alertinfo, outlooks, tropical as T
 from .alertmap import _paste_rounded, draw_cities
 from .extras import BAD, GOOD, NEUTRAL, OK_, SEVERE, WARN, _ink, area, grid, pill, tile
@@ -122,10 +123,9 @@ def _poly(d, P, polys, fill=None, outline=None, width=1):
             d.line(pts + [pts[0]], fill=outline, width=width, joint="curve")
 
 
-def _storm_icon(d, x, y, r, col):
-    d.ellipse([x - r, y - r, x + r, y + r], fill=(*col, 255), outline=(255, 255, 255, 255), width=max(1, int(r / 5)))
-    d.arc([x - 2 * r, y - 2 * r, x + 0.2 * r, y + 0.2 * r], 270, 360, fill=(*col, 255), width=max(2, int(r / 3)))
-    d.arc([x - 0.2 * r, y - 0.2 * r, x + 2 * r, y + 2 * r], 90, 180, fill=(*col, 255), width=max(2, int(r / 3)))
+def _storm_icon(d, x, y, size, wind_kt=None, cls=None, dvlbl=None):
+    """Ricky's storm symbols: L (low / depression-less systems), open swirl (TD/TS), filled swirl + category."""
+    stormicons.draw_storm(d, x, y, size, wind_kt, cls, dvlbl)
 
 
 def _norfolk(d, P, cfg, label=True):
@@ -214,7 +214,8 @@ def g_snapshot(t, pkg, cfg):
     cv.rect(bx, by, bw, bh, C["panel"], r=18)
     cv.rect(bx, by, 12, bh, (*col, 255), r=6)
     cv.text(bx + 40, by + 30, "CATEGORY" if cat else "STATUS", 22, "bold", C["muted"], anchor="lt")
-    cv.text(bx + 40, by + bh * 0.62, str(cat) if cat else ("TS" if kt >= 34 else "TD"), min(170, bh * 0.62), "bold", col, anchor="ls")
+    isz = min(bh * 0.66, bw * 0.34 - 70)  # big storm symbol (L / open swirl / filled swirl + category)
+    _storm_icon(cv.d, z(bx + 40 + isz / 2), z(by + 62 + (bh - 62) / 2), z(isz), kt, s.get("class"))
     cv.text(bx + bw * 0.34, by + bh * 0.42, f"{dist:,.0f} MILES {dirn}", min(64, bh * 0.22), "bold", anchor="ls", maxw=bw * 0.63)
     cv.text(bx + bw * 0.34, by + bh * 0.42 + 46, "OF NORFOLK", 24, "bold", C["muted"], anchor="ls")
     cv.text(bx + bw * 0.34, by + bh * 0.42 + 96, f"MOVING {s.get('move_dir') or '--'} AT {s.get('move_mph') or '--'} MPH", 26,
@@ -273,17 +274,12 @@ def cone_map(t, cfg, pw, ph, box):
     base = _base(t)
     for i, p in enumerate(pts):
         x, y = P(p["lon"], p["lat"])
-        c = _col(p.get("wind_kt"))
-        r = z(9 if i else 13)
-        d.ellipse([x - r, y - r, x + r, y + r], fill=(*c, 255), outline=(13, 21, 38, 255), width=z(2))
-        cat = T.saffir(p.get("wind_kt"))
-        lab = str(cat) if cat else ("S" if (p.get("wind_kt") or 0) >= 34 else "D")
-        d.text((x, y), lab, font=font("bold", 12), fill=_ink(c) + (255,), anchor="mm")
-        if i:
-            d.text((x + z(16), y), _when(pt_time(p, base, tz)), font=font("bold", 14), fill=(255, 255, 255, 255),
+        if i:  # forecast points: the symbol for the forecast strength at that time
+            _storm_icon(d, x, y, z(40), p.get("wind_kt"), None, p.get("type"))
+            d.text((x + z(24), y), _when(pt_time(p, base, tz)), font=font("bold", 14), fill=(255, 255, 255, 255),
                    anchor="lm", stroke_width=z(3), stroke_fill=(13, 21, 38, 255))
     sx, sy = P(t["storm"]["lon"], t["storm"]["lat"])
-    _storm_icon(d, sx, sy, z(13), _col(t["storm"].get("wind_kt")))
+    _storm_icon(d, sx, sy, z(58), t["storm"].get("wind_kt"), t["storm"].get("class"))
     _norfolk(d, P, cfg)
     return lay
 
@@ -336,9 +332,8 @@ def g_intensity(t, pkg, cfg):
     cv.line(xy, (255, 255, 255, 255), 4)
     for p, (xx, yy) in zip(pts, xy):
         mph = round((p.get("wind_kt") or 0) * 1.15078 / 5) * 5
-        c = _col(p.get("wind_kt"))
-        cv.d.ellipse([z(xx - 10), z(yy - 10), z(xx + 10), z(yy + 10)], fill=(*c, 255), outline=(13, 21, 38, 255), width=z(2))
-        cv.text(xx, yy - 20, f"{mph}", 20, "bold", anchor="ms")
+        _storm_icon(cv.d, z(xx), z(yy), z(38), p.get("wind_kt"), None, p.get("type"))
+        cv.text(xx, yy - 26, f"{mph}", 20, "bold", anchor="ms")
         if (p.get("tau") or 0) >= 0:
             cv.text(xx, py1 + 34, _when(pt_time(p, base, tz)).replace(" ", "\n", 1).split("\n")[0], 17, "bold", C["muted"], anchor="ms")
             cv.text(xx, py1 + 56, _when(pt_time(p, base, tz)).split(" ", 1)[1], 15, "medium", C["muted"], anchor="ms")
@@ -832,7 +827,7 @@ def g_timeline(t, pkg, cfg):
         cv.text(x + 30, ry + (14 if cv.tall else rh / 2), "CLOSEST APPROACH", 20 if not cv.tall else 18, "bold", C["text"],
                 anchor="lt" if cv.tall else "lm")
         cy = ry + (52 if cv.tall else rh / 2)
-        _storm_icon(cv.d, z(X(when)), z(cy), z(14), _col(ca[3]))
+        _storm_icon(cv.d, z(X(when)), z(cy), z(34), ca[3])
         cv.text(X(when) + 34, cy, f"{ca[1]:.0f} MI {ca[2]}  ·  {_when(when)}", 18, "bold", anchor="lm")
     _footer(cv, pkg, t, "NHC / NWS")
     return cv
@@ -943,6 +938,8 @@ def tropical_graphics(pkg, cfg):
             cv = fn(t, pkg, cfg)
         except Exception as e:
             print(f"  ! Tropical/{name}: {e!r}")
+            if __import__("os").environ.get("WX_TRACE"):
+                __import__("traceback").print_exc()
             continue
         if cv is not None:
             out.append((f"Tropical/{name}", cv))

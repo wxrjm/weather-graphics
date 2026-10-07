@@ -1,6 +1,6 @@
-"""Build the phone-friendly gallery page from output/latest.
+"""Build the phone-friendly gallery page from output/latest_rickywx.
 
-    python tools/build_site.py output/latest _site
+    python tools/build_site.py output/latest_rickywx _site
 
 Makes _site/index.html (tabs for Wide / Vertical / Post / Square, grouped sections, light JPG thumbnails,
 tap to view full size with Download + Share buttons) and copies the full-size PNGs next to it.
@@ -214,4 +214,4 @@ $('#copycap').onclick=async()=>{try{await navigator.clipboard.writeText($('#cap'
 
 if __name__ == "__main__":
     a = sys.argv[1:]
-    build(a[0] if a else "output/latest", a[1] if len(a) > 1 else "_site", os.environ.get("GITHUB_REPOSITORY"))
+    build(a[0] if a else "output/latest_rickywx", a[1] if len(a) > 1 else "_site", os.environ.get("GITHUB_REPOSITORY"))

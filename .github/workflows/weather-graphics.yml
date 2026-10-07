@@ -53,7 +53,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            output/latest
+            output/latest_rickywx
             cache
           key: wx-${{ github.run_id }}
           restore-keys: wx-
@@ -77,12 +77,12 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            output/latest
+            output/latest_rickywx
             cache
           key: wx-${{ github.run_id }}
 
       - name: Build phone page
-        run: python tools/build_site.py output/latest _site
+        run: python tools/build_site.py output/latest_rickywx _site
 
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -100,7 +100,7 @@ jobs:
           REMOTE="$(rclone listremotes | head -n1)"
           # full runs mirror the folder (old alert maps are removed); partial runs only add/replace
           if [ -z "$(echo "$ONLY" | tr -d ' ')" ]; then MODE=sync; else MODE=copy; fi
-          rclone "$MODE" output/latest "${REMOTE}${DRIVE_FOLDER}" --exclude "*.tmp" --transfers 8 --stats-one-line -v
+          rclone "$MODE" output/latest_rickywx "${REMOTE}${DRIVE_FOLDER}" --exclude "*.tmp" --transfers 8 --stats-one-line -v
 
   deploy:
     needs: build

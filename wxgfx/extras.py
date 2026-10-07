@@ -723,12 +723,9 @@ def _trop_map(cv, box, tr, cfg):
         if s.get("lat") is None:
             continue
         px, py = P(s["lon"], s["lat"])
-        r = z(16)
-        col = (230, 60, 60) if s.get("class") == "HU" else (250, 190, 50) if s.get("class") in ("TS", "STS") else (90, 170, 255)
-        d.ellipse([px - r, py - r, px + r, py + r], fill=(*col, 255), outline=(255, 255, 255, 255), width=z(3))
-        d.arc([px - 2 * r, py - 2 * r, px + 0.2 * r, py + 0.2 * r], 270, 360, fill=(*col, 255), width=z(4))
-        d.arc([px - 0.2 * r, py - 0.2 * r, px + 2 * r, py + 2 * r], 90, 180, fill=(*col, 255), width=z(4))
-        d.text((px + z(26), py), (s.get("name") or "").upper(), font=font("bold", 24), fill=(255, 255, 255, 255),
+        from . import stormicons
+        stormicons.draw_storm(d, px, py, z(54), s.get("wind_kt"), s.get("class"))  # L / open swirl / filled + category
+        d.text((px + z(32), py), (s.get("name") or "").upper(), font=font("bold", 24), fill=(255, 255, 255, 255),
                anchor="lm", stroke_width=z(3), stroke_fill=(13, 21, 38, 255))
     lx, ly = P(cfg["location"]["lon"], cfg["location"]["lat"])
     d.regular_polygon((lx, ly, z(9)), 4, rotation=45, fill=(255, 255, 255, 255))

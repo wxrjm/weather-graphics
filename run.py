@@ -85,6 +85,9 @@ def render(pkg, cfg, out_dir, only=None):
                 cv = fn(pkg, cfg)
             except Exception as e:  # one bad graphic shouldn't kill the run
                 print(f"  ! {name} ({fmt}) failed: {e!r}")
+                if os.environ.get("WX_TRACE"):  # set WX_TRACE=1 to see the full traceback
+                    import traceback
+                    traceback.print_exc()
                 continue
             if cv is None:
                 if fmt == formats[0]:
@@ -117,7 +120,7 @@ def render(pkg, cfg, out_dir, only=None):
                         print(f"  ! {fname}_big ({fmt}) failed: {e!r}")
     theme.set_format("wide")
     saved = {k: v for k, v in pkg.items() if not k.startswith("_")}
-    prev = ROOT / "output" / "latest" / "forecast.json"
+    prev = latest_dir(cfg) / "forecast.json"
     if prev.exists():  # partial runs (--only) keep the editor's SPC / Be Weather Aware reference values
         try:
             old = json.loads(prev.read_text(encoding="utf-8"))
@@ -146,6 +149,19 @@ def _swap_in(src, dst):
     return False
 
 
+def latest_dir(cfg):
+    """The always-current folder (config "latest_folder", default "latest_rickywx").
+    An old output/latest from before the rename is moved over once, so nothing is lost."""
+    new = ROOT / "output" / (cfg.get("latest_folder") or "latest_rickywx")
+    old = ROOT / "output" / "latest"
+    if not new.exists() and old.is_dir() and old != new:
+        try:
+            old.rename(new)
+        except OSError:
+            pass
+    return new
+
+
 def update_latest(out, latest, prune=True):
     """Mirror out/ (and every subfolder: "04 Rain & Flooding/Square/"...) into latest/.
     prune=False (partial --only runs): keep the graphics that weren't remade this time."""
@@ -170,7 +186,7 @@ def update_latest(out, latest, prune=True):
 
 
 def _update_dir(out, latest, prune=True):
-    """Refresh output/latest IN PLACE (never delete the folder OBS is watching).
+    """Refresh output/latest_rickywx IN PLACE (never delete the folder OBS is watching).
     Alert graphics get fixed names alert_1.png ... alert_N.png so OBS sources don't need re-pointing,
     and removes graphics that weren't made this run (e.g. an expired alert)."""
     latest.mkdir(parents=True, exist_ok=True)
@@ -351,8 +367,8 @@ def main():
     only = set(args.only.split(",")) if args.only else None
     print(f"Rendering to {out}")
     made = render(pkg, cfg, out, only)
-    update_latest(out, ROOT / "output" / "latest", prune=only is None)
-    print(f"Done: {len(made)} graphics  (also copied to output/latest)")
+    update_latest(out, latest_dir(cfg), prune=only is None)
+    print(f"Done: {len(made)} graphics  (also copied to output/{latest_dir(cfg).name})")
 
 
 if __name__ == "__main__":

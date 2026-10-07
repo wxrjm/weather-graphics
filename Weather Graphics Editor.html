@@ -120,7 +120,7 @@ const GRAPHICS = [
     ["winter_maps","Winter probability & WSSI maps","WPC chance of 4/8/12 in. snow and 0.25 in. ice (Days 1-3) + Winter Storm Severity Index. Skipped when nothing is forecast."],
     ["cpc_hazards","CPC hazards outlook","Days 8-14 hazards on an eastern U.S. map (Great Lakes to the Gulf), plus a separate heavy rain / flooding map."],
     ["tropics","Tropical Outlook","Atlantic storms, cones and outlook areas."],
-    ["tropical_pack","Hurricane Threat set (Tropical folder)","25+ storm graphics (track, cone, wind chances & arrival, surge, threats, timeline, prep, evacuations...) saved to output/latest/08 Tropical. Only made while a storm threatens."]]],
+    ["tropical_pack","Hurricane Threat set (Tropical folder)","25+ storm graphics (track, cone, wind chances & arrival, surge, threats, timeline, prep, evacuations...) saved to output/latest_rickywx/08 Tropical. Only made while a storm threatens."]]],
   ["Coastal", [
     ["tides","Tides & Coastal Flooding","Sewells Point chart, peak level, next tides."],
     ["high_tides","High Tide Forecast","5 sites: time, level, flood category box."],
@@ -273,12 +273,12 @@ function renderNav() {
   TABS.forEach(([id, label]) => { if (id === "render" && !server) return;
     nav.append(h("a", { class: tab === id ? "active" : "", onclick: () => { tab = id; renderNav(); render(); } }, label)); });
   nav.append(h("div", { class: "hint", html: server ? "Blue-outlined boxes are your edits.<br>Grey text = the automatic forecast.<br><b>Ctrl+S</b> saves." :
-    "Drop <b>config.json</b>, <b>overrides.json</b> and <b>output/latest/forecast.json</b> anywhere on this page, or open <b>Weather Graphics Editor.bat</b> to save directly." }));
+    "Drop <b>config.json</b>, <b>overrides.json</b> and <b>output/latest_rickywx/forecast.json</b> anywhere on this page, or open <b>Weather Graphics Editor.bat</b> to save directly." }));
 }
 function render() {
   const m = $("#main"); m.innerHTML = "";
   if (!server && (!cfg.graphics || !cfg.graphics.length) && tab !== "advanced")
-    m.append(h("div", { class: "card drop" }, h("b", {}, "Standalone mode: "), "drop config.json, overrides.json (and output/latest/forecast.json to see the automatic values) here, or ",
+    m.append(h("div", { class: "card drop" }, h("b", {}, "Standalone mode: "), "drop config.json, overrides.json (and output/latest_rickywx/forecast.json to see the automatic values) here, or ",
       h("button", { class: "small", onclick: () => $("#fileIn").click() }, "choose files")));
   ({ graphics: tGraphics, forecast: tForecast, spc: tSpc, aware: tAware, settings: tSettings, advanced: tAdvanced, render: tRender })[tab](m);
 }
@@ -317,7 +317,7 @@ function tForecast(m) {
     onchange: e => { ov.enabled = e.target.checked; markDirty(); } }), "Use my forecast edits"),
     h("span", { class: "note" }, "Turn off to go back to the automatic forecast without deleting your edits."), h("span", { class: "sp", style: "flex:1" }),
     h("button", { class: "danger small", onclick: () => { if (confirm("Clear all day, today and What To Know edits?")) { ov.days = {}; ov.today = {}; delete ov.what_to_know; markDirty(); render(); } } }, "Clear forecast edits")));
-  if (!fc) m.append(h("p", { class: "note" }, "Tip: with output/latest/forecast.json loaded you'll see the automatic values and days are matched by date."));
+  if (!fc) m.append(h("p", { class: "note" }, "Tip: with output/latest_rickywx/forecast.json loaded you'll see the automatic values and days are matched by date."));
   // days
   m.append(h("h3", {}, "Days (7-day, daily, charts)"));
   const days = fc ? fc.days.slice(0, 8) : ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map(d => ({ dow: d, date: null }));
@@ -500,7 +500,7 @@ function tAdvanced(m) {
 
 // ------------------------------------------------------------------ tab: render
 function tRender(m) {
-  m.append(h("h2", {}, "Render"), h("p", { class: "lead" }, "Saves your changes, then runs the graphics. Output goes to output/latest, sorted into folders by type (01 Forecast, 03 Temperature, 04 Rain & Flooding...) with Wide / Vertical / Post / Square inside each."));
+  m.append(h("h2", {}, "Render"), h("p", { class: "lead" }, "Saves your changes, then runs the graphics. Output goes to output/latest_rickywx, sorted into folders by type (01 Forecast, 03 Temperature, 04 Rain & Flooding...) with Wide / Vertical / Post / Square inside each."));
   const flags = { "--sample": false, "--no-overrides": false, "--outlook-debug": false };
   const onlySel = new Set();
   const c = h("div", { class: "card" });

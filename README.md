@@ -16,7 +16,7 @@ makes the graphics on a schedule or on demand from the GitHub app, publishes a p
     python run.py --sample      # offline test
     python run.py               # live NDFD
 
-Output: `output/<date_time>/` and a copy in `output/latest/` (stable path for OBS/Facebook).
+Output: `output/<date_time>/` and a copy in `output/latest_rickywx/` (stable path for OBS/Facebook).
 Each run also writes `forecast.json` (everything the graphics were drawn from) and `caption.txt`
 (a ready-to-paste Facebook post).
 
@@ -139,11 +139,11 @@ Change the words for a storm in `overrides.json` (or `config.json` → `bigtext_
 ```
 Defaults: title = the graphic's title, caption = the time period, tagline = `HAMPTON ROADS AREA: <headline value>`.
 
-## Hurricane threat set (graphic key: `tropical_pack`) → `output/latest/08 Tropical/`
+## Hurricane threat set (graphic key: `tropical_pack`) → `output/latest_rickywx/08 Tropical/`
 
 Made only while a storm threatens (cone over Norfolk, 34-kt wind chance ≥ `tropical_min_prob`, NWS Wakefield
 hurricane statements in effect, or the track within `tropical_threat_miles`). Saved to the Tropical folder:
-`output/latest/08 Tropical/Wide/` (plus `Vertical/`, `Post/`, `Square/`), emptied automatically once the storm is gone. Numbered in briefing order:
+`output/latest_rickywx/08 Tropical/Wide/` (plus `Vertical/`, `Post/`, `Square/`), emptied automatically once the storm is gone. Numbered in briefing order:
 
 01 storm snapshot · 02 track & cone (watches/warnings, forecast points) · 03 intensity forecast · 04 next NHC advisories ·
 05 wind chances (34/50/64 kt, map + cities) · 06 wind arrival (earliest / most likely) · 07 peak gusts · 08 Norfolk wind
@@ -198,7 +198,7 @@ gauge's forecast high tide. Small creeks narrower than the county map's shorelin
 ## River flooding (graphic key: `river_flooding`)
 
 Only exported when an NWS river forecast point is forecast at `"river_min_category"` (action stage) or higher:
-`river_flooding.png` lists every flooding river; `river_1.png`, `river_2.png` ... (in output/latest) show each one's
+`river_flooding.png` lists every flooding river; `river_1.png`, `river_2.png` ... (in output/latest_rickywx) show each one's
 observed + forecast hydrograph with flood stage bands, the crest and time, and the NWS impact statement for that level.
 Points (`"river_gauges"`): Blackwater River at Franklin (FKNV2), Nottoway River near Sebrell (SEBV2), Blackwater near
 Zuni/Dendron, Nottoway near Riverdale/Stony Creek/Rawlings, Meherrin at Emporia/Lawrenceville, Appomattox at Matoaca,
@@ -298,10 +298,10 @@ Stations, zones and ZIP are in `config.json` (`tide_station`, `marine_zones`, `u
 If one source is down, only its graphic is skipped. `--outlook-debug` also prints details for these.
 
 ## Output folders
-`output/latest/` (and each dated run folder) is sorted by type, then by size:
+`output/latest_rickywx/` (and each dated run folder) is sorted by type, then by size:
 
 ```
-output/latest/
+output/latest_rickywx/
   01 Forecast/            daily, what_to_know, 7day, hourly, current, commute, weekend, holiday_countdown
   02 Severe & Alerts/     spc_*, alerts, alert_1..N, weather_aware, warning_count
   03 Temperature/         feels_like, wind_chill, dewpoints, above_average, record_watch, first_freeze, frost_*
@@ -330,10 +330,10 @@ Turn any size off with `"formats"` in `config.json`. Tall versions are re-laid-o
 their info panel, the 7-day becomes one row per day, charts reflow. File names are identical across size folders.
 
 ## Using the graphics in OBS / Restream
-`output/latest/` is updated in place every run (files swapped atomically, folders never deleted),
+`output/latest_rickywx/` is updated in place every run (files swapped atomically, folders never deleted),
 so OBS can point at it permanently. Alert graphics there use fixed names `alert_1.png`, `alert_2.png`...
 (most dangerous first); files for alerts that expired are removed.
-- One graphic per scene: Image source -> `output/latest/01 Forecast/Wide/7day.png` (OBS reloads it when it changes).
+- One graphic per scene: Image source -> `output/latest_rickywx/01 Forecast/Wide/7day.png` (OBS reloads it when it changes).
 - Rotation: Image Slide Show source -> add the `Wide` folders you want (e.g. `01 Forecast/Wide`).
 - Restream: stream OBS to Restream (Settings -> Stream -> Restream), or upload PNGs in Restream Studio.
 

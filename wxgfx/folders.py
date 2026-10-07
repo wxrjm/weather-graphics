@@ -2,7 +2,7 @@
 
 "category" (default): output/<run>/<NN Category>/<Size>/<name>.png   e.g. "04 Rain & Flooding/Square/wpc_qpf_3day_big.png"
 "flat"    (old):      output/<run>/<name>.png (wide), vertical/, post/, square/, Tropical/
-Pick with config "output_layout". The same layout is mirrored into output/latest.
+Pick with config "output_layout". The same layout is mirrored into output/latest_rickywx.
 """
 import re
 

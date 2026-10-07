@@ -19,8 +19,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 PORT = 8770
 PAGE = ROOT / "Weather Graphics Editor.html"
+
+
+def _latest():
+    """output/<config latest_folder> (default latest_rickywx); falls back to the old output/latest."""
+    try:
+        name = json.loads((ROOT / "config.json").read_text(encoding="utf-8")).get("latest_folder") or "latest_rickywx"
+    except Exception:
+        name = "latest_rickywx"
+    p = ROOT / "output" / name
+    return p if p.exists() or not (ROOT / "output" / "latest").exists() else ROOT / "output" / "latest"
+
+
 FILES = {"config": ROOT / "config.json", "overrides": ROOT / "overrides.json",
-         "forecast": ROOT / "output" / "latest" / "forecast.json"}
+         "forecast": _latest() / "forecast.json"}
 RUN_FLAGS = {"--sample", "--no-overrides", "--outlook-debug"}
 _run_lock = threading.Lock()
 

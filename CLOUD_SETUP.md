@@ -59,7 +59,7 @@ This uses **rclone**, a free, well-known tool, to sign in to your Google Drive o
    `DRIVE_FOLDER` = e.g. `Weather Graphics/Latest`.
 
 The Drive folder is created on the first run. In the Drive app, star it or make it available offline for quick access.
-Full runs mirror the folder (an expired alert map disappears, just like `output/latest`); one-graphic runs only add
+Full runs mirror the folder (an expired alert map disappears, just like `output/latest_rickywx`); one-graphic runs only add
 or replace.
 
 ## 4. First run
@@ -82,4 +82,4 @@ Green check = done; the page and Drive update a minute later. A red ✗ means so
 - **Keep it active:** GitHub pauses schedules on repos with no activity for 60 days; any commit (or a manual run in
   the Actions tab) keeps them going.
 - **Your PC copy keeps working exactly as before** — the cloud is just another place it runs.
-- The page and Drive always hold the latest graphics only (like `output/latest`).
+- The page and Drive always hold the latest graphics only (like `output/latest_rickywx`).
