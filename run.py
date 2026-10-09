@@ -16,7 +16,7 @@ import time
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -369,6 +369,29 @@ def main():
     made = render(pkg, cfg, out, only)
     update_latest(out, latest_dir(cfg), prune=only is None)
     print(f"Done: {len(made)} graphics  (also copied to output/{latest_dir(cfg).name})")
+    clean_old_runs(cfg, now)
+
+
+def clean_old_runs(cfg, now):
+    """Delete dated run folders (output/YYYY-MM-DD_HHMM) older than config "keep_days" (default 14; 0 = keep all).
+    Only folders named like a run are touched - never latest_rickywx, cache, or anything you made yourself."""
+    days = cfg.get("keep_days", 14)
+    if not days or days <= 0:
+        return
+    cutoff = now.replace(tzinfo=None) - timedelta(days=days)
+    gone = 0
+    for d in (ROOT / "output").iterdir():
+        if not d.is_dir() or not re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{4}", d.name):
+            continue
+        try:
+            made = datetime.strptime(d.name, "%Y-%m-%d_%H%M")
+        except ValueError:
+            continue
+        if made < cutoff:
+            shutil.rmtree(d, ignore_errors=True)
+            gone += not d.exists()
+    if gone:
+        print(f"Cleaned up {gone} run folder{'s' if gone != 1 else ''} older than {days} days")
 
 
 if __name__ == "__main__":

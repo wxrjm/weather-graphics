@@ -379,5 +379,7 @@
   "_output_layout": "\"category\" = output/latest_rickywx/<NN Category>/<Wide|Vertical|Post|Square>/  (01 Forecast, 02 Severe & Alerts, 03 Temperature, 04 Rain & Flooding, 05 Snow & Ice, 06 Wind, 07 Tides & Coast, 08 Tropical, 09 Long Range, 10 Climate & Drought, 11 Air Quality & Sun, 12 Aviation). \"flat\" = the old layout (wide at the top, vertical/ post/ square/ Tropical/).",
   "output_layout": "category",
   "_latest_folder": "Name of the always-current folder inside output/ (OBS, phone page and Drive use it). An old output/latest is moved here automatically.",
-  "latest_folder": "latest_rickywx"
+  "latest_folder": "latest_rickywx",
+  "_keep_days": "Dated run folders in output/ older than this many days are deleted after each run (0 = keep everything). latest_rickywx is never touched.",
+  "keep_days": 14
 }

@@ -17,6 +17,7 @@ makes the graphics on a schedule or on demand from the GitHub app, publishes a p
     python run.py               # live NDFD
 
 Output: `output/<date_time>/` and a copy in `output/latest_rickywx/` (stable path for OBS/Facebook).
+Dated run folders older than 14 days are deleted automatically after each run (`"keep_days"` in `config.json`; 0 = keep everything). `latest_rickywx` is never deleted.
 Each run also writes `forecast.json` (everything the graphics were drawn from) and `caption.txt`
 (a ready-to-paste Facebook post).
 
