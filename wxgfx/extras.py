@@ -162,7 +162,10 @@ def tides(pkg, cfg):
         return None
     tz = _tz(cfg)
     cv = Canvas(cfg)
-    cv.header("TIDES & COASTAL FLOODING", f"{td['station_name']}  ·  NEXT {td.get('hours', 48)} HOURS  ·  NWS FORECAST")
+    fe = td.get("forecast_end")
+    span = (f"THROUGH {fe.strftime('%a').upper()} {_t(fe)}  ·  NWS FORECAST" if fe
+            else f"NEXT {td.get('hours', 48)} HOURS  ·  PREDICTED TIDE")
+    cv.header("TIDES & COASTAL FLOODING", f"{td['station_name']}  ·  {span}")
     x, y, w, h = area(cv)
     if cv.tall:
         ch = h * (0.46 if cv.fmt == "vertical" else 0.44)

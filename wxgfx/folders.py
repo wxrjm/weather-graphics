@@ -1,6 +1,7 @@
 """Output folder layout.
 
-"category" (default): output/<run>/<NN Category>/<Size>/<name>.png   e.g. "04 Rain & Flooding/Square/wpc_qpf_3day_big.png"
+"category" (default): output/<run>/<NN Category>/<name>.png for wide, plus Vertical/, Post/, Square/ inside each category
+                      e.g. "04 Rain & Flooding/wpc_qpf_3day.png", "04 Rain & Flooding/Square/wpc_qpf_3day_big.png"
 "flat"    (old):      output/<run>/<name>.png (wide), vertical/, post/, square/, Tropical/
 Pick with config "output_layout". The same layout is mirrored into output/latest_rickywx.
 """
@@ -44,4 +45,6 @@ def path_for(out_dir, name, fmt, cfg):
             return out_dir / "Tropical" / ("" if fmt == "wide" else fmt) / f"{name.split('/', 1)[1]}.png"
         return (out_dir if fmt == "wide" else out_dir / fmt) / f"{name}.png"
     leaf = name.split("/", 1)[1] if name.startswith("Tropical/") else name
+    if fmt == "wide":  # wide sits right in the category folder so it's the first thing you see
+        return out_dir / category(name) / f"{leaf}.png"
     return out_dir / category(name) / SIZES.get(fmt, fmt) / f"{leaf}.png"

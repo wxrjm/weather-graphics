@@ -177,7 +177,7 @@ def update_latest(out, latest, prune=True):
                         f.unlink()
                     except OSError:
                         pass
-                if sub.name in ("vertical", "post", "square", "Tropical"):  # old flat layout: tidy away
+                if sub.name in ("vertical", "post", "square", "Tropical", "Wide"):  # older layouts: tidy away
                     for d in sorted(sub.rglob("*"), key=lambda p: -len(p.parts)) + [sub]:
                         try:
                             d.rmdir() if d.is_dir() else None

@@ -144,7 +144,7 @@ Defaults: title = the graphic's title, caption = the time period, tagline = `HAM
 
 Made only while a storm threatens (cone over Norfolk, 34-kt wind chance ≥ `tropical_min_prob`, NWS Wakefield
 hurricane statements in effect, or the track within `tropical_threat_miles`). Saved to the Tropical folder:
-`output/latest_rickywx/08 Tropical/Wide/` (plus `Vertical/`, `Post/`, `Square/`), emptied automatically once the storm is gone. Numbered in briefing order:
+`output/latest_rickywx/08 Tropical/` (wide, plus `Vertical/`, `Post/`, `Square/`), emptied automatically once the storm is gone. Numbered in briefing order:
 
 01 storm snapshot · 02 track & cone (watches/warnings, forecast points) · 03 intensity forecast · 04 next NHC advisories ·
 05 wind chances (34/50/64 kt, map + cities) · 06 wind arrival (earliest / most likely) · 07 peak gusts · 08 Norfolk wind
@@ -330,7 +330,7 @@ output/latest_rickywx/
   10 Climate & Drought/   yesterday, month_rain, drought
   11 Air Quality & Sun/   air_quality, sun_uv
   12 Aviation/            aviation
-     each one has:  Wide/  Vertical/  Post/  Square/
+     each one has:  the wide (16:9) graphics right in the folder, plus  Vertical/  Post/  Square/
 ```
 A folder only appears once something has been made for it (no snow = no Snow & Ice folder). Full-screen
 (`_full`) and big-text (`_big`) versions sit next to the regular graphic. Want the old layout back (wide at the
@@ -338,7 +338,7 @@ top, `vertical/`, `post/`, `square/`, `Tropical/`)? Set `"output_layout": "flat"
 
 | size folder | size | use |
 |---|---|---|
-| `Wide/` | 1920x1080 (16:9) | TV / OBS / YouTube / Restream |
+| (the category folder itself) | 1920x1080 (16:9) | TV / OBS / YouTube / Restream |
 | `Vertical/` | 1080x1920 (9:16) | Instagram & Facebook Stories, Reels, TikTok, YouTube Shorts |
 | `Post/` | 1080x1350 (4:5) | Facebook & Instagram feed posts (largest size the feed allows) |
 | `Square/` | 1080x1080 (1:1) | Square Facebook/Instagram posts, link posts, profile grids |
@@ -349,8 +349,8 @@ their info panel, the 7-day becomes one row per day, charts reflow. File names a
 `output/latest_rickywx/` is updated in place every run (files swapped atomically, folders never deleted),
 so OBS can point at it permanently. Alert graphics there use fixed names `alert_1.png`, `alert_2.png`...
 (most dangerous first); files for alerts that expired are removed.
-- One graphic per scene: Image source -> `output/latest_rickywx/01 Forecast/Wide/7day.png` (OBS reloads it when it changes).
-- Rotation: Image Slide Show source -> add the `Wide` folders you want (e.g. `01 Forecast/Wide`).
+- One graphic per scene: Image source -> `output/latest_rickywx/01 Forecast/7day.png` (OBS reloads it when it changes).
+- Rotation: Image Slide Show source -> add the category folders you want (e.g. `01 Forecast`) - the wide graphics are right in them.
 - Restream: stream OBS to Restream (Settings -> Stream -> Restream), or upload PNGs in Restream Studio.
 
 ## Scheduling

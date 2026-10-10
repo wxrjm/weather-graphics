@@ -65,8 +65,8 @@ def _collect(src):
     for p in sorted(src.rglob("*.png")):
         parts = p.relative_to(src).parts[:-1]
         m = _re.match(r"^\d+ (.+)$", parts[0]) if parts else None
-        if m and len(parts) >= 2 and parts[1] in sizes:  # category layout
-            sect, key = m.group(1), sizes[parts[1]]
+        if m and (len(parts) == 1 or (len(parts) == 2 and parts[1] in sizes)):  # category layout (wide at the top)
+            sect, key = m.group(1), (sizes[parts[1]] if len(parts) == 2 else "wide")
             if sect == "Tropical" and _re.match(r"^\d+_", p.stem):
                 sect = "Hurricane Threat"
             ORDER[sect] = 0 if sect == "Hurricane Threat" else int(parts[0].split()[0])  # storm set first, then 01, 02...

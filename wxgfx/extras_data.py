@@ -122,8 +122,10 @@ def fetch_tides(http, cfg, now, tz):
 def parse_tides(hilo, hourly, obs, stages, fcst, cfg, now, tz, nws_obs=None):
     default = cfg.get("tide_flood_stages") or {"action": 4.0, "minor": 4.5, "moderate": 5.5, "major": 6.5}
     stages = stages or default
-    H = int(cfg.get("tide_hours", 72))  # chart / table window (hours ahead)
-    end = now + timedelta(hours=H)
+    # window: exactly the NWS forecast period (no data beyond it); 48 h of predicted tide if the NWS forecast is missing
+    fut = [f for f in (fcst or []) if f[0] >= now - timedelta(hours=1)]
+    end = fut[-1][0] if len(fut) >= 6 else now + timedelta(hours=int(cfg.get("tide_hours_fallback", 48)))
+    H = max(1, round((end - now).total_seconds() / 3600))
     astro = [{"time": _local(p["t"], tz), "ft": float(p["v"]), "type": p["type"]}
              for p in hilo.get("predictions", [])]
     astro = [t for t in astro if now - timedelta(hours=1) <= t["time"] <= end]
@@ -134,9 +136,6 @@ def parse_tides(hilo, hourly, obs, stages, fcst, cfg, now, tz, nws_obs=None):
              [{"time": t, "ft": round(v, 1), "type": "L"} for t, v in find_extrema(win, now, "L", n=n_ex)]
         tides = sorted(ex, key=lambda x: x["time"])
         tide_src = "NWS"
-        fc_end = win[-1][0]
-        if fc_end < end - timedelta(hours=3):  # NWS forecast stops early: astronomical times for the rest, flagged
-            tides += [dict(t, src="astronomical") for t in astro if t["time"] > fc_end + timedelta(hours=1)]
     else:
         tides, tide_src = astro, "astronomical"
     curve = [(_local(p["t"], tz), float(p["v"])) for p in hourly.get("predictions", [])]
@@ -156,15 +155,9 @@ def parse_tides(hilo, hourly, obs, stages, fcst, cfg, now, tz, nws_obs=None):
     use_fcst = bool(fcst)
     series = [f for f in (fcst or []) if now - timedelta(hours=1) <= f[0] <= end] or \
         [(t, v + (anomaly or 0)) for t, v in curve if t >= now]
-    # past the end of the NWS forecast (if it's shorter than the window): astronomical tide + today's surge, drawn dashed
-    extension = []
-    if use_fcst and series and series[-1][0] < end - timedelta(hours=1):
-        last_t, last_v = series[-1]
-        near = min(curve, key=lambda c: abs((c[0] - last_t).total_seconds())) if curve else None
-        off = (last_v - near[1]) if near else (anomaly or 0)  # carry the forecast's own surge forward
-        extension = [(last_t, last_v)] + [(t, v + off) for t, v in curve if last_t < t <= end]
+    extension = []  # nothing is drawn past the end of the NWS forecast
     highs = [t for t in tides if t["type"] == "H"]
-    peak = max(series + extension[1:], key=lambda s: s[1]) if series else None
+    peak = max(series, key=lambda s: s[1]) if series else None
     if tide_src == "NWS" and highs:  # same refined high tide as the table
         top = max((h for h in highs if h["time"] <= end and not h.get("src")), key=lambda h: h["ft"], default=None)
         if top:

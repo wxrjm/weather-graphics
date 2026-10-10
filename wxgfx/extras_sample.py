@@ -239,7 +239,7 @@ def build(cfg, now, tz):
     loc = cfg["location"]
     hilo, hourly, obs = _tides_raw(now, tz)
     nws_fcst = [(X._local(p["t"], tz), float(p["v"]) + 0.8) for p in hourly.get("predictions", [])
-                if X._local(p["t"], tz) >= now]  # hourly official-style forecast: tide + 0.8 ft surge
+                if now <= X._local(p["t"], tz) <= now + timedelta(hours=66)]  # official-style forecast: tide + 0.8 ft surge
     tides = X.parse_tides(hilo, hourly, obs, {"action": 4.0, "minor": 4.5, "moderate": 5.5, "major": 6.5},
                           nws_fcst, cfg, now, tz)
     uv_rows = [{"DATE_TIME": (datetime.combine(now.date(), datetime.min.time()) + timedelta(hours=h)).strftime("%b/%d/%Y %I %p").upper(),

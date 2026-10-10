@@ -501,7 +501,7 @@ function tAdvanced(m) {
 
 // ------------------------------------------------------------------ tab: render
 function tRender(m) {
-  m.append(h("h2", {}, "Render"), h("p", { class: "lead" }, "Saves your changes, then runs the graphics. Output goes to output/latest_rickywx, sorted into folders by type (01 Forecast, 03 Temperature, 04 Rain & Flooding...) with Wide / Vertical / Post / Square inside each."));
+  m.append(h("h2", {}, "Render"), h("p", { class: "lead" }, "Saves your changes, then runs the graphics. Output goes to output/latest_rickywx, sorted into folders by type (01 Forecast, 03 Temperature, 04 Rain & Flooding...) with the wide graphics in each one and Vertical / Post / Square folders inside."));
   const flags = { "--sample": false, "--no-overrides": false, "--outlook-debug": false };
   const onlySel = new Set();
   const c = h("div", { class: "card" });
