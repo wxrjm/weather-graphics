@@ -16,7 +16,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
                                                    "storm_rain_reports", "river"))),
     ("05 Snow & Ice", lambda n: n.startswith(("snow", "ice_", "wssi", "storm_snow_reports"))),
     ("06 Wind", lambda n: n in ("wind", "wind_map", "gust_map", "storm_wind_reports")),
-    ("07 Tides & Coast", lambda n: n.startswith(("tides", "high_tides", "tidal_flood", "beach"))),
+    ("07 Tides & Coast", lambda n: n.startswith(("tides", "high_tides", "tidal_flood", "beach", "sound_flood"))),
     ("08 Tropical", lambda n: n.startswith(("tropics", "Tropical/"))),
     ("09 Long Range", lambda n: n.startswith("cpc_")),
     ("10 Climate & Drought", lambda n: n in ("yesterday", "month_rain", "drought")),

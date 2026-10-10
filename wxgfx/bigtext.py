@@ -99,7 +99,7 @@ def _pick_callouts(rows, coords, proj, area, n):
 
 
 def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value, head_col, meaning, rows,
-           overlay=None, source=None, callout_rows=None):
+           overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None):
     o = _opts(pkg, cfg, name)
     cv = Canvas(cfg)
     W, H = cv.W, cv.H
@@ -117,11 +117,13 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
         box = tuple(cfg.get("bigtext_local_view") or cfg.get("fullscreen_local_view") or (-77.7, -75.2, 36.05, 37.85))
     vw, ve, vs, vn = _view(W, map_h, box)
     proj = lambda lo, la: ((lo - vw) / (ve - vw) * W, (vn - la) / (vn - vs) * map_h)
-    cap = str(o.get("caption") or (subtitle or "").split("·")[0]).strip()
-    cap_size = 36
-    cap_w = min(W - 2 * M, cv.width(cap, cap_size, "medium") + 48) if cap else 0
-    cap_box = (W - M - cap_w, map_h - 24 - 70, W - M, map_h - 24) if cap else None
+    cap = str(o.get("caption") or big_caption or (subtitle or "").split("·")[0]).strip()
     logo_box = (M, map_h - 24 - 120, M + 230, map_h - 24)
+    cap_size, room = 36, W - M - (logo_box[2] + 18)  # caption sits right of the logo and shrinks to fit
+    while cap and cap_size > 20 and cv.width(cap, cap_size, "medium") + 48 > room:
+        cap_size -= 2
+    cap_w = min(room, cv.width(cap, cap_size, "medium") + 48) if cap else 0
+    cap_box = (W - M - cap_w, map_h - 24 - 70, W - M, map_h - 24) if cap else None
     n_call = int(o.get("callouts", cfg.get("bigtext_callouts", 4)))
     picks = _pick_callouts(callout_rows or rows or [], _coords(cfg), proj, (80, 70, W - 80, map_h - 150), n_call)
     call_boxes = []
@@ -192,7 +194,7 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
     cv.rect(0, ty, W, tag_h, (*NAVY, 255))
     cv.line([(0, ty), (W, ty)], (255, 255, 255, 200), 3)
     area = (cfg.get("location") or {}).get("area", "Hampton Roads Area").upper()
-    tag = str(o.get("tagline") or (f"{area}: {head_value}" if head_value else title_txt)).upper()
+    tag = str(o.get("tagline") or big_tagline or (f"{area}: {head_value}" if head_value else title_txt)).upper()
     ts = 50
     while ts > 26 and cv.width(tag, ts, "bold") > W - 2 * M:
         ts -= 2

@@ -202,10 +202,10 @@ def _tides_raw(now, tz):
     start = datetime.combine(now.date(), datetime.min.time(), tz)
     hourly, hilo = [], []
     f = lambda h: 1.55 + 1.45 * math.cos(2 * math.pi * (h - 4.2) / 12.42) + 0.12 * math.cos(2 * math.pi * h / 24.8)
-    for i in range(60):
+    for i in range(110):
         t = start + timedelta(hours=i)
         hourly.append({"t": t.strftime("%Y-%m-%d %H:%M"), "v": f"{f(i):.3f}"})
-    for i in range(60 * 10):
+    for i in range(110 * 10):
         h = i / 10
         a, b, c = f(h - 0.1), f(h), f(h + 0.1)
         if (b > a and b >= c) or (b < a and b <= c):

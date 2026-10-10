@@ -303,6 +303,13 @@ def main():
         else:
             print("Fetching WPC snow/ice probabilities and the Winter Storm Severity Index...")
             pkg["_winter"] = wintermap.fetch_all(cfg, debug=args.outlook_debug)
+    if "sound_flood" in (cfg.get("graphics") or []) and (only_set is None or "sound_flood" in only_set):
+        from wxgfx import soundflood
+        if args.sample:
+            pkg["_sound"] = soundflood.sample(now, tz)
+        else:
+            print("Fetching the NWS wind forecast over Back Bay (sound-side flooding)...")
+            pkg["_sound"] = soundflood.fetch(cfg, now, tz, pkg, debug=args.outlook_debug)
     if "frost_risk" in (cfg.get("graphics") or []) and (only_set is None or "frost_risk" in only_set):
         from wxgfx import frost
         utc_now = now.astimezone(timezone.utc)

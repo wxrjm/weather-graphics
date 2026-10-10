@@ -240,6 +240,21 @@ Maps with nothing in the map area are skipped, so nothing is made out of season 
 If a winter map is missing during a storm, run `python run.py --outlook-debug --only winter_maps` to see the WPC
 layers and attributes it found.
 
+## Sound-side flooding: Sandbridge & Back Bay (graphic key: `sound_flood`) → `07 Tides & Coast/`
+
+A long south wind pushes Currituck Sound water north into Back Bay, flooding the sound side of Sandbridge, Back Bay,
+Pungo/Creeds, Knotts Island and Carova (there's no tide in the sound; the wind does it). `sound_flood.png` shows:
+- a zoomed map with a detailed shoreline (OpenStreetMap water polygons, saved in `wxgfx/data/coast_water_se_va.png`),
+  the sound shoreline that floods glowing by risk (strongest at the north end where water piles up), and wind-stream
+  particles blowing from the forecast direction, plus a wind badge (`S 25 MPH`)
+- the risk level, the **most likely flooding times** (while the south wind blows and `sound_lag_hours` after), and an
+  hourly wind timeline with direction arrows; south-wind hours are colored by risk.
+
+Risk per south-wind window (`sound_dirs` 140-235°, at least `sound_wind_min` 15 mph for `sound_min_hours` 4+ hours):
+**Possible** = shorter or lighter runs · **Likely** = 20+ mph for 6+ hours (or 15+ for 12+) · **Significant** = 25+ mph for
+6+ hours (or 20+ for 18+). Wind comes from the NWS hourly forecast over Back Bay (`sound_point`), or the KORF forecast
+if that point fails. Only made when a window is forecast (`"sound_flood_always": true` to force). Also `_full` + `_big`.
+
 ## Frost & freeze risk (graphic key: `frost_risk`)
 
 - `frost_risk_table.png` - every local spot (`frost_points`, default the outlook points) × the next `frost_nights` (3)

@@ -126,6 +126,7 @@ const GRAPHICS = [
     ["high_tides","High Tide Forecast","5 sites: time, level, flood category box."],
     ["high_tides_2","High Tide Forecast (2nd set)","Kiptopeke, Hudgins, Smithfield, Suffolk, Money Point."],
     ["tidal_flood_map","Tidal Flooding Forecast map","Bay, rivers and shoreline shaded by forecast flood category for each flooding high tide (only when flooding is forecast)."],
+    ["sound_flood","Sound-side flooding (Sandbridge / Back Bay)","South winds pushing Currituck Sound water north: at-risk shoreline, wind-stream particles, most likely times (only when a long south wind is forecast)."],
     ["river_flooding","River Flood Forecast","Hydrograph + crest for each river forecast at action stage or higher (only exported when flooding)."],
     ["beach","Beach & Boating","Rip currents, surf, water temp, marine forecast."]]],
   ["Climate", [
@@ -145,7 +146,7 @@ const GRAPHICS = [
     ["air_quality","Air Quality","Current AQI and 5-day forecast (AirNow + model guidance)."],
     ["aviation","ORF Aviation","Flight category, METAR, TAF."]]],
 ];
-const ALWAYS = {first_freeze:"first_freeze_always", tropics:"tropics_always", warning_count:"warning_count_always", ndfd_maps:"snow_map_always", frost_risk:"frost_always"};
+const ALWAYS = {first_freeze:"first_freeze_always", tropics:"tropics_always", warning_count:"warning_count_always", ndfd_maps:"snow_map_always", frost_risk:"frost_always", sound_flood:"sound_flood_always"};
 const FORMATS = [["wide","Wide 1920×1080","TV, OBS, YouTube"],["vertical","Vertical 1080×1920","Stories, Reels, TikTok"],["post","Post 1080×1350","Facebook & Instagram feed"],["square","Square 1080×1080","Facebook/Instagram square posts"]];
 const ICONS = ["","clear","few","partly","mostly_cloudy","cloudy","showers","rain","tstorm","snow","mix","fog","wind"];
 const LEVELS = ["","NOT EXPECTED","LOW","POSSIBLE","ELEVATED","HIGH","VERY HIGH"];

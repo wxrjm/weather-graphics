@@ -93,8 +93,12 @@ def _tide_chart(cv, box, td, tz):
     allv = [v for _, v in td["curve"]] + [v for _, v in series] + [v for _, v in td["observed"]]
     lo = min(-0.5, min(allv, default=0) - 0.3)
     hi = max((st.get("moderate") or 5.5) + 0.6, max(allv, default=4) + 0.6)
+    ext = td.get("extension") or []
+    allv += [v for _, v in ext]
+    lo = min(lo, min(allv, default=0) - 0.3)
+    hi = max(hi, max(allv, default=4) + 0.6)
     t0 = min([t for t, _ in td["curve"]] + [t for t, _ in td["observed"]], default=None)
-    t1 = max([t for t, _ in td["curve"]] + [t for t, _ in series], default=None)
+    t1 = max([t for t, _ in td["curve"]] + [t for t, _ in series] + [t for t, _ in ext], default=None)
     if not t0 or not t1:
         return
     X_ = lambda t: px0 + (t - t0).total_seconds() / (t1 - t0).total_seconds() * (px1 - px0)
@@ -114,16 +118,24 @@ def _tide_chart(cv, box, td, tz):
         cv.line([(px0, Y_(v)), (px1, Y_(v))], (255, 255, 255, 28), 1)
         cv.text(px0 - 12, Y_(v), f"{v}'", 18, "medium", C["muted"], anchor="rm")
         v += step
-    t = t0.replace(minute=0, second=0) + timedelta(hours=(6 - t0.hour % 6) % 6)
+    span_h = (t1 - t0).total_seconds() / 3600
+    tick = 6 if (px1 - px0) / max(1, span_h) * 6 >= 70 else 12  # keep the time labels from crowding
+    t = t0.replace(minute=0, second=0) + timedelta(hours=(tick - t0.hour % tick) % tick)
     while t <= t1:
+        if not t.hour:  # midnight: a faint day divider
+            cv.line([(X_(t), py0), (X_(t), py1)], (255, 255, 255, 34), 1.5)
         cv.line([(X_(t), py1), (X_(t), py1 + 8)], (255, 255, 255, 120), 2)
-        lab = t.strftime("%I%p").lstrip("0") if t.hour else t.strftime("%a").upper()
+        lab = (t.strftime("%I%p").lstrip("0") if t.hour != 12 else "NOON") if t.hour else t.strftime("%a").upper()
         cv.text(X_(t), py1 + 34, lab, 18 if w < 1000 else 20, "bold" if not t.hour else "medium",
                 C["text"] if not t.hour else C["muted"], anchor="ms")
-        t += timedelta(hours=6)
+        t += timedelta(hours=tick)
     cv.line([(X_(a), Y_(b)) for a, b in td["curve"]], (176, 190, 212, 150), 2)
     if series:
         cv.line([(X_(a), Y_(b)) for a, b in series], (88, 200, 255, 255), 5)
+    if len(ext) > 1:  # beyond the end of the NWS forecast: tide + surge carried forward, dashed
+        pts = [(X_(a), Y_(b)) for a, b in ext]
+        for k in range(0, len(pts) - 1, 2):
+            cv.line(pts[k:k + 2], (88, 200, 255, 150), 4)
     if td["observed"]:
         cv.line([(X_(a), Y_(b)) for a, b in td["observed"]], (255, 255, 255, 255), 5)
     now_x = X_(series[0][0]) if series else None
@@ -135,7 +147,10 @@ def _tide_chart(cv, box, td, tz):
             cv.text(X_(tt["time"]), Y_(tt["ft"]) - 14, f"{tt['ft']:.1f}'", 18, "bold", anchor="ms", stroke=1.5)
     lx = px0 + 12
     fc_lab = "NWS FORECAST" if td.get("forecast_source") == "NWS" else "FORECAST (TIDE + SURGE NOW)"
-    for label, col in (("OBSERVED", (255, 255, 255)), (fc_lab, (88, 200, 255)), ("ASTRONOMICAL TIDE", (176, 190, 212))):
+    keys = [("OBSERVED", (255, 255, 255)), (fc_lab, (88, 200, 255)), ("ASTRONOMICAL TIDE", (176, 190, 212))]
+    if len(ext) > 1:
+        keys.append(("PAST NWS FORECAST (DASHED)", (88, 200, 255)))
+    for label, col in keys:
         cv.rect(lx, py1 - 26, 18, 6, (*col, 255))
         cv.text(lx + 26, py1 - 17, label, 15, "bold", C["muted"], anchor="lm")
         lx += cv.width(label, 15, "bold") + 60
@@ -147,7 +162,7 @@ def tides(pkg, cfg):
         return None
     tz = _tz(cfg)
     cv = Canvas(cfg)
-    cv.header("TIDES & COASTAL FLOODING", f"{td['station_name']}  ·  NEXT 48 HOURS")
+    cv.header("TIDES & COASTAL FLOODING", f"{td['station_name']}  ·  NEXT {td.get('hours', 48)} HOURS  ·  NWS FORECAST")
     x, y, w, h = area(cv)
     if cv.tall:
         ch = h * (0.46 if cv.fmt == "vertical" else 0.44)
@@ -179,8 +194,9 @@ def tides(pkg, cfg):
     cv.text(sx + 26, ty, "HIGH & LOW TIDES  ·  " + ("OFFICIAL NWS FORECAST" if official else "ASTRONOMICAL (NWS FORECAST UNAVAILABLE)"),
             17, "bold", C["muted"], anchor="lt", maxw=sw - 52)
     ty += 30
-    rows = td["tides"][:6 if not cv.tall or cv.fmt == "vertical" else 4 if cv.fmt == "post" else 2]
     ncol = 2 if sw > 900 else 1
+    fit = max(1, int((sy + sh - 16 - ty) // 33)) * ncol  # every high & low in the window that fits (rows >= 33 px)
+    rows = td["tides"][:fit]
     per = -(-len(rows) // ncol)
     rh = min(52, (sy + sh - 16 - ty) / max(1, per))
     cw = (sw - 52 - (30 if ncol == 2 else 0)) / ncol
@@ -190,7 +206,8 @@ def tides(pkg, cfg):
         hl = t["type"] == "H"
         cv.text(cx, yy + rh / 2, "HIGH" if hl else "LOW", min(24, rh * 0.5), "bold", (88, 200, 255) if hl else C["muted"], anchor="lm")
         cv.text(cx + cw * 0.28, yy + rh / 2, f"{t['time'].strftime('%a')} {_t(t['time'])}", min(24, rh * 0.5), "medium", anchor="lm")
-        cv.text(cx + cw, yy + rh / 2, f"{t['ft']:.1f} ft", min(24, rh * 0.5), "bold", anchor="rm")
+        cv.text(cx + cw, yy + rh / 2, f"{t['ft']:.1f} ft" + ("*" if t.get("src") else ""), min(24, rh * 0.5), "bold",
+                anchor="rm")
     footer(cv, pkg)
     return cv
 

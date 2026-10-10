@@ -93,8 +93,9 @@ def fetch_tides(http, cfg, now, tz):
     st = cfg.get("tide_station", "8638610")
     gauge = cfg.get("tide_nwps_gauge", "SWPV2")
     begin = now.strftime("%Y%m%d")
-    hilo = _coops(http, st, product="predictions", datum="MLLW", interval="hilo", begin_date=begin, range=60)
-    hourly = _coops(http, st, product="predictions", datum="MLLW", interval="h", begin_date=begin, range=60)
+    rng = int(cfg.get("tide_hours", 72)) + 36  # from midnight today through the end of the chart window
+    hilo = _coops(http, st, product="predictions", datum="MLLW", interval="hilo", begin_date=begin, range=rng)
+    hourly = _coops(http, st, product="predictions", datum="MLLW", interval="h", begin_date=begin, range=rng)
     stages, fcst, nws_obs = None, None, None
     try:  # official NWS forecast + observations (same data as water.noaa.gov/gauges/SWPV2 "official" hydrograph)
         meta = http.get(f"{NWPS}/{gauge}")
@@ -121,19 +122,25 @@ def fetch_tides(http, cfg, now, tz):
 def parse_tides(hilo, hourly, obs, stages, fcst, cfg, now, tz, nws_obs=None):
     default = cfg.get("tide_flood_stages") or {"action": 4.0, "minor": 4.5, "moderate": 5.5, "major": 6.5}
     stages = stages or default
+    H = int(cfg.get("tide_hours", 72))  # chart / table window (hours ahead)
+    end = now + timedelta(hours=H)
     astro = [{"time": _local(p["t"], tz), "ft": float(p["v"]), "type": p["type"]}
              for p in hilo.get("predictions", [])]
-    astro = [t for t in astro if t["time"] >= now - timedelta(hours=1)][:8]
-    win = [f for f in (fcst or []) if now - timedelta(hours=1) <= f[0] <= now + timedelta(hours=60)]
+    astro = [t for t in astro if now - timedelta(hours=1) <= t["time"] <= end]
+    win = [f for f in (fcst or []) if now - timedelta(hours=1) <= f[0] <= end]
+    n_ex = H // 12 + 2
     if len(win) >= 6:  # high/low times + heights from the OFFICIAL NWS forecast (includes surge)
-        ex = [{"time": t, "ft": round(v, 1), "type": "H"} for t, v in find_extrema(win, now, "H", n=6)] + \
-             [{"time": t, "ft": round(v, 1), "type": "L"} for t, v in find_extrema(win, now, "L", n=6)]
-        tides = sorted(ex, key=lambda x: x["time"])[:8]
+        ex = [{"time": t, "ft": round(v, 1), "type": "H"} for t, v in find_extrema(win, now, "H", n=n_ex)] + \
+             [{"time": t, "ft": round(v, 1), "type": "L"} for t, v in find_extrema(win, now, "L", n=n_ex)]
+        tides = sorted(ex, key=lambda x: x["time"])
         tide_src = "NWS"
+        fc_end = win[-1][0]
+        if fc_end < end - timedelta(hours=3):  # NWS forecast stops early: astronomical times for the rest, flagged
+            tides += [dict(t, src="astronomical") for t in astro if t["time"] > fc_end + timedelta(hours=1)]
     else:
         tides, tide_src = astro, "astronomical"
     curve = [(_local(p["t"], tz), float(p["v"])) for p in hourly.get("predictions", [])]
-    curve = [c for c in curve if now - timedelta(hours=6) <= c[0] <= now + timedelta(hours=48)]
+    curve = [c for c in curve if now - timedelta(hours=6) <= c[0] <= end]
     if nws_obs:
         observed = [o for o in nws_obs if now - timedelta(hours=6) <= o[0] <= now]
     else:
@@ -147,16 +154,25 @@ def parse_tides(hilo, hourly, obs, stages, fcst, cfg, now, tz, nws_obs=None):
         if abs((near[0] - t_last).total_seconds()) < 5400:
             anomaly = round(v_last - near[1], 1)
     use_fcst = bool(fcst)
-    series = [f for f in (fcst or []) if now <= f[0] <= now + timedelta(hours=48)] or \
+    series = [f for f in (fcst or []) if now - timedelta(hours=1) <= f[0] <= end] or \
         [(t, v + (anomaly or 0)) for t, v in curve if t >= now]
+    # past the end of the NWS forecast (if it's shorter than the window): astronomical tide + today's surge, drawn dashed
+    extension = []
+    if use_fcst and series and series[-1][0] < end - timedelta(hours=1):
+        last_t, last_v = series[-1]
+        near = min(curve, key=lambda c: abs((c[0] - last_t).total_seconds())) if curve else None
+        off = (last_v - near[1]) if near else (anomaly or 0)  # carry the forecast's own surge forward
+        extension = [(last_t, last_v)] + [(t, v + off) for t, v in curve if last_t < t <= end]
     highs = [t for t in tides if t["type"] == "H"]
-    peak = max(series, key=lambda s: s[1]) if series else None
+    peak = max(series + extension[1:], key=lambda s: s[1]) if series else None
     if tide_src == "NWS" and highs:  # same refined high tide as the table
-        top = max((h for h in highs if h["time"] <= now + timedelta(hours=48)), key=lambda h: h["ft"], default=None)
+        top = max((h for h in highs if h["time"] <= end and not h.get("src")), key=lambda h: h["ft"], default=None)
         if top:
             peak = (top["time"], top["ft"])
     return {"station_name": cfg.get("tide_station_name", "Sewells Point (Norfolk)"), "tides": tides, "curve": curve,
-            "observed": observed, "forecast": series, "forecast_source": "NWS" if use_fcst else "astronomical+anomaly",
+            "observed": observed, "forecast": series, "extension": extension, "hours": H,
+            "forecast_end": series[-1][0] if (use_fcst and series) else None,
+            "forecast_source": "NWS" if use_fcst else "astronomical+anomaly",
             "tide_times_source": tide_src,
             "anomaly": anomaly, "stages": stages, "peak": peak, "next_high": highs[0] if highs else None}
 

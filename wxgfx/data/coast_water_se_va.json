@@ -1,0 +1,11 @@
+{
+ "bounds": [
+  -76.5,
+  -75.3,
+  35.9,
+  37.2
+ ],
+ "res_deg": 0.0005,
+ "values": "255 = water, 0 = land",
+ "source": "OpenStreetMap water polygons via geo-maps earth-seas-100m (ODbL, (c) OpenStreetMap contributors)"
+}

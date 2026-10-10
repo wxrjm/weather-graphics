@@ -37,6 +37,7 @@
     "high_tides",
     "high_tides_2",
     "tidal_flood_map",
+    "sound_flood",
     "river_flooding",
     "beach",
     "yesterday",
@@ -381,5 +382,21 @@
   "_latest_folder": "Name of the always-current folder inside output/ (OBS, phone page and Drive use it). An old output/latest is moved here automatically.",
   "latest_folder": "latest_rickywx",
   "_keep_days": "Dated run folders in output/ older than this many days are deleted after each run (0 = keep everything). latest_rickywx is never touched.",
-  "keep_days": 14
+  "keep_days": 14,
+  "_sound_flood": "Sound-side flooding (Sandbridge, Back Bay, Knotts Island, Carova) from a long south wind pushing Currituck Sound water north. Made when the wind blows from between sound_dirs (degrees) at sound_wind_min mph or more for sound_min_hours hours or more within the next sound_hours. sound_point = where the wind forecast is taken (over Back Bay). sound_lag_hours = how long water stays high after the wind.",
+  "sound_point": [
+    36.65,
+    -75.97
+  ],
+  "sound_dirs": [
+    140,
+    235
+  ],
+  "sound_wind_min": 15,
+  "sound_min_hours": 4,
+  "sound_hours": 72,
+  "sound_lag_hours": 2,
+  "sound_flood_always": false,
+  "_tide_hours": "How far ahead the Sewells Point tide chart and high/low table run (hours). The line is the official NWS forecast (water.noaa.gov SWPV2) for the whole window; if NWS stops sooner, the rest is the predicted tide + the forecast's surge, dashed.",
+  "tide_hours": 72
 }
