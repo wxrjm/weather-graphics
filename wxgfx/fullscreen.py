@@ -34,6 +34,24 @@ def _ink(col):
     return (20, 28, 46) if 0.3 * col[0] + 0.59 * col[1] + 0.11 * col[2] > 150 else C["text"]
 
 
+def credit(cv, text, right=None, bottom=None):
+    """Small 'data from' strip in the bottom-right corner (e.g. "DATA: NADOCAST MODEL")."""
+    if not text:
+        return
+    lab = "DATA FROM"
+    f1, f2 = 14, 19
+    w = cv.width(lab, f1, "bold") + cv.width(text, f2, "bold") + 46
+    h = 38
+    x1 = right if right is not None else cv.W - cv.M
+    y1 = bottom if bottom is not None else cv.H - 18
+    x0, y0 = x1 - w, y1 - h
+    cv.rect(x0, y0, w, h, (13, 21, 38, 235), r=10)
+    cv.rect(x0, y0, 6, h, (88, 150, 255, 255), r=3)
+    cv.text(x0 + 18, y0 + h / 2 + 1, lab, f1, "bold", C["muted"], anchor="lm")
+    cv.text(x0 + 26 + cv.width(lab, f1, "bold"), y0 + h / 2 + 1, text, f2, "bold", anchor="lm")
+    return w
+
+
 def layout(cv):
     """Bar-area geometry for the current format: (bars_top, n_cols, n_rows)."""
     if not cv.tall:
@@ -59,7 +77,7 @@ def attach(cv, **spec):
 
 
 def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_col, meaning, rows,
-           overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None):
+           overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None, credit_text=None):
     """overlay(cv, x, y, maxw) draws a legend / color bar just above the bars (returns nothing)."""
     from . import alertmap
     from .outlookmap import VIEW_BOX
@@ -121,5 +139,6 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
                 fs = min(24, rh * 0.36)
                 cv.text(x + 40, y + rh / 2, name, fs, "medium", anchor="lm", maxw=cw * 0.55)
                 cv.text(x + cw - 16, y + rh / 2, val, fs, "bold", anchor="rm", maxw=cw * 0.4)
-    cv.footer(pkg, source=source, show_source=bool(source))
+    cv.footer(pkg, source=source, show_source=bool(source) and not (credit_text and cv.tall))
+    credit(cv, credit_text)
     return cv

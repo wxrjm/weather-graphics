@@ -103,7 +103,7 @@ def _pick_callouts(rows, coords, proj, area, n):
 
 
 def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value, head_col, meaning, rows,
-           overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None):
+           overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None, credit_text=None):
     o = _opts(pkg, cfg, name)
     cv = Canvas(cfg)
     W, H = cv.W, cv.H
@@ -203,4 +203,7 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
     while ts > 26 and cv.width(tag, ts, "bold") > W - 2 * M:
         ts -= 2
     cv.text(W / 2, ty + tag_h / 2 + 2, tag, ts, "bold", (255, 255, 255), anchor="mm", maxw=W - 2 * M)
+    if credit_text:  # small "data from" strip at the bottom of the map, just above the tagline banner
+        from .fullscreen import credit
+        credit(cv, credit_text, right=W - M, bottom=map_y + map_h - 24 - 70 - 12 if cap_box else map_y + map_h - 14)
     return cv

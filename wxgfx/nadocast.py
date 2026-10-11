@@ -24,6 +24,7 @@ BASE = "http://data.nadocast.com"
 DATA_BOX = (-125.0, -66.0, 24.0, 50.0)  # w, e, s, n: CONUS
 TOR_BINS = [(2, (0, 139, 0)), (5, (139, 71, 38)), (10, (255, 200, 0)), (15, (255, 0, 0)),
             (30, (255, 0, 255)), (45, (145, 44, 238)), (60, (16, 78, 139))]  # SPC tornado colors
+CREDIT = "NADOCAST MODEL  ·  nadocast.com"  # the small "data from" strip at the bottom of every Nadocast graphic
 SIG_LEVEL = 10  # % sig-tornado chance that gets hatched (SPC convention)
 FILE_RE = re.compile(r"nadocast_(?:(?P<model>[0-9a-z_]+?)_models_)?conus_(?P<ev>sig_tornado|tornado)(?P<abs>_abs_calib)?"
                      r"_(?P<ymd>\d{8})_t(?P<hh>\d{2})z_f(?P<a>\d{2})-(?P<b>\d{2})\.grib2")
@@ -352,9 +353,10 @@ def _graphic(nd, key, view, area_txt, cities, pkg, cfg, tz):
     outlookmap._side(cv, px, py, pw_, ph_, head_col, "PEAK TORNADO CHANCE", head, meaning, rows,
                      "LOCAL CHANCES" if key == "local" else "HIGHEST CHANCES")
     models = " + ".join(m.replace("_preliminary", " prelim") for m in nd.get("models", []))
-    src = ("SAMPLE DATA" if nd.get("sample") else "Nadocast (B. Hempel)") + \
-        f" · {models} models{' blended' if nd.get('blended') else ''} · {nd.get('calibration', '')}"
-    cv.footer(pkg, source=src)
+    src = ("SAMPLE DATA" if nd.get("sample") else "Nadocast") + \
+        f" · {models} models{' blended' if nd.get('blended') else ''}"
+    cv.footer(pkg, source=src, show_source=not cv.tall)  # tall sizes: the strip below names the source
+    fullscreen.credit(cv, CREDIT)
     fullscreen.attach(cv, title=title, subtitle=subtitle,
                       map_fn=lambda pw, ph, v: outlookmap.draw_map([], pw, ph, cfg, outline=False, painter=paint, view=v,
                                                                    cities=cities, water_alpha=0.0, county_lines=lines),
@@ -363,7 +365,7 @@ def _graphic(nd, key, view, area_txt, cities, pkg, cfg, tz):
                       callout_rows=([("PEAK", head_col, _pct(pk), (pla, plo))] if pk >= 2 and pla is not None else [])
                       + [("Norfolk", _bin(home), _pct(home), (loc["lat"], loc["lon"]))]
                       + _spread_cities(tor, view, [(pla, plo), (loc["lat"], loc["lon"])]),
-                      big_caption=when, big_tagline=(f"PEAK {_pct(pk)} {where}".upper() if pk >= 2 else "TORNADO CHANCES BELOW 2%"))
+                      big_caption=when, credit_text=CREDIT, big_tagline=(f"PEAK {_pct(pk)} {where}".upper() if pk >= 2 else "TORNADO CHANCES BELOW 2%"))
     return cv, pk
 
 
