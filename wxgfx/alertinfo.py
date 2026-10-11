@@ -11,7 +11,7 @@ DATA = Path(__file__).resolve().parent / "data" / "region_counties.json"
 COLORS = {
     "Tornado Warning": "#FF0000", "Extreme Wind Warning": "#FF8C00",
     "Severe Thunderstorm Warning": "#FFA500", "Flash Flood Warning": "#8B0000",
-    "Flash Flood Emergency": "#8B0000", "Tornado Watch": "#FFFF00",
+    "Flash Flood Emergency": "#8B0000", "Tornado Watch": "#A3121A",
     "Severe Thunderstorm Watch": "#DB7093", "Flash Flood Watch": "#2E8B57", "Flood Watch": "#2E8B57",
     "Flood Warning": "#00FF00", "Flood Advisory": "#00FF7F", "Flood Statement": "#00FF00",
     "Hurricane Warning": "#DC143C", "Hurricane Watch": "#FF00FF",

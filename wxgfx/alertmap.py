@@ -135,7 +135,19 @@ def _paste_rounded(cv, lay, x, y, r=18):
     cv.d = ImageDraw.Draw(cv.img, "RGBA")
 
 
+def _text_tint(col):
+    """Dark alert colors (Tornado Watch dark red, Flash Flood Warning) vanish as small text on the navy panel,
+    so labels use a brightened tint of the same hue; the map, rule and bars keep the true color."""
+    lum = (0.2126 * col[0] + 0.7152 * col[1] + 0.0722 * col[2]) / 255
+    if lum >= 0.30:
+        return col
+    t = 0.55
+    return tuple(int(c + (255 - c) * t) for c in col)
+
+
 def _side_panel(cv, alert, x, y, w, h, col, abbr=None):
+    bar = col
+    col = _text_tint(col)
     areas = alertinfo.areas_text(alert)
     if isinstance(areas, dict) and abbr:
         areas = {st: [abbr.get(n, n) for n in names] for st, names in areas.items()}
@@ -173,7 +185,7 @@ def _side_panel(cv, alert, x, y, w, h, col, abbr=None):
             break
         for c, r in enumerate(pr):
             bx = x + 26 + c * (cw + 36)
-            cv.rect(bx, cy, 6, rh(r, size) - 4, col)
+            cv.rect(bx, cy, 6, rh(r, size) - 4, bar)
             cv.text(bx + 20, cy, r["label"], 21, "bold", col, anchor="lt")
             for i, t in enumerate(cv.wrap(r["text"], size, "regular", cw - 20)):
                 cv.text(bx + 20, cy + 32 + i * size * 1.28, t, size, "regular", anchor="lt")
