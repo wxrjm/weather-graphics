@@ -7,3 +7,4 @@ __pycache__/
 *.bak
 *.tmp
 manual_forecast.json
+cleanup_log.txt

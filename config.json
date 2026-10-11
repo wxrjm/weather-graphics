@@ -382,8 +382,6 @@
   "output_layout": "category",
   "_latest_folder": "Name of the always-current folder inside output/ (OBS, phone page and Drive use it). An old output/latest is moved here automatically.",
   "latest_folder": "latest_rickywx",
-  "_keep_days": "Dated run folders in output/ older than this many days are deleted after each run (0 = keep everything). latest_rickywx is never touched.",
-  "keep_days": 14,
   "_sound_flood": "Sound-side flooding (Sandbridge, Back Bay, Knotts Island, Carova) from a long south wind pushing Currituck Sound water north. Made when the wind blows from between sound_dirs (degrees) at sound_wind_min mph or more for sound_min_hours hours or more within the next sound_hours. sound_point = where the wind forecast is taken (over Back Bay). sound_lag_hours = how long water stays high after the wind.",
   "sound_point": [
     36.65,
@@ -403,5 +401,7 @@
   "_nadocast": "Nadocast AI tornado probabilities (data.nadocast.com, no key; needs eccodes + numpy). Day-1 forecast from the latest run, blended across the published model versions (2022 + 2024 preliminary) when more than one exists. Maps for VA/NC and the eastern U.S., each made only when its peak reaches nadocast_min (%). nadocast_calibration: spc or abs.",
   "nadocast_min": 2,
   "nadocast_calibration": "spc",
-  "nadocast_always": false
+  "nadocast_always": false,
+  "_keep_hours": "Dated run folders in output/ older than this many hours are deleted after every run and by the scheduled cleanup (cleanup_output.bat). 0 = keep everything. latest_rickywx is never touched.",
+  "keep_hours": 48
 }

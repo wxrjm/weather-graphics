@@ -387,26 +387,30 @@ def main():
     clean_old_runs(cfg, now)
 
 
-def clean_old_runs(cfg, now):
-    """Delete dated run folders (output/YYYY-MM-DD_HHMM) older than config "keep_days" (default 14; 0 = keep all).
+def clean_old_runs(cfg, now, root=None):
+    """Delete dated run folders (output/YYYY-MM-DD_HHMM) older than config "keep_hours" (default 48; 0 = keep all).
     Only folders named like a run are touched - never latest_rickywx, cache, or anything you made yourself."""
-    days = cfg.get("keep_days", 14)
-    if not days or days <= 0:
-        return
-    cutoff = now.replace(tzinfo=None) - timedelta(days=days)
+    hours = cfg.get("keep_hours", 48)
+    if not hours or hours <= 0:
+        return 0
+    out = (root or ROOT) / "output"
+    if not out.exists():
+        return 0
+    cutoff = now.replace(tzinfo=None) - timedelta(hours=hours)
     gone = 0
-    for d in (ROOT / "output").iterdir():
+    for d in out.iterdir():
         if not d.is_dir() or not re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{4}", d.name):
             continue
         try:
-            made = datetime.strptime(d.name, "%Y-%m-%d_%H%M")
+            made = datetime.strptime(d.name, "%Y-%m-%d_%H%M")  # the run's own local time
         except ValueError:
             continue
         if made < cutoff:
             shutil.rmtree(d, ignore_errors=True)
             gone += not d.exists()
     if gone:
-        print(f"Cleaned up {gone} run folder{'s' if gone != 1 else ''} older than {days} days")
+        print(f"Cleaned up {gone} run folder{'s' if gone != 1 else ''} older than {hours} hours")
+    return gone
 
 
 if __name__ == "__main__":
