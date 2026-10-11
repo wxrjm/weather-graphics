@@ -74,12 +74,16 @@ def _pick_callouts(rows, coords, proj, area, n):
     """Choose up to n rows with distinct values, spread across the map (greedy farthest-point)."""
     x0, y0, x1, y1 = area
     cands = []
-    for name, col, val in rows:
-        if not col or not val or str(val).upper() in ("N/A", "--", "NONE", "0", "0%"):
+    for row in rows:  # (name, color, value) or (name, color, value, (lat, lon)) with an exact spot
+        name, col, val = row[:3]
+        if not col or not val or str(val).upper() in ("N/A", "--", "NONE", "0", "0%", "<2%"):
             continue
-        if name not in coords:
+        if len(row) > 3 and row[3]:
+            la, lo = row[3]
+        elif name in coords:
+            la, lo = coords[name]
+        else:
             continue
-        la, lo = coords[name]
         px, py = proj(lo, la)
         if x0 <= px <= x1 and y0 <= py <= y1:
             cands.append((name, col, str(val), px, py))

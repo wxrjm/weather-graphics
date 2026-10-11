@@ -268,6 +268,20 @@ Risk = the NWS (NDFD) overnight low, adjusted for wind and cloud cover overnight
 Only made when something reaches Patchy Frost (`frost_min_level`: 1-4); `"frost_always": true` forces it. Needs
 `eccodes` + `numpy` for the map; without them the table falls back to the KORF point forecast.
 
+## Nadocast tornado probabilities (graphic key: `nadocast`) → `02 Severe & Alerts/`
+
+`nadocast_local.png` (Virginia & North Carolina) and `nadocast_east.png` (Great Lakes to the Gulf), plus `_full`
+and square `_big` versions. Brian Hempel's machine-learning tornado forecast from **data.nadocast.com** (no key):
+the day-1 (12Z-12Z) chance of a tornado within 25 miles of a point, in SPC tornado colors (2, 5, 10, 15, 30, 45, 60%),
+with black hatching where the significant (EF2+) tornado chance is 10%+. The panel shows the **peak %** and **where
+it is** ("near Raleigh, NC" / "25 mi SW of Richmond, VA"), Norfolk's chance, and local (or highest) chances by city.
+
+- **Blended:** Nadocast publishes more than one model version on many days ("2022" and "2024 preliminary"). They're
+  averaged into one blended forecast; with only one available, that one is used (the footer lists the models).
+- `"nadocast_calibration"`: `"spc"` (regular, SPC-style probabilities, default) or `"abs"` (absolutely calibrated).
+- Each map is only made when its peak is at least `"nadocast_min"` (2%); `"nadocast_always": true` forces them.
+- Needs `eccodes` + `numpy` (same as the snow/wind maps). `--outlook-debug` prints which run/files were used.
+
 ## Snowfall & wind maps (graphic key: `ndfd_maps`)
 Full-resolution (2.5 km) NWS NDFD grids on the county stencil, with a color bar and a local list:
 - `snow_map.png` - total forecast snowfall over the next `"snow_hours"` (default 72). Skipped when

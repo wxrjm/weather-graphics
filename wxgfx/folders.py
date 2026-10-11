@@ -10,7 +10,7 @@ import re
 CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - first match wins
     ("01 Forecast", lambda n: n in ("daily", "what_to_know", "7day", "hourly", "current", "commute", "weekend",
                                     "holiday_countdown")),
-    ("02 Severe & Alerts", lambda n: n.startswith(("spc_", "alert", "weather_aware", "warning_count"))),
+    ("02 Severe & Alerts", lambda n: n.startswith(("spc_", "nadocast", "alert", "weather_aware", "warning_count"))),
     ("03 Temperature", lambda n: n.startswith(("feels_like", "wind_chill", "dewpoints", "above_average", "record_watch",
                                                "first_freeze", "frost_"))),
     ("04 Rain & Flooding", lambda n: n.startswith(("rain_totals", "wpc_qpf", "ero_", "ffg_", "rain_reports",

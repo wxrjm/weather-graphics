@@ -54,7 +54,8 @@ def _rgb(c):
     return alertinfo.hex_rgb(c) if isinstance(c, str) else tuple(c)
 
 
-def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=None, cities=None, water_alpha=0.78):
+def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=None, cities=None, water_alpha=0.78,
+             county_lines=True):
     """layers: list of (rgb, polys) drawn bottom -> top.
     painter(draw, proj): optional extra fill layer (e.g. gridded NDFD snow/wind cells)."""
     W_, H_ = z(pw), z(ph)
@@ -109,7 +110,7 @@ def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=Non
     lw = max(1, z(1))
     for pts in base_outlines:  # outer states (beyond the county map)
         d.line(pts + [pts[0]], fill=(214, 226, 244, 120), width=max(1, z(1.3)), joint="curve")
-    for c in cs:  # county lines
+    for c in (cs if county_lines else []):  # county lines (off for wide regional views)
         for p in c["polys"]:
             pts = [proj(x, y) for x, y in p[0]]
             d.line(pts + [pts[0]], fill=(*STENCIL_EDGE[:3], 150), width=lw)

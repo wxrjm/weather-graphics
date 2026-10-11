@@ -116,6 +116,7 @@ const GRAPHICS = [
   ["Maps", [
     ["outlooks","SPC / ERO / WPC rainfall maps","Severe outlook with hazards, excessive rainfall outlook, WPC rainfall maps (Days 1-2, 1-3, 1-5, 1-7; local + VA/NC)."],
     ["ffg","Flash Flood Guidance","Rain needed in 1/3/6 hours to flood small streams (NWS RFC gridded FFG), local values + full-screen version."],
+    ["nadocast","Nadocast tornado probabilities","AI tornado chances (blended Nadocast models) with legend, peak % and where it is; VA/NC and eastern U.S. maps (only when 2%+)."],
     ["ndfd_maps","Snowfall & wind maps","NDFD snow total, sustained wind, peak gusts."],
     ["winter_maps","Winter probability & WSSI maps","WPC chance of 4/8/12 in. snow and 0.25 in. ice (Days 1-3) + Winter Storm Severity Index. Skipped when nothing is forecast."],
     ["cpc_hazards","CPC hazards outlook","Days 8-14 hazards on an eastern U.S. map (Great Lakes to the Gulf), plus a separate heavy rain / flooding map."],
@@ -146,7 +147,7 @@ const GRAPHICS = [
     ["air_quality","Air Quality","Current AQI and 5-day forecast (AirNow + model guidance)."],
     ["aviation","ORF Aviation","Flight category, METAR, TAF."]]],
 ];
-const ALWAYS = {first_freeze:"first_freeze_always", tropics:"tropics_always", warning_count:"warning_count_always", ndfd_maps:"snow_map_always", frost_risk:"frost_always", sound_flood:"sound_flood_always"};
+const ALWAYS = {first_freeze:"first_freeze_always", tropics:"tropics_always", warning_count:"warning_count_always", ndfd_maps:"snow_map_always", frost_risk:"frost_always", sound_flood:"sound_flood_always", nadocast:"nadocast_always"};
 const FORMATS = [["wide","Wide 1920×1080","TV, OBS, YouTube"],["vertical","Vertical 1080×1920","Stories, Reels, TikTok"],["post","Post 1080×1350","Facebook & Instagram feed"],["square","Square 1080×1080","Facebook/Instagram square posts"]];
 const ICONS = ["","clear","few","partly","mostly_cloudy","cloudy","showers","rain","tstorm","snow","mix","fog","wind"];
 const LEVELS = ["","NOT EXPECTED","LOW","POSSIBLE","ELEVATED","HIGH","VERY HIGH"];

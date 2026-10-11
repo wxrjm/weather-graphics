@@ -29,6 +29,7 @@
     "alerts",
     "alert_maps",
     "outlooks",
+    "nadocast",
     "ffg",
     "ndfd_maps",
     "winter_maps",
@@ -398,5 +399,9 @@
   "sound_lag_hours": 2,
   "sound_flood_always": false,
   "_tide_hours_fallback": "The Sewells Point tide chart runs exactly through the end of the official NWS forecast (water.noaa.gov SWPV2), nothing beyond it. Only if the NWS forecast is unavailable does it show this many hours of predicted tide instead.",
-  "tide_hours_fallback": 48
+  "tide_hours_fallback": 48,
+  "_nadocast": "Nadocast AI tornado probabilities (data.nadocast.com, no key; needs eccodes + numpy). Day-1 forecast from the latest run, blended across the published model versions (2022 + 2024 preliminary) when more than one exists. Maps for VA/NC and the eastern U.S., each made only when its peak reaches nadocast_min (%). nadocast_calibration: spc or abs.",
+  "nadocast_min": 2,
+  "nadocast_calibration": "spc",
+  "nadocast_always": false
 }
