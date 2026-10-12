@@ -21,9 +21,9 @@ from .theme import C, Canvas, z
 
 MIDATL_VIEW = (-83.6, -73.6, 34.9, 40.9)
 LOCAL_VIEW = (-77.9, -75.0, 35.85, 37.95)
-ORANGE, ICE = (255, 140, 52), (112, 204, 255)
-STOPS = [(0.0, (170, 224, 238)), (0.22, (52, 150, 228)), (0.5, (96, 70, 205)), (0.78, (196, 60, 180)),
-         (1.0, (246, 70, 124))]
+ORANGE, ICE = C["sun"], C["rain"]  # warm high = brand gold, cold low = brand sky blue
+STOPS = [(0.0, (206, 230, 248)), (0.3, (98, 176, 255)), (0.62, (52, 112, 220)), (0.85, (60, 70, 205)),
+         (1.0, (104, 76, 214))]  # small drop = pale ice -> brand blues -> indigo for the biggest crashes
 
 MIDATL_CITIES = [  # (label, lat, lon)
     ("Norfolk", 36.90, -76.20), ("Richmond", 37.54, -77.44), ("Washington", 38.90, -77.04),
@@ -259,8 +259,8 @@ def _callout(cv, r, px, py, boxes, bounds, big):
     boxes.append((x, y, bw, bh))
     cv.d.ellipse([z(px - 11), z(py - 11), z(px + 11), z(py + 11)], fill=(255, 255, 255, 255), outline=(13, 21, 38, 255),
                  width=z(3))
-    cv.rect(x, y, bw, bh, (20, 18, 40, 232), r=12)
-    cv.text(x + 22, y + 12, r["name"].upper(), nm, "bold", (232, 238, 250), anchor="lt")
+    cv.rect(x, y, bw, bh, (20, 31, 54, 235), r=12)
+    cv.text(x + 22, y + 12, r["name"].upper(), nm, "bold", C["text"], anchor="lt")
     cv.text(x + bw - 16, y + 14, _days(r), nm - 6, "medium", C["muted"], anchor="rt")
     ty = y + nm * 1.55 + fs * 0.62
     cv.text(x + 22, ty, t1, fs, "bold", ORANGE, anchor="lm")
@@ -276,7 +276,7 @@ def _days(r):
 
 def _legend(cv, x, y, w, lo, hi, cols):
     cv.rect(x - 14, y - 40, w + 28, 100, (13, 21, 38, 205), r=12)
-    cv.text(x, y - 16, "TEMPERATURE DROP (°F)", 17, "bold", (214, 224, 242), anchor="lm")
+    cv.text(x, y - 16, "TEMPERATURE DROP (°F)", 17, "bold", C["muted"], anchor="lm")
     seg = w / len(cols)
     for k, c in enumerate(cols):
         cv.d.rectangle([z(x + k * seg), z(y + 4), z(x + (k + 1) * seg + 1), z(y + 22)], fill=(*c, 255))
@@ -286,7 +286,7 @@ def _legend(cv, x, y, w, lo, hi, cols):
         if i % step == 0 or t == hi:
             lab = f"{t}°" + ("+" if t == hi else "")
             tx = x + w * (t - lo) / (hi - lo)
-            cv.text(tx, y + 44, lab, 17, "bold", (214, 224, 242), anchor="rm" if t == hi else "lm" if t == lo else "mm")
+            cv.text(tx, y + 44, lab, 17, "bold", C["muted"], anchor="rm" if t == hi else "lm" if t == lo else "mm")
 
 
 def _crop(td, view, stride):
@@ -350,11 +350,11 @@ def _graphic(td, pool, key, title_fn, view_box, n_call, tmin, pkg, cfg, tz, by_d
     cw = 300 if not cv.tall else 232
     for k, (lab, col, rng) in enumerate((("HOTTEST HIGH", ORANGE, hr), ("COLDEST LOW", ICE, lr))):
         x0 = cv.M + k * (cw + (84 if not cv.tall else 60))
-        cv.rect(x0, cy, cw, 82 if not cv.tall else 74, (20, 18, 40, 232), r=10)
+        cv.rect(x0, cy, cw, 82 if not cv.tall else 74, (20, 31, 54, 235), r=10)
         cv.rect(x0, cy, 7, 82 if not cv.tall else 74, (*col, 255), r=3)
         cv.text(x0 + 24, cy + 8, lab, 27 if not cv.tall else 22, "bold", col, anchor="lt")
         cv.text(x0 + 24, cy + (46 if not cv.tall else 40), f"{rng[0]}  ·  {rng[1]}", 19 if not cv.tall else 16, "bold",
-                (214, 224, 242), anchor="lt", maxw=cw - 36)
+                C["muted"], anchor="lt", maxw=cw - 36)
         if k == 0:
             _arrow(cv, x0 + cw + 12, cy + (41 if not cv.tall else 37), 60 if not cv.tall else 36, 40)
     lw = 520 if not cv.tall else min(W - 2 * cv.M - 20, 560)
