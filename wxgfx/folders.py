@@ -12,7 +12,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
                                     "holiday_countdown")),
     ("02 Severe & Alerts", lambda n: n.startswith(("spc_", "nadocast", "alert", "weather_aware", "warning_count"))),
     ("03 Temperature", lambda n: n.startswith(("feels_like", "wind_chill", "dewpoints", "above_average", "record_watch",
-                                               "first_freeze", "frost_"))),
+                                               "first_freeze", "frost_", "temp_drop"))),
     ("04 Rain & Flooding", lambda n: n.startswith(("rain_totals", "wpc_qpf", "ero_", "ffg_", "rain_reports",
                                                    "storm_rain_reports", "river"))),
     ("05 Snow & Ice", lambda n: n.startswith(("snow", "ice_", "wssi", "storm_snow_reports"))),

@@ -258,6 +258,14 @@ Risk per south-wind window (`sound_dirs` 140-235°, at least `sound_wind_min` 15
 6+ hours (or 20+ for 18+). Wind comes from the NWS hourly forecast over Back Bay (`sound_point`), or the KORF forecast
 if that point fails. Only made when a window is forecast (`"sound_flood_always": true` to force). Also `_full` + `_big`.
 
+## Temperature crash (graphic key: `temp_drop`)
+
+- `temp_drop_midatlantic.png` - Mid-Atlantic map of the biggest drop from a warm daytime high to the coldest low that follows
+  it (within `tempdrop_span` days, default 4), with city callouts "89° -> 35°" and the days it happens.
+- `temp_drop_hamptonroads.png` - the same for Hampton Roads.
+Both come in every size. Data: NDFD MaxT + MinT (needs eccodes + numpy). Made when a city drops `tempdrop_min` degrees
+(default 20; Hampton Roads `tempdrop_min_local`, default 15); `"tempdrop_always": true` forces it.
+
 ## Frost & freeze risk (graphic key: `frost_risk`)
 
 - `frost_risk_table.png` - every local spot (`frost_points`, default the outlook points) × the next `frost_nights` (3)
