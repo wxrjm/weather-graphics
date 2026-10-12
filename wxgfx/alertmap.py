@@ -95,7 +95,7 @@ def draw_map(alert, pw, ph, cfg):
     d = ImageDraw.Draw(lay, "RGBA")
     w, e, s, n = _view(alert, pw, ph, cfg)
     proj = lambda x, y: ((x - w) / (e - w) * W_, (n - y) / (n - s) * H_)
-    col = alertinfo.hex_rgb(alert["color"])
+    col = _text_tint(alertinfo.hex_rgb(alert["color"]))
     hit = set(alert["fips"])
     focus = set(cfg.get("alert_counties") or [])
     # independent cities are holes inside counties, so draw counties first, then cities on top
@@ -141,7 +141,7 @@ def _text_tint(col):
     lum = (0.2126 * col[0] + 0.7152 * col[1] + 0.0722 * col[2]) / 255
     if lum >= 0.30:
         return col
-    t = 0.55
+    t = 0.32
     return tuple(int(c + (255 - c) * t) for c in col)
 
 
@@ -199,7 +199,7 @@ def alert_graphic(alert, pkg, cfg):
     alert.setdefault("ends_label", "")
     alert.setdefault("summary", [{"label": "WHAT", "text": alert.get("headline", "")}] if alert.get("headline") else [])
     cv = Canvas(cfg)
-    col = alertinfo.hex_rgb(alert["color"])
+    col = _text_tint(alertinfo.hex_rgb(alert["color"]))
     cv.header(alert["event"], alert["ends_label"], rule_color=col)
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
     _paste_rounded(cv, draw_map(alert, mw, mh, cfg), mx, my)
