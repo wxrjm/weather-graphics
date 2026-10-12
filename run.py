@@ -318,7 +318,7 @@ def main():
         else:
             print("Fetching Nadocast tornado probabilities...")
             pkg["_nadocast"] = nadocast.fetch(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
-    if "temp_drop" in (cfg.get("graphics") or []) and (only_set is None or "temp_drop" in only_set):
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("temp_drop", "temp_drop_highs")):
         from wxgfx import tempdrop
         utc_now = now.astimezone(timezone.utc)
         if args.sample:
@@ -326,7 +326,8 @@ def main():
         else:
             print("Fetching NDFD highs and lows for the temperature crash map...")
             pkg["_tempdrop"] = tempdrop.fetch(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
-    if "frost_risk" in (cfg.get("graphics") or []) and (only_set is None or "frost_risk" in only_set):
+    _fk = ("frost_risk", "frost_region", "freeze_potential")
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in _fk):
         from wxgfx import frost
         utc_now = now.astimezone(timezone.utc)
         if args.sample:

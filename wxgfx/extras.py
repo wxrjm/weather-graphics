@@ -1209,11 +1209,22 @@ def air_quality(pkg, cfg):
 WARM_COLS = [(20, (200, 30, 90)), (15, (230, 50, 40)), (10, (245, 110, 40)), (0, (250, 165, 55))]
 
 
+COOL_COLS = [(20, (66, 96, 238)), (15, (62, 128, 242)), (10, (88, 170, 255)), (0, (150, 205, 250))]
+
+
 def _warm_col(dep):
     return next(c for t, c in WARM_COLS if dep >= t)
 
 
-def warm_days(pkg, cfg):
+def _cool_col(dep):
+    return next((c for t, c in COOL_COLS if -dep >= t), COOL_COLS[-1][1])
+
+
+def _sgn(dep):
+    return f"+{dep}" if dep > 0 else f"{dep}".replace("-", "\u2212")  # real minus sign for cooler days
+
+
+def warm_days(pkg, cfg, mode="warm"):
     """Forecast days whose high beats the 1991-2020 normal by at least warm_departure_min (default 5F)."""
     ac = _ex(pkg).get("acis")
     if not ac or not ac.get("normals"):
@@ -1225,11 +1236,14 @@ def warm_days(pkg, cfg):
         if n is None or d.get("high") is None:
             continue
         allrows.append({"d": d, "normal": round(n), "dep": round(d["high"] - n)})
+    if mode == "cool":
+        need = cfg.get("cool_departure_min", 5)
+        return [r for r in allrows if r["dep"] <= -need], allrows
     need = cfg.get("warm_departure_min", 5)
     return [r for r in allrows if r["dep"] >= need], allrows
 
 
-def _dep_strip(cv, box, allrows, need):
+def _dep_strip(cv, box, allrows, need, mode="warm"):
     x, y, w, h = box
     cv.rect(x, y, w, h, C["panel"], r=16)
     cv.text(x + 24, y + 20, "DEGREES ABOVE / BELOW AVERAGE  ·  NEXT 7 DAYS", 19, "bold", C["muted"], anchor="lt")
@@ -1246,9 +1260,14 @@ def _dep_strip(cv, box, allrows, need):
     for i, r in enumerate(allrows):
         cx = x + 24 + slot * (i + 0.5)
         bh_ = ((mid - top - 30) if r["dep"] >= 0 else (bot - mid - 34)) * abs(r["dep"]) / span
-        warm = r["dep"] >= need
-        col = _warm_col(r["dep"]) if r["dep"] > 0 else (88, 150, 255)
-        alpha = 255 if warm or r["dep"] < 0 else 110
+        if mode == "cool":
+            warm = r["dep"] <= -need  # "highlighted" day
+            col = _cool_col(r["dep"]) if r["dep"] < 0 else _warm_col(r["dep"])
+            alpha = 255 if warm else 110
+        else:
+            warm = r["dep"] >= need
+            col = _warm_col(r["dep"]) if r["dep"] > 0 else (88, 150, 255)
+            alpha = 255 if warm or r["dep"] < 0 else 110
         if r["dep"] == 0:
             cv.text(cx, mid - 10, "0°", min(24, slot * 0.3), "bold", C["muted"], anchor="ms")
         elif r["dep"] > 0:
@@ -1256,32 +1275,33 @@ def _dep_strip(cv, box, allrows, need):
             cv.text(cx, mid - bh_ - 8, f"+{r['dep']}°", min(24, slot * 0.3), "bold", C["text"] if warm else C["muted"], anchor="ms")
         else:
             cv.rect(cx - slot * 0.28, mid, slot * 0.56, max(3, bh_), (*col, alpha), r=6)
-            cv.text(cx, mid + bh_ + 26, f"{r['dep']}°", min(24, slot * 0.3), "bold", C["muted"], anchor="ms")
+            cv.text(cx, mid + bh_ + 26, f"{_sgn(r['dep'])}°", min(24, slot * 0.3), "bold", C["text"] if warm else C["muted"], anchor="ms")
         cv.text(cx, bot + 30, r["d"]["dow"][:3].upper(), min(20, slot * 0.28), "bold", C["text"] if warm else C["muted"], anchor="ms")
 
 
-def above_average(pkg, cfg):
-    warm, allrows = warm_days(pkg, cfg)
+def _average_graphic(pkg, cfg, mode):
+    cool = mode == "cool"
+    warm, allrows = warm_days(pkg, cfg, mode)
     if not warm:
         return None
-    need = cfg.get("warm_departure_min", 5)
+    need = cfg.get("cool_departure_min" if cool else "warm_departure_min", 5)
     cv = Canvas(cfg)
     area_ = pkg["location"].get("area", "Hampton Roads Area").upper()
     x, y, w, h = area(cv)
     strip_h = 230 if not cv.tall else (380 if cv.fmt == "vertical" else 250)
     hh = h - strip_h - 20
-    _dep_strip(cv, (x, y + hh + 20, w, strip_h), allrows, need)
+    _dep_strip(cv, (x, y + hh + 20, w, strip_h), allrows, need, mode)
     if len(warm) == 1:
         r = warm[0]
-        d, col = r["d"], _warm_col(r["dep"])
-        cv.header("WARMER THAN AVERAGE", f"{area_}  ·  {d['dow'].upper()}, {d['date_label'].upper()}")
+        d, col = r["d"], (_cool_col if cool else _warm_col)(r["dep"])
+        cv.header(("COOLER THAN AVERAGE" if cool else "WARMER THAN AVERAGE"), f"{area_}  ·  {d['dow'].upper()}, {d['date_label'].upper()}")
         cv.rect(x, y, w, hh, C["panel"], r=18)
         cv.rect(x, y, 12, hh, (*col, 255), r=6)
         if not cv.tall:
             cv.text(x + 70, y + 60, d["dow"].upper(), 40, "bold", anchor="lt")
             big = min(250, hh * 0.55)
-            cv.text(x + 60, y + hh * 0.5 + big * 0.42, f"+{r['dep']}°", big, "bold", col, anchor="ls")
-            cv.text(x + 70, y + hh - 50, "ABOVE AVERAGE", 34, "bold", C["muted"], anchor="ls")
+            cv.text(x + 60, y + hh * 0.5 + big * 0.42, f"{_sgn(r['dep'])}°", big, "bold", col, anchor="ls")
+            cv.text(x + 70, y + hh - 50, ("BELOW AVERAGE" if cool else "ABOVE AVERAGE"), 34, "bold", C["muted"], anchor="ls")
             tx = x + w * 0.46
             for i, (lab, val) in enumerate((("FORECAST HIGH", f"{d['high']}°"), ("AVERAGE HIGH", f"{r['normal']}°"))):
                 ty = y + 70 + i * (hh - 120) / 2
@@ -1295,8 +1315,8 @@ def above_average(pkg, cfg):
         else:
             cv.text(x + w / 2, y + 60, d["dow"].upper(), 44, "bold", anchor="mt")
             big = min(260, hh * 0.4)
-            cv.text(x + w / 2, y + 120 + big * 0.85, f"+{r['dep']}°", big, "bold", col, anchor="ms")
-            cv.text(x + w / 2, y + 170 + big * 0.85, "ABOVE AVERAGE", 32, "bold", C["muted"], anchor="ms")
+            cv.text(x + w / 2, y + 120 + big * 0.85, f"{_sgn(r['dep'])}°", big, "bold", col, anchor="ms")
+            cv.text(x + w / 2, y + 170 + big * 0.85, ("BELOW AVERAGE" if cool else "ABOVE AVERAGE"), 32, "bold", C["muted"], anchor="ms")
             gap_top, gap_bot = y + 200 + big * 0.85, y + hh - 190
             if d.get("icon") and gap_bot - gap_top > 150:
                 ic = min(220, (gap_bot - gap_top) * 0.6)
@@ -1310,20 +1330,20 @@ def above_average(pkg, cfg):
                 cv.text(cx, y + hh - 50, val, 86, "bold", C["text"] if i == 0 else C["muted"], anchor="ms")
     else:
         avg = round(sum(r["dep"] for r in warm) / len(warm))
-        peak = max(warm, key=lambda r: r["dep"])
+        peak = (min if cool else max)(warm, key=lambda r: r["dep"])
         run = all(allrows.index(b) - allrows.index(a) == 1 for a, b in zip(warm, warm[1:]))
         when = (f"{warm[0]['d']['dow'].upper()} – {warm[-1]['d']['dow'].upper()}" if run
                 else f"{len(warm)} OF THE NEXT {len(allrows)} DAYS")
-        cv.header("WARM STRETCH" if run else "WARMER THAN AVERAGE", f"{area_}  ·  {when}  ·  AVERAGE +{avg}°")
+        cv.header(("COOL STRETCH" if cool else "WARM STRETCH") if run else ("COOLER THAN AVERAGE" if cool else "WARMER THAN AVERAGE"), f"{area_}  ·  {when}  ·  AVERAGE {_sgn(avg)}°")
         n = len(warm)
         cols = n if not cv.tall else (1 if n <= 3 else 2)
         boxes = grid(x, y, w, hh, n, cols, 16)
         for r, (bx, by, bw, bh) in zip(warm, boxes):
-            d, col = r["d"], _warm_col(r["dep"])
+            d, col = r["d"], (_cool_col if cool else _warm_col)(r["dep"])
             cv.rect(bx, by, bw, bh, C["panel"], r=16)
             cv.rect(bx, by, bw, 12, (*col, 255), r=6)
             if r is peak:
-                cv.text(bx + bw - 18, by + 30, "WARMEST", 15, "bold", col, anchor="rt")
+                cv.text(bx + bw - 18, by + 30, ("COOLEST" if cool else "WARMEST"), 15, "bold", col, anchor="rt")
             cv.text(bx + bw / 2, by + min(64, bh * 0.2), d["dow"].upper()[:3] if bw < 300 else d["dow"].upper(),
                     min(34, bh * 0.14), "bold", anchor="ms")
             cv.text(bx + bw / 2, by + min(94, bh * 0.3), d["date_label"].upper(), min(19, bh * 0.08), "bold", C["muted"], anchor="ms")
@@ -1331,18 +1351,26 @@ def above_average(pkg, cfg):
             ic = min(120, bw * 0.4, bh * 0.22)
             if d.get("icon") and bh > 330:
                 draw_icon(cv, d["icon"], bx + bw / 2, by + bh * 0.42, ic)
-                cv.text(bx + bw / 2, by + bh * 0.68 + big * 0.36, f"+{r['dep']}°", big, "bold", col, anchor="ms")
+                cv.text(bx + bw / 2, by + bh * 0.68 + big * 0.36, f"{_sgn(r['dep'])}°", big, "bold", col, anchor="ms")
             else:
-                cv.text(bx + bw / 2, by + bh * 0.56 + big * 0.36, f"+{r['dep']}°", big, "bold", col, anchor="ms")
+                cv.text(bx + bw / 2, by + bh * 0.56 + big * 0.36, f"{_sgn(r['dep'])}°", big, "bold", col, anchor="ms")
             cv.text(bx + bw / 2, by + bh - min(60, bh * 0.2), f"HIGH {d['high']}°", min(28, bh * 0.1), "bold", anchor="ms")
             cv.text(bx + bw / 2, by + bh - min(28, bh * 0.09), f"AVG {r['normal']}°", min(20, bh * 0.08), "bold", C["muted"], anchor="ms")
     footer(cv, pkg)
     return cv
 
 
+def above_average(pkg, cfg):
+    return _average_graphic(pkg, cfg, "warm")
+
+
+def below_average(pkg, cfg):
+    return _average_graphic(pkg, cfg, "cool")
+
+
 GRAPHICS = {
     "weather_aware": weather_aware, "tides": tides, "high_tides": high_tides,
     "high_tides_2": lambda pkg, cfg: high_tides(pkg, cfg, "high_tides_2"), "beach": beach, "yesterday": yesterday, "month_rain": month_rain,
-    "record_watch": record_watch, "above_average": above_average, "first_freeze": first_freeze, "commute": commute, "weekend": weekend,
+    "record_watch": record_watch, "above_average": above_average, "below_average": below_average, "first_freeze": first_freeze, "commute": commute, "weekend": weekend,
     "sun_uv": sun_uv, "air_quality": air_quality, "tropics": tropics, "warning_count": warning_count, "aviation": aviation,
 }

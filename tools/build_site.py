@@ -22,7 +22,7 @@ SECTIONS = [  # (title, test on file stem) - first match wins
     ("Hurricane Threat", lambda n: n.startswith("T_")),
     ("Alerts & Be Weather Aware", lambda n: n.startswith(("alert", "weather_aware", "warning_count"))),
     ("Forecast", lambda n: n in ("daily", "what_to_know", "7day", "hourly", "current", "commute", "weekend",
-                                 "above_average", "holiday_countdown")),
+                                 "above_average", "below_average", "holiday_countdown")),
     ("Charts", lambda n: n in ("feels_like", "wind_chill", "dewpoints", "rain_totals", "wind", "sun_uv",
                                "air_quality")),
     ("Big Text Maps", lambda n: n.endswith("_big")),

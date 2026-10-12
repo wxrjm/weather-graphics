@@ -266,6 +266,19 @@ if that point fails. Only made when a window is forecast (`"sound_flood_always":
 Both come in every size. Data: NDFD MaxT + MinT (needs eccodes + numpy). Made when a city drops `tempdrop_min` degrees
 (default 20; Hampton Roads `tempdrop_min_local`, default 15); `"tempdrop_always": true` forces it.
 
+## More temperature graphics
+
+- `temp_drop_highs_midatlantic.png` / `temp_drop_highs_hamptonroads.png` (key `temp_drop_highs`) - the biggest ONE-DAY fall in
+  the daily high (the day a front arrives), city callouts "84° -> 63°". Made at `tempdrop_highs_min` (12°; Hampton Roads
+  `tempdrop_highs_min_local`, 10°).
+- `below_average.png` (key `below_average`) - the cool twin of Warmer Than Average: days whose high is at least
+  `cool_departure_min` (5°) below the 1991-2020 average. One day = spotlight, several = "Cool Stretch" cards.
+- `frost_region_midatl_N.png` / `frost_region_hr_N.png` (key `frost_region`) - frost risk (patchy / likely / freeze / hard
+  freeze) for the Mid-Atlantic and for Hampton Roads, one pair per night that reaches `frost_min_level`.
+- `freeze_potential_midatl_N.png` / `freeze_potential_hr_N.png` (key `freeze_potential`) - how cold the low gets (36° or
+  colder, 32° freeze, 28° hard freeze, 24°, 20°). Made when the view reaches `freeze_min_temp` (32°).
+NDFD has no probabilities, so frost and freeze are risk categories, not percent chances.
+
 ## Frost & freeze risk (graphic key: `frost_risk`)
 
 - `frost_risk_table.png` - every local spot (`frost_points`, default the outlook points) × the next `frost_nights` (3)

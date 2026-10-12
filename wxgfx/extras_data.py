@@ -981,6 +981,6 @@ def fetch_all(cfg, cache_dir, now, tz, want, debug=False):
 
 NEEDS = {  # graphic -> data it uses
     "tides": {"tides"}, "high_tides": {"high_tides"}, "high_tides_2": {"high_tides_2"}, "air_quality": {"aqi"}, "tidal_flood_map": {"tidal_map"}, "beach": {"beach", "uv"}, "yesterday": {"cli"}, "month_rain": {"cli"},
-    "record_watch": {"acis"}, "above_average": {"acis"}, "first_freeze": {"acis"}, "commute": set(), "weekend": set(),
+    "record_watch": {"acis"}, "above_average": {"acis"}, "below_average": {"acis"}, "first_freeze": {"acis"}, "commute": set(), "weekend": set(),
     "sun_uv": {"uv"}, "tropics": {"tropics"}, "warning_count": {"warn_counts"}, "aviation": {"aviation"},
 }

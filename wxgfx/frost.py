@@ -30,6 +30,7 @@ LEVELS = [  # (key, name, short, color, meaning)
     ("hard", "HARD FREEZE", "HARD FRZ", (215, 70, 200),
      "A hard freeze (28° or colder) will end the growing season. Protect pipes and bring pets in."),
 ]
+FETCH_BOX = (-87.0, -71.0, 33.0, 42.5)
 BINS = [(k + 0.5, LEVELS[k + 1][3]) for k in range(4)]  # smooth risk field -> class colors
 
 
@@ -87,7 +88,7 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
         out["errors"].append("frost map needs ecCodes + numpy (pip install eccodes numpy); table uses the point forecast")
         return out
     tz = ZoneInfo(cfg["timezone"])
-    box = tuple(cfg.get("outlook_view") or outlookmap.VIEW_BOX)
+    box = FETCH_BOX  # wide enough for the regional map; the local maps crop it
     cache = Path(cache_dir)
     cache.mkdir(parents=True, exist_ok=True)
     ua = cfg["user_agent"]
@@ -106,7 +107,7 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
                     for valid, la, lo, v in ndfdmap._messages(path, box):
                         lat, lon = la, lo
                         series[elem].append((valid, v))
-            if lat is None or not ndfdmap._covers(lat, lon, box):
+            if lat is None or not ndfdmap._covers(lat, lon, tuple(cfg.get("outlook_view") or outlookmap.VIEW_BOX)):
                 raise RuntimeError(f"{sector} sector doesn't cover the map")
             nights = {}
             for valid, v in series["mint"]:
@@ -144,8 +145,8 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
 def sample(now_utc, tz):
     """Synthetic grids: a cold, calm second night (frost/freeze inland), milder first and third nights."""
     import numpy as np
-    lat = np.linspace(34.9, 39.3, 190)[:, None] * np.ones((1, 230))
-    lon = np.ones((190, 1)) * np.linspace(-79.8, -73.8, 230)[None, :]
+    lat = np.linspace(33.0, 42.5, 300)[:, None] * np.ones((1, 380))
+    lon = np.ones((300, 1)) * np.linspace(-87.0, -71.0, 380)[None, :]
     inland = np.clip((-75.6 - lon) / 2.5, 0, 1.6) + np.clip((lat - 36.6) / 2.2, 0, 1)  # colder inland / north
     today = now_utc.astimezone(tz).date()
     out = {"nights": [], "errors": []}
@@ -211,9 +212,22 @@ def _legend(cv, x, y, maxw):
     outlookmap._legend_chips(cv, x, y, [(lv[3], lv[1].title()) for lv in LEVELS[1:]], maxw)
 
 
+def _crop_field(field, box, pad=1.2):
+    """Trim a big grid to the map's box (+ margin) so the local maps paint as fast as before."""
+    import numpy as np
+    w, e, s, n = box
+    m = (field["lon"] >= w - pad) & (field["lon"] <= e + pad) & (field["lat"] >= s - pad) & (field["lat"] <= n + pad)
+    if not m.any():
+        return field
+    r, c = np.where(m)
+    sl = (slice(r.min(), r.max() + 1), slice(c.min(), c.max() + 1))
+    return {k: v[sl] for k, v in field.items()}
+
+
 def _map_graphic(night, idx, pkg, cfg):
     from .ndfdmap import _cell_painter
     field = {"lat": night["lat"], "lon": night["lon"], "val": night["risk"]}
+    field = _crop_field(field, tuple(cfg.get("outlook_view") or outlookmap.VIEW_BOX))
     cv = Canvas(cfg)
     title = "FROST & FREEZE RISK"
     subtitle = f"{night['label']}  ·  NWS FORECAST LOWS, WIND & CLOUD COVER"

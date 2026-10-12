@@ -43,6 +43,28 @@ LOCAL_CITIES = [
 
 
 # ------------------------------------------------------------------ analysis
+def compute_highs(highs):
+    """Day-to-day: the biggest one-day fall in the daily HIGH (a front's passage). Same grid keys as compute()."""
+    import numpy as np
+    days = sorted(highs)
+    shape = next(iter(highs.values())).shape
+    best = np.full(shape, -np.inf, np.float32)
+    hi, lo, hd, ld = (np.full(shape, np.nan, np.float32) for _ in range(4))
+    for d in days:
+        n = d + timedelta(days=1)
+        if n not in highs:
+            continue
+        drop = highs[d] - highs[n]
+        better = np.nan_to_num(drop, nan=-np.inf) > best
+        best = np.where(better, drop, best)
+        hi = np.where(better, highs[d], hi)
+        lo = np.where(better, highs[n], lo)
+        hd = np.where(better, float(d.toordinal()), hd)
+        ld = np.where(better, float(n.toordinal()), ld)
+    best = np.where(np.isinf(best), np.nan, best)
+    return {"drop": best, "hi": hi, "lo": lo, "hi_day": hd, "lo_day": ld}
+
+
 def compute(highs, lows, span=4):
     """highs / lows: {date: 2-D array (deg F)}; lows are keyed by the MORNING they occur.
     -> dict of grids: drop, hi, lo, hi_day, lo_day (day ordinals)."""
@@ -117,7 +139,7 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
             if not highs or not lows:
                 raise RuntimeError("not enough highs/lows in the forecast")
             res = compute(highs, lows, cfg.get("tempdrop_span", 4))
-            res.update({"lat": lat, "lon": lon, "errors": []})
+            res.update({"lat": lat, "lon": lon, "errors": [], "highs": compute_highs(highs)})
             if debug:
                 print(f"   [tempdrop] {sector}: {len(highs)} highs, {len(lows)} lows, max drop {np.nanmax(res['drop']):.0f}")
             return res
@@ -142,7 +164,7 @@ def sample(now_utc, tz):
     lows = {today + timedelta(days=i): l - 9 * nw + 2 * coast + 0.5 * np.sin(lon * 0.9) * np.cos(lat * 1.1)
             for i, l in enumerate((66, 67, 66, 64, 50, 38, 36), start=1)}
     res = compute(highs, lows, 4)
-    res.update({"lat": lat, "lon": lon, "errors": []})
+    res.update({"lat": lat, "lon": lon, "errors": [], "highs": compute_highs(highs)})
     return res
 
 
@@ -274,9 +296,9 @@ def _days(r):
     return f"{r['hi_day'].strftime('%a').upper()} - {r['lo_day'].strftime('%a').upper()}"
 
 
-def _legend(cv, x, y, w, lo, hi, cols):
+def _legend(cv, x, y, w, lo, hi, cols, title="TEMPERATURE DROP (°F)"):
     cv.rect(x - 14, y - 40, w + 28, 100, (13, 21, 38, 205), r=12)
-    cv.text(x, y - 16, "TEMPERATURE DROP (°F)", 17, "bold", C["muted"], anchor="lm")
+    cv.text(x, y - 16, title, 17, "bold", C["muted"], anchor="lm")
     seg = w / len(cols)
     for k, c in enumerate(cols):
         cv.d.rectangle([z(x + k * seg), z(y + 4), z(x + (k + 1) * seg + 1), z(y + 22)], fill=(*c, 255))
@@ -301,7 +323,8 @@ def _crop(td, view, stride):
     return {k: (v[sl] if hasattr(v, "shape") and v.ndim == 2 else v) for k, v in td.items()}
 
 
-def _graphic(td, pool, key, title_fn, view_box, n_call, tmin, pkg, cfg, tz, by_drop=True):
+def _graphic(td, pool, key, title_fn, view_box, n_call, tmin, pkg, cfg, tz, by_drop=True,
+             labels=("HOTTEST HIGH", "COLDEST LOW"), legend_title="TEMPERATURE DROP (°F)"):
     rows = city_rows(td, pool)
     if not rows:
         return None
@@ -348,7 +371,7 @@ def _graphic(td, pool, key, title_fn, view_box, n_call, tmin, pkg, cfg, tz, by_d
     hr, lr = _day_range([r["hi_day"] for r in use]), _day_range([r["lo_day"] for r in use])
     cy = 206
     cw = 300 if not cv.tall else 232
-    for k, (lab, col, rng) in enumerate((("HOTTEST HIGH", ORANGE, hr), ("COLDEST LOW", ICE, lr))):
+    for k, (lab, col, rng) in enumerate(((labels[0], ORANGE, hr), (labels[1], ICE, lr))):
         x0 = cv.M + k * (cw + (84 if not cv.tall else 60))
         cv.rect(x0, cy, cw, 82 if not cv.tall else 74, (20, 31, 54, 235), r=10)
         cv.rect(x0, cy, 7, 82 if not cv.tall else 74, (*col, 255), r=3)
@@ -358,7 +381,7 @@ def _graphic(td, pool, key, title_fn, view_box, n_call, tmin, pkg, cfg, tz, by_d
         if k == 0:
             _arrow(cv, x0 + cw + 12, cy + (41 if not cv.tall else 37), 60 if not cv.tall else 36, 40)
     lw = 520 if not cv.tall else min(W - 2 * cv.M - 20, 560)
-    _legend(cv, W - cv.M - lw, H - 120, lw, lo, hi, cols)
+    _legend(cv, W - cv.M - lw, H - 120, lw, lo, hi, cols, legend_title)
     src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "NWS NDFD"
     cv.footer(pkg, source=src)
     return cv
@@ -380,4 +403,26 @@ def tempdrop_graphics(pkg, cfg):
                    cfg.get("tempdrop_local_callouts", 8), cfg.get("tempdrop_min_local", 15), pkg, cfg, tz, by_drop=False)
     if loc is not None:
         out.append(("temp_drop_hamptonroads", loc))
+    return out or None
+
+
+def tempdrop_highs_graphics(pkg, cfg):
+    """Day-to-day fall in the daily high (the day a front arrives): 'HIGH TUE 84 -> HIGH WED 61'."""
+    td = pkg.get("_tempdrop") or {}
+    if "highs" not in td:
+        return None
+    t2 = {"lat": td["lat"], "lon": td["lon"], **td["highs"]}
+    tz = ZoneInfo(cfg["timezone"])
+    out = []
+    kw = {"labels": ("HIGH BEFORE", "HIGH AFTER"), "legend_title": "ONE-DAY DROP IN HIGHS (°F)"}
+    mid = _graphic(t2, MIDATL_CITIES, "temp_drop_highs_midatlantic", lambda n, top: f"HIGHS DROP {n}° IN A DAY",
+                   tuple(cfg.get("tempdrop_view") or MIDATL_VIEW), cfg.get("tempdrop_callouts", 9),
+                   cfg.get("tempdrop_highs_min", 12), pkg, cfg, tz, **kw)
+    if mid is not None:
+        out.append(("temp_drop_highs_midatlantic", mid))
+    loc = _graphic(t2, LOCAL_CITIES, "temp_drop_highs_hamptonroads", lambda n, top: f"HAMPTON ROADS: HIGHS DROP {n}°",
+                   tuple(cfg.get("tempdrop_local_view") or LOCAL_VIEW), cfg.get("tempdrop_local_callouts", 8),
+                   cfg.get("tempdrop_highs_min_local", 10), pkg, cfg, tz, by_drop=False, **kw)
+    if loc is not None:
+        out.append(("temp_drop_highs_hamptonroads", loc))
     return out or None
