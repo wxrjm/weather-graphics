@@ -11,7 +11,8 @@ Data: NDFD GRIB2 MinT + wind speed + sky cover (tgftp.nws.noaa.gov, no key; need
 Without ecCodes, the table falls back to the KORF point forecast (one row, no map).
 Graphics are only made when some spot reaches PATCHY FROST or worse (config "frost_always": true to force).
 """
-from datetime import datetime, timedelta, timezone
+from datetime import warnings
+import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -121,8 +122,13 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
             for evening in sorted(nights)[:n_nights]:
                 t0 = datetime(evening.year, evening.month, evening.day, 21, tzinfo=tz)
                 t1 = t0 + timedelta(hours=11)
-                pick = lambda key, scale: (lambda g: np.nanmean(np.stack(g), axis=0) * scale if g else None)(
-                    [v for t, v in series[key] if t0 <= t.astimezone(tz) <= t1])
+                def pick(key, scale):
+                    g = [v for t, v in series[key] if t0 <= t.astimezone(tz) <= t1]
+                    if not g:
+                        return None
+                    with warnings.catch_warnings():  # all-NaN cells (off the NDFD grid) are expected and stay NaN
+                        warnings.simplefilter("ignore", RuntimeWarning)
+                        return np.nanmean(np.stack(g), axis=0) * scale
                 low = nights[evening]
                 wind, sky = pick("wspd", 2.23694), pick("sky", 1.0)
                 out["nights"].append({"label": _night_label(evening, today), "evening": evening.isoformat(),
