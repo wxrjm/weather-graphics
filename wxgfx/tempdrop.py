@@ -215,6 +215,14 @@ def _scale(td, view):
     return lo, hi
 
 
+def _core_days(dates):
+    """The middle half of the dates across every city (so one odd spot doesn't stretch 'TUE-SUN')."""
+    d = sorted(dates)
+    if len(d) < 4:
+        return d
+    return d[len(d) // 4: len(d) - len(d) // 4] or d
+
+
 def _day_range(dates):
     a, b = min(dates), max(dates)
     if a == b:
@@ -343,7 +351,7 @@ def _graphic(td, pool, key, title_fn, view_box, n_call, tmin, pkg, cfg, tz, by_d
     from .ndfdmap import _cell_painter
     paint = _cell_painter({"lat": td["lat"], "lon": td["lon"], "val": td["drop"]}, bins, alpha=225)
     lay = outlookmap.draw_map([], W, H, cfg, outline=False, painter=paint, view=view, cities=[("-", 0, 0, 2)],
-                              water_alpha=0.9, county_lines=False)
+                              water_alpha=0.3, county_lines=False)  # dim the open ocean: NDFD values out there are coarse
     base = cv.img.convert("RGBA")
     base.alpha_composite(lay.resize(base.size) if lay.size != base.size else lay)
     cv.img = base.convert("RGB")
@@ -367,8 +375,7 @@ def _graphic(td, pool, key, title_fn, view_box, n_call, tmin, pkg, cfg, tz, by_d
     for r, px, py in picks:
         if _callout(cv, r, px, py, boxes, bounds, big=not cv.tall):
             shown.append(r)
-    use = shown or rows
-    hr, lr = _day_range([r["hi_day"] for r in use]), _day_range([r["lo_day"] for r in use])
+    hr, lr = _day_range(_core_days([r["hi_day"] for r in rows])), _day_range(_core_days([r["lo_day"] for r in rows]))
     cy = 206
     cw = 300 if not cv.tall else 232
     for k, (lab, col, rng) in enumerate(((labels[0], ORANGE, hr), (labels[1], ICE, lr))):

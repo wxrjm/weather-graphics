@@ -94,7 +94,7 @@ def _render(pkg, cfg, night, kind, view_box, pool, n_call, area_label):
     else:
         paint = _cell_painter({"lat": nt["lat"], "lon": nt["lon"], "val": -nt["low"]}, _bins_for_freeze(), alpha=215)
     lay = outlookmap.draw_map([], W, H, cfg, outline=False, painter=paint, view=view, cities=[("-", 0, 0, 2)],
-                              water_alpha=0.9, county_lines=False)
+                              water_alpha=0.3, county_lines=False)
     base = cv.img.convert("RGBA")
     base.alpha_composite(lay.resize(base.size) if lay.size != base.size else lay)
     cv.img = base.convert("RGB")
