@@ -47,6 +47,8 @@ HAZARDS = [
     ("heavy snow", "Heavy Snow", (0, 132, 168), False),
     ("heavy ice", "Heavy Ice", (255, 0, 197), False),
     ("freezing rain", "Freezing Rain", (255, 0, 197), False),
+    ("rapid onset drought", "Rapid Onset Drought", (168, 112, 0), False),
+    ("drought", "Drought", (115, 38, 0), False),
     ("severe", "Severe Weather", (230, 152, 0), False),
     ("excessive heat", "Excessive Heat", (168, 0, 0), False),
     ("hazardous heat", "Hazardous Heat", (168, 0, 0), False),
@@ -58,8 +60,6 @@ HAZARDS = [
     ("high wind", "High Winds", (205, 170, 102), False),
     ("wave", "Significant Waves", (255, 211, 127), False),
     ("wildfire", "Critical Wildfire Risk", (60, 60, 60), False),
-    ("rapid onset drought", "Rapid Onset Drought", (168, 112, 0), False),
-    ("drought", "Severe Drought", (115, 38, 0), False),
 ]
 RAIN_MEANING = {
     "Flooding Occurring": "Flooding is occurring or imminent.",
@@ -191,6 +191,14 @@ def _span(a, b):
 
 def hazard_graphic(period, feats, pkg, cfg, rain):
     feats = [f for f in feats if classify(f["label"])[2] == rain]
+    merged = {}  # CPC sends one feature per polygon: fold same hazard + same dates into one entry
+    for f in feats:
+        k = (classify(f["label"])[0], f.get("start"), f.get("end"))
+        if k in merged:
+            merged[k]["polys"] = merged[k]["polys"] + f["polys"]
+        else:
+            merged[k] = {**f, "polys": list(f["polys"])}
+    feats = list(merged.values())
     area = lambda f: sum(abs(sum(x0 * y1 - x1 * y0 for (x0, y0, *_), (x1, y1, *_) in zip(p[0], p[0][1:]))) for p in f["polys"])
     feats = sorted(feats, key=area, reverse=True)
     cv = Canvas(cfg)
