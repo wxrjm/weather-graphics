@@ -326,6 +326,13 @@ def main():
         else:
             print("Fetching NDFD highs and lows for the temperature crash map...")
             pkg["_tempdrop"] = tempdrop.fetch(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if "fronts" in (cfg.get("graphics") or []) and (only_set is None or "fronts" in only_set):
+        from wxgfx import fronts
+        if args.sample:
+            pkg["_fronts"] = fronts.sample(now)
+        else:
+            print("Fetching WPC forecast fronts...")
+            pkg["_fronts"] = fronts.fetch(cfg, ROOT / "cache", now, debug=args.outlook_debug)
     _fk = ("frost_risk", "frost_region", "freeze_potential")
     if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in _fk):
         from wxgfx import frost

@@ -351,6 +351,18 @@ show `N/A` instead of pretending it will be dry. Turn off with `"extended_rainfa
 Stations, zones and ZIP are in `config.json` (`tide_station`, `marine_zones`, `uv_zip`, `airport`...).
 If one source is down, only its graphic is skipped. `--outlook-debug` also prints details for these.
 
+## Forecast fronts (WPC)
+
+`fronts` makes `fronts_outlook` (Today / Tomorrow / Day 3 side by side, stacked on vertical/post/square) and
+`fronts_day_1..3` (one full map per day): cold, warm, stationary and occluded fronts, troughs, and H / L pressure
+centers with the millibars, plus a Norfolk marker. They go in `01 Forecast`.
+
+Data is WPC's National Forecast Chart vector service (no key). WPC publishes only Days 1-3 as lines; Days 4-7 exist
+only as pictures, so these graphics stop at Day 3. Front symbols point toward the side the front is moving (inferred
+as east / south of the line, since the feed does not say). Config: `fronts_days` (default `[1,2,3]`),
+`fronts_always` (make it even when no fronts are forecast). If it ever looks wrong, run
+`python run.py --only fronts --outlook-debug` and look at the "fronts day N" lines.
+
 ## Output folders
 `output/latest_rickywx/` (and each dated run folder) is sorted by type, then by size:
 

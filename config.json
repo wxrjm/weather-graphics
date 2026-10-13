@@ -49,6 +49,7 @@
     "below_average",
     "first_freeze",
     "frost_risk",
+    "fronts",
     "temp_drop",
     "temp_drop_highs",
     "frost_region",
@@ -378,6 +379,8 @@
     "square"
   ],
   "bigtext_callouts": 4,
+  "_fronts": "WPC forecast fronts (mapservices.weather.noaa.gov natl_fcst_wx_chart, no key): fronts_outlook (Today / Tomorrow / Day 3) plus a full map per day with cold/warm/stationary/occluded fronts and H/L centers. WPC only publishes Days 1-3 as vectors. fronts_days picks days; fronts_always makes it even with no fronts.",
+  "fronts_days": [1, 2, 3],
   "_frost_risk": "Frost & freeze risk: table of forecast lows + risk by location for the next frost_nights nights, plus a risk map per night with frost. NDFD lows adjusted for wind/cloud. Only made when frost is possible (frost_always forces it).",
   "_temp_drop": "Temperature crash: biggest drop from a warm high to the coldest low that follows (within tempdrop_span days), Mid-Atlantic + Hampton Roads maps with city callouts. Made when a city drops tempdrop_min F (Hampton Roads: tempdrop_min_local); tempdrop_always forces it.",
   "_temp_drop_highs": "temp_drop_highs: the biggest ONE-DAY fall in the daily high (front arrives), Mid-Atlantic + Hampton Roads. Made when a city falls tempdrop_highs_min F (Hampton Roads: tempdrop_highs_min_local).",
