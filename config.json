@@ -342,6 +342,8 @@
   "tidal_map_min_category": "minor",
   "tidal_map_shade_from": "action",
   "tidal_radius_km": 22,
+  "tidal_bay_map": true,
+  "tidal_bay_radius_km": 48,
   "tidal_map_max": 2,
   "tidal_map_always": false,
   "tidal_ref_gauge": "SWPV2",

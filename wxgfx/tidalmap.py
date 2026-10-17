@@ -21,6 +21,7 @@ from .outlookmap import _legend_chips, _side, _view
 from .theme import Canvas, C, z
 
 TIDAL_VIEW = (-77.45, -75.35, 36.55, 38.05)  # w, e, s, n: James/York/Rappahannock mouths to the Eastern Shore
+BAY_VIEW = (-77.55, -75.15, 36.6, 39.6)  # the whole Chesapeake Bay: Cape Henry to the Susquehanna Flats
 CATS = [  # index threshold, key, label, color
     (1.0, "action", "NEAR FLOOD STAGE", (255, 220, 0)),
     (2.0, "minor", "MINOR", (255, 140, 0)),
@@ -59,7 +60,7 @@ def _cat_of(idx):
     return hit
 
 
-def events(sites, cfg):
+def events(sites, cfg, max_lag_h=5):
     """Group each gauge's high tides into tide cycles keyed on the reference gauge's highs."""
     usable = [s for s in sites if s.get("highs") and _stages(s.get("stages")) and s.get("lat") is not None]
     if not usable:
@@ -71,7 +72,7 @@ def events(sites, cfg):
         pts = []
         for s in usable:
             near = min(s["highs"], key=lambda x: abs((x["time"] - t0).total_seconds()))
-            if abs((near["time"] - t0).total_seconds()) > 5 * 3600:
+            if abs((near["time"] - t0).total_seconds()) > max_lag_h * 3600:
                 continue
             st = _stages(s["stages"])
             pts.append({"name": s["name"], "lat": s["lat"], "lon": s["lon"], "ft": near["ft"], "time": near["time"],
@@ -86,7 +87,7 @@ def _km(lat1, lon1, lat2, lon2):
     return math.hypot((lon1 - lon2) * 111.32 * k, (lat1 - lat2) * 110.57)
 
 
-def draw_tidal_map(ev, pw, ph, cfg, view=None):
+def draw_tidal_map(ev, pw, ph, cfg, view=None, radius=None):
     W_, H_ = z(pw), z(ph)
     w, e, s, n = _view(pw, ph, tuple(view or cfg.get("tidal_view") or TIDAL_VIEW))
     proj = lambda x, y: ((x - w) / (e - w) * W_, (n - y) / (n - s) * H_)
@@ -102,7 +103,7 @@ def draw_tidal_map(ev, pw, ph, cfg, view=None):
             d.polygon(pts, fill=STENCIL)
             ld.polygon(pts, fill=255)
     # ---- flood index field on a coarse grid, then smoothed up to full size
-    radius = cfg.get("tidal_radius_km", 22)
+    radius = radius or cfg.get("tidal_radius_km", 22)
     step = max(6, W_ // 360)  # coarse grid, smoothed later (keeps full-screen sizes fast)
     gw, gh = W_ // step + 1, H_ // step + 1
     idx_img = Image.new("L", (gw, gh), 0)
@@ -169,11 +170,14 @@ def _window(ev, tz):
     return f"{day} {part(a)}  ·  {hr(a)} – {hr(b)}"
 
 
-def tidal_graphic(ev, pkg, cfg, tz):
+def tidal_graphic(ev, pkg, cfg, tz, bay=False):
+    view = tuple((cfg.get("tidal_bay_view") if bay else cfg.get("tidal_view")) or (BAY_VIEW if bay else TIDAL_VIEW))
+    radius = cfg.get("tidal_bay_radius_km", 48) if bay else None  # bigger reach: fills the open middle of the Bay
+    title = "CHESAPEAKE BAY TIDAL FLOODING" if bay else "TIDAL FLOODING FORECAST"
     cv = Canvas(cfg)
-    cv.header("TIDAL FLOODING FORECAST", _window(ev, tz))
+    cv.header(title, _window(ev, tz))
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
-    _paste_rounded(cv, draw_tidal_map(ev, mw, mh, cfg), mx, my)
+    _paste_rounded(cv, draw_tidal_map(ev, mw, mh, cfg, view=view, radius=radius), mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
     shade_from = cfg.get("tidal_map_shade_from", "action")
     chips = [(c[3], c[2]) for c in reversed(CATS) if ORDER.index(c[1]) >= ORDER.index(shade_from)]
@@ -190,14 +194,18 @@ def tidal_graphic(ev, pkg, cfg, tz):
     for p in pts:
         pc = _cat_of(p["idx"])
         rows.append((p["name"], pc[3] if pc else None, f"{p['ft']:.1f} FT"))
-    _side(cv, px, py, pw_, ph_, head_col, "SEWELLS POINT (NORFOLK)", head, meaning, rows[:16], "FORECAST HIGH TIDE  ·  FT MLLW")
+    shown = rows[:16]
+    cb = next((r for r in rows if r[0] == "CBBT"), None)  # always show the Bay Bridge-Tunnel
+    if cb and cb not in shown:
+        shown = shown[:15] + [cb]
+    _side(cv, px, py, pw_, ph_, head_col, "SEWELLS POINT (NORFOLK)", head, meaning, shown, "FORECAST HIGH TIDE  ·  FT MLLW")
     src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "NWS tide gauge forecasts (shading interpolated between gauges)"
     cv.footer(pkg, source=src)
     from . import fullscreen
-    fullscreen.attach(cv, title="TIDAL FLOODING FORECAST", subtitle=_window(ev, tz),
-                      map_fn=lambda pw, ph, view: draw_tidal_map(ev, pw, ph, cfg, view=view),
-                      box=tuple(cfg.get("tidal_view") or TIDAL_VIEW), head_label="SEWELLS POINT (NORFOLK)",
-                      head_value=head, head_col=head_col, meaning=meaning, rows=rows,
+    fullscreen.attach(cv, title=title, subtitle=_window(ev, tz),
+                      map_fn=lambda pw, ph, view: draw_tidal_map(ev, pw, ph, cfg, view=view, radius=radius),
+                      box=view, head_label="SEWELLS POINT (NORFOLK)",
+                      head_value=head, head_col=head_col, meaning=meaning, rows=shown,
                       overlay=lambda c, x, y, mw_: _legend_chips(c, x, y, chips, mw_), source=src)
     return cv
 
@@ -214,4 +222,9 @@ def tidal_graphics(pkg, cfg):
     if not evs:
         print(f"  - tidal_flood_map: no {least} tidal flooding forecast, nothing exported")
         return None
-    return [(f"tidal_flood_map_{i}", tidal_graphic(e, pkg, cfg, tz)) for i, e in enumerate(evs[:cfg.get("tidal_map_max", 2)], 1)]
+    out = [(f"tidal_flood_map_{i}", tidal_graphic(e, pkg, cfg, tz)) for i, e in enumerate(evs[:cfg.get("tidal_map_max", 2)], 1)]
+    if cfg.get("tidal_bay_map", True):  # whole Chesapeake Bay + rivers: wider tide-lag window, wider interpolation reach
+        bevs = [e for e in events(sites, cfg, max_lag_h=7) if e["max_idx"] >= need or cfg.get("tidal_map_always", False)]
+        out += [(f"tidal_flood_bay_{i}", tidal_graphic(e, pkg, cfg, tz, bay=True))
+                for i, e in enumerate(bevs[:cfg.get("tidal_map_max", 2)], 1)]
+    return out

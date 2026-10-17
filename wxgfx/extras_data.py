@@ -207,11 +207,13 @@ DEFAULT_TIDE_SITES_2 = [  # second high tide graphic
 
 
 TIDAL_MAP_EXTRA = [  # more gauges for the tidal flooding map (positions refined from the NWS gauge data at run time)
-    {"name": "CBBT", "nwps": "CHBV2", "lat": 36.967, "lon": -76.113},
+    # nwps = NWS gauge id (tried first); search = gauge-name fallback if that id is wrong; coops = NOAA tide station
+    # (astronomical-tide fallback, flood stages from NOAA's own thresholds); lat/lon only used if the gauge has none
+    {"name": "CBBT", "nwps": "CHBV2", "search": "Bridge Tunnel", "coops": "8638863", "lat": 36.967, "lon": -76.113},
     {"name": "Little Creek", "nwps": "LCEV2", "lat": 36.917, "lon": -76.176},
     {"name": "Rudee Inlet", "nwps": "RDIV2", "lat": 36.832, "lon": -75.968},
     {"name": "Cape Charles", "nwps": "CPCV2", "lat": 37.265, "lon": -76.024},
-    {"name": "Windmill Point", "nwps": "WNDV2", "lat": 37.616, "lon": -76.290},
+    {"name": "Windmill Point", "nwps": "WNDV2", "search": "Windmill", "coops": "8636580", "lat": 37.616, "lon": -76.290},
     {"name": "Hampton River", "nwps": "HMNV2", "lat": 37.020, "lon": -76.335},
     {"name": "Midtown Tunnel", "nwps": "EZMV2", "lat": 36.858, "lon": -76.315},
     {"name": "Grandy Village", "nwps": "ELGV2", "lat": 36.855, "lon": -76.255},
@@ -219,6 +221,18 @@ TIDAL_MAP_EXTRA = [  # more gauges for the tidal flooding map (positions refined
     {"name": "Mobjack Bay", "nwps": "MJBV2", "lat": 37.350, "lon": -76.330},
     {"name": "Tangier Island", "nwps": "PRTV2", "lat": 37.826, "lon": -75.992},
     {"name": "Bailey Creek", "nwps": "BLYV2", "lat": 36.773, "lon": -76.297},
+    # ---- the rest of the Bay and its rivers (used by the whole-Bay map)
+    {"name": "Lewisetta", "nwps": "LWTV2", "search": "Lewisetta", "coops": "8635750", "lat": 37.995, "lon": -76.465},
+    {"name": "Colonial Beach", "nwps": "CLBV2", "search": "Colonial Beach", "coops": "8635027", "lat": 38.253, "lon": -76.959},
+    {"name": "Piney Point", "nwps": "PPTM2", "search": "Piney Point", "coops": "8578240", "lat": 38.133, "lon": -76.533},
+    {"name": "Solomons Island", "nwps": "SLIM2", "search": "Solomons", "coops": "8577330", "lat": 38.317, "lon": -76.452},
+    {"name": "Chesapeake Beach", "nwps": "CBCM2", "search": "Chesapeake Beach", "coops": "8577018", "lat": 38.686, "lon": -76.532},
+    {"name": "Annapolis", "nwps": "ANPM2", "search": "Annapolis", "coops": "8575512", "lat": 38.983, "lon": -76.481},
+    {"name": "Baltimore", "nwps": "BLTM2", "search": "Baltimore", "coops": "8574680", "lat": 39.267, "lon": -76.579},
+    {"name": "Tolchester Beach", "nwps": "TCBM2", "search": "Tolchester", "coops": "8573364", "lat": 39.213, "lon": -76.245},
+    {"name": "Cambridge MD", "nwps": "CAMM2", "search": "Cambridge", "coops": "8571892", "lat": 38.573, "lon": -76.068},
+    {"name": "Bishops Head", "nwps": "BHDM2", "search": "Bishops Head", "coops": "8571421", "lat": 38.220, "lon": -76.037},
+    {"name": "Washington DC", "nwps": "WASD2", "search": "Washington", "coops": "8594900", "lat": 38.873, "lon": -77.021},
 ]
 SITE_COORDS = {  # approximate gauge positions for the high tide sites (used if the gauge data has none)
     "SWPV2": (36.947, -76.330), "YKTV2": (37.227, -76.479), "JSFV2": (37.220, -76.791), "LHNV2": (36.905, -76.090),
@@ -303,28 +317,52 @@ def _nwps_lookup(http, names, bbox):
     return found
 
 
+def _coops_stages(http, station):
+    """NOAA's own flood thresholds for a tide station, in ft MLLW (NOS thresholds are feet above MHHW)."""
+    try:
+        fl = http.get(f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{station}/floodlevels.json")
+        dt = http.get(f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/{station}/datums.json?units=english")
+        mhhw = next(d["value"] for d in dt["datums"] if d["name"] == "MHHW")
+        mn, mo, ma = fl.get("nos_minor"), fl.get("nos_moderate"), fl.get("nos_major")
+        if mn in (None, 0) or mn < -900:
+            return None
+        st = {"minor": mhhw + mn}
+        if mo not in (None, 0):
+            st["moderate"] = mhhw + mo
+        if ma not in (None, 0):
+            st["major"] = mhhw + ma
+        return st
+    except Exception as ex:  # noqa: BLE001
+        http.log(f"CO-OPS flood levels {station}: {ex}")
+        return None
+
+
 def fetch_high_tides(http, cfg, now, tz, sites=None, n_highs=2):
     sites = sites or cfg.get("tide_sites") or DEFAULT_TIDE_SITES
-    lookup = _nwps_lookup(http, [s["search"] for s in sites if s.get("search") and not s.get("nwps")],
-                          tuple(cfg.get("tide_search_bbox") or (-77.3, 36.6, -75.5, 37.9)))
+    lookup = _nwps_lookup(http, [s["search"] for s in sites if s.get("search")],
+                          tuple(cfg.get("tide_search_bbox") or (-77.7, 36.5, -75.2, 39.7)))
     out = []
     for site in sites:
-        lid = site.get("nwps") or lookup.get(site.get("search", ""))
         stages, series, src = None, [], None
         lat, lon = site.get("lat"), site.get("lon")
-        if lid:
+        lids = [x for x in (site.get("nwps"), lookup.get(site.get("search", ""))) if x]
+        lid = lids[0] if lids else None
+        for cand in dict.fromkeys(lids):  # the listed gauge id first, then the one found by name
             try:
-                meta = http.get(f"{NWPS}/{lid}")
+                meta = http.get(f"{NWPS}/{cand}")
                 lat, lon = meta.get("latitude") or lat, meta.get("longitude") or lon
                 cats = (meta.get("flood") or {}).get("categories") or {}
                 stages = {k: (cats.get(k) or {}).get("stage") for k in ("action", "minor", "moderate", "major")}
                 stages = {k: v for k, v in stages.items() if isinstance(v, (int, float)) and v > -900} or None
-                f = http.get(f"{NWPS}/{lid}/stageflow/forecast")
+                f = http.get(f"{NWPS}/{cand}/stageflow/forecast")
                 series = [(datetime.fromisoformat(d["validTime"].replace("Z", "+00:00")).astimezone(tz), float(d["primary"]))
                           for d in f.get("data", []) if d.get("primary") not in (None, -999)]
                 src = "NWS forecast" if series else None
+                if series:
+                    lid = cand
+                    break
             except Exception as ex:
-                http.log(f"NWPS {lid}: {ex}")
+                http.log(f"NWPS {cand}: {ex}")
         highs = find_highs(series, now, n=n_highs) if series else []
         if not highs and site.get("coops"):
             try:
@@ -335,6 +373,8 @@ def fetch_high_tides(http, cfg, now, tz, sites=None, n_highs=2):
                 src = "astronomical tide"
             except Exception as ex:
                 http.log(f"CO-OPS {site['coops']}: {ex}")
+        if not stages and not site.get("stages") and site.get("coops") and highs:
+            stages = _coops_stages(http, site["coops"])
         out.append({"name": site["name"], "lid": lid, "stages": stages or site.get("stages"), "source": src,
                     "lat": lat, "lon": lon,
                     "highs": [{"time": t, "ft": round(v, 1),
