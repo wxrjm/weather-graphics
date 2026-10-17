@@ -21,7 +21,7 @@ from .outlookmap import _legend_chips, _side, _view
 from .theme import Canvas, C, z
 
 TIDAL_VIEW = (-77.45, -75.35, 36.55, 38.05)  # w, e, s, n: James/York/Rappahannock mouths to the Eastern Shore
-BAY_VIEW = (-77.55, -75.15, 36.6, 39.6)  # the whole Chesapeake Bay: Cape Henry to the Susquehanna Flats
+BAY_VIEW = (-77.6, -75.15, 36.55, 38.5)  # lower Chesapeake Bay: Cape Henry up past the Potomac mouth (more north: set tidal_bay_view)
 CATS = [  # index threshold, key, label, color
     (1.0, "action", "NEAR FLOOD STAGE", (255, 220, 0)),
     (2.0, "minor", "MINOR", (255, 140, 0)),

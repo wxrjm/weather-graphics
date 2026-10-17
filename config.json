@@ -341,7 +341,7 @@
   "_tidal_flood_map": "Map of the bay, rivers and shoreline shaded by forecast tidal flood category for each high tide that reaches tidal_map_min_category. Built from the NWS tide gauge forecasts (tide_sites + tide_sites_2 + tidal_map_sites), each gauge scored on its own flood stages and blended between gauges (inverse-distance), carried out to tidal_radius_km from the nearest gauge.",
   "tidal_map_min_category": "minor",
   "tidal_map_shade_from": "action",
-  "tidal_radius_km": 22,
+  "tidal_radius_km": 40,
   "tidal_bay_map": true,
   "tidal_bay_radius_km": 48,
   "tidal_map_max": 2,
