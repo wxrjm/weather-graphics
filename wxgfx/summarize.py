@@ -323,6 +323,30 @@ def build_hourly(grid, now, hours=24):
     return out
 
 
+def build_hourly_ext(grid, now, hours=120):
+    """Hourly temp / rain chance / hourly rain (in) / sky cover for the rain-timing strip and sunrise-sunset quality."""
+    out = []
+    t0 = now.replace(minute=0, second=0, microsecond=0) + HOUR
+    for i in range(hours):
+        t = t0 + i * HOUR
+        temp = grid.value_at("temperature", t)
+        if temp is None:
+            continue
+        q = grid.series("quantitativePrecipitation", t, t + HOUR)
+        sky = grid.value_at("skyCover", t)
+        w = summarize_window(grid, t, t + HOUR, night=not (7 <= t.hour < 19))
+        kinds = {WX_TYPES[v["weather"]][2]: v["weather"] for v in grid.weather.get(t, []) if v.get("weather") in WX_TYPES}
+        pt = ("tstorm" if "tstorm" in kinds else "snow" if "snow" in kinds else
+              ("ice" if any(k.startswith("freezing") for k in kinds.values()) else "mix") if "mix" in kinds else
+              "rain" if ("rain" in kinds or "showers" in kinds) else None)
+        if pt is None and (grid.pop_at(t) or 0) >= 30 and temp <= 34:
+            pt = "snow" if temp <= 31 else "mix"  # no weather grid: guess from temperature
+        out.append({"time": t.isoformat(), "temp": rnd(temp), "pop": round_pop(grid.pop_at(t)),
+                    "qpf": round(sum(q), 3) if q else 0.0, "sky": None if sky is None else rnd(sky),
+                    "icon": w["icon"], "cond": w["cond"], "ptype": pt})
+    return out
+
+
 def build_wind_hourly(grid, now, hours=120):
     """Hourly sustained wind / gust (mph) for the tropical wind timeline."""
     out = []
@@ -480,6 +504,7 @@ def build_package(grid, now, cfg, alerts_raw=None, obs_raw=None):
         "what_to_know": what_to_know(days, [a for a in alerts if a.get("affects_home", True)], target),
         "hourly": build_hourly(grid, now),
         "wind_hourly": build_wind_hourly(grid, now),
+        "hourly_ext": build_hourly_ext(grid, now),
         "commute": build_commute(grid, now, cfg),
         "weekend": build_weekend(grid, now, days),
         "current": parse_obs(obs_raw, tz),

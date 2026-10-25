@@ -55,7 +55,7 @@ def _rgb(c):
 
 
 def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=None, cities=None, water_alpha=0.78,
-             county_lines=True):
+             county_lines=True, skip_pts=None, shade_lines=False):
     """layers: list of (rgb, polys) drawn bottom -> top.
     painter(draw, proj): optional extra fill layer (e.g. gridded NDFD snow/wind cells)."""
     W_, H_ = z(pw), z(ph)
@@ -113,7 +113,17 @@ def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=Non
     for c in (cs if county_lines else []):  # county lines (off for wide regional views)
         for p in c["polys"]:
             pts = [proj(x, y) for x, y in p[0]]
-            d.line(pts + [pts[0]], fill=(*STENCIL_EDGE[:3], 150), width=lw)
+            d.line(pts + [pts[0]], fill=(*STENCIL_EDGE[:3], 150 if len(cs) < 250 else 110 if len(cs) < 900 else 80), width=lw)
+    if shade_lines and county_lines:  # county lines stay visible THROUGH the shading: dark lines wherever a fill is drawn
+        dk = Image.new("RGBA", (W_, H_), (0, 0, 0, 0))
+        dd = ImageDraw.Draw(dk)
+        for c in cs:
+            for p in c["polys"]:
+                pts = [proj(x, y) for x, y in p[0]]
+                dd.line(pts + [pts[0]], fill=(20, 28, 46, 190), width=max(1, z(1.2)))
+        dk.putalpha(ImageChops.multiply(dk.getchannel("A"), ov.getchannel("A").point(lambda v: 255 if v > 8 else 0)))
+        lay.alpha_composite(dk)
+        d = ImageDraw.Draw(lay, "RGBA")
     if outline:
         for col, polys in edges:
             dark = tuple(int(v * 0.55) for v in col)
@@ -128,6 +138,10 @@ def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=Non
                 for p in c["polys"]:
                     pts = [proj(x, y) for x, y in p[0]]
                     d.line(pts + [pts[0]], fill=(255, 255, 255, 255), width=z(1.6), joint="curve")
+    if cities is None and not cfg.get("map_cities") and 6.5 < (e - w) <= 26:
+        from .regional_cities import REGIONAL  # wide regional view: many more labels, densest in VA and NC
+        cities = [c for c in REGIONAL if w <= c[2] <= e and s <= c[1] <= n
+                  and not any(abs(c[1] - a) < 0.22 and abs(c[2] - b) < 0.3 for a, b in (skip_pts or []))]
     draw_cities(d, proj, W_, H_, cfg, bottom_pad=80, cities=cities)
     return lay
 

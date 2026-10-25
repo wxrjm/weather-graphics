@@ -496,6 +496,51 @@ ALERT_COLORS = {"warning": (230, 30, 40), "watch": (255, 150, 0), "advisory": (2
                 "statement": (80, 160, 255)}
 
 
+def _until_label(a, cfg):
+    """'UNTIL 6 AM WEDNESDAY - OCT 28' (date after the weekday)."""
+    if not a.get("ends"):
+        return a["ends_label"].upper()
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    e = datetime.fromisoformat(a["ends"]).astimezone(ZoneInfo(cfg["timezone"]))
+    t = e.strftime("%I:%M %p").lstrip("0").replace(":00 ", " ")
+    return f"UNTIL {t} {e.strftime('%A').upper()} - {e.strftime('%b').upper()} {e.day}"
+
+
+def _area_names(a):
+    """Counties / cities the alert covers, grouped by state: 'VA: Norfolk, Hampton · NC: Currituck'."""
+    from . import alertinfo
+    ar = alertinfo.areas_text(a)
+    if isinstance(ar, str):
+        return [ar] if ar else []
+    return [(st, names) for st, names in ar.items()]
+
+
+def _fit_areas(cv, groups, size, maxw, max_lines):
+    """Join the place names, dropping names from the end ('+4 more') until they fit max_lines."""
+    if groups and isinstance(groups[0], str):
+        return groups[0]
+    names = [(st, n) for st, ns in groups for n in ns]
+    mk = lambda keep, extra: "  ·  ".join(f"{st}: " + ", ".join(n for s2, n in keep if s2 == st) for st in dict.fromkeys(s for s, _ in keep)) + (f"  ·  +{extra} more" if extra else "")
+    for k in range(len(names), 0, -1):
+        txt = mk(names[:k], len(names) - k)
+        if len(cv.wrap(txt, size, "regular", maxw)) <= max_lines:
+            return txt
+    return mk(names[:1], len(names) - 1)
+
+
+def drought_graphics_all(pkg, cfg):
+    from . import drought as _d
+    out = []
+    full = _d.drought_graphic(pkg, cfg)
+    if full is not None:
+        out.append(("drought", full))
+    st = _d.drought_stencil_graphic(pkg, cfg)
+    if st is not None:
+        out.append(("drought_stencil", st))
+    return out or None
+
+
 def alerts(pkg, cfg):
     al = pkg.get("alerts") or []
     if not al:
@@ -514,11 +559,14 @@ def alerts(pkg, cfg):
         bar = tuple(int(a["color"][i:i + 2], 16) for i in (1, 3, 5)) if a.get("color") else ALERT_COLORS[kind]
         cv.accent_row(M, y, Wd, rh, bar=bar)
         cv.rect(M, y, 16, rh, bar)
-        cv.text(M + 40, y + rh * 0.38, a["event"].upper(), 50 if not cv.tall else 42, "bold", anchor="lm", maxw=Wd - 70)
-        cv.text(M + 40, y + rh * 0.72, a["ends_label"].upper(), 30 if not cv.tall else 26, "medium", C["muted"], anchor="lm")
-        if a.get("headline") and rh >= 170:
-            cv.text(M + 40, y + rh * 0.9, a["headline"], 22 if not cv.tall else 19, "regular", C["muted"], anchor="lm",
-                    maxw=Wd - 70)
+        cv.text(M + 40, y + rh * 0.2, a["event"].upper(), 46 if not cv.tall else 40, "bold", anchor="lm", maxw=Wd - 70)
+        cv.text(M + 40, y + rh * 0.42, _until_label(a, cfg), 28 if not cv.tall else 24, "medium", C["muted"], anchor="lm", maxw=Wd - 70)
+        areas = _area_names(a)
+        if areas:
+            fs = 22 if not cv.tall else 19
+            nlines = 3 if rh >= 170 else 2
+            cv.paragraph(M + 40, y + rh * 0.54, _fit_areas(cv, areas, fs, Wd - 80, nlines), fs, "regular", Wd - 80,
+                         max_lines=nlines, lh=1.25, fill=C["text"])
     cv.footer(pkg, show_location=False, source="SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "National Weather Service")
     return cv
 
@@ -537,7 +585,15 @@ from .reports import report_graphics  # noqa: E402
 from .tropicalgfx import tropical_graphics  # noqa: E402
 from .frost import frost_graphics  # noqa: E402
 from .tempdrop import tempdrop_graphics, tempdrop_highs_graphics  # noqa: E402
+from . import newgfx, safety, timelines  # noqa: E402
+from . import tideerr  # noqa: E402
+from . import outagerisk  # noqa: E402
+from . import tempnormal  # noqa: E402
+from . import holidayfx  # noqa: E402
+from . import snowruler  # noqa: E402
+from .statemaps import outlook_graphics as state_outlook_graphics, temp_graphics as state_temp_graphics  # noqa: E402
 from .fronts import fronts_graphics  # noqa: E402
+from .gusts import gust_table_48, gust_peaks, gust_bars_48, gust_bars_48_dir  # noqa: E402
 from .frostregion import freeze_potential_graphics, frost_region_graphics  # noqa: E402
 from .soundflood import sound_flood  # noqa: E402
 from .nadocast import nadocast_graphics  # noqa: E402
@@ -547,6 +603,6 @@ GRAPHICS = {
     "daily": daily, "what_to_know": what_to_know, "7day": seven_day, "hourly": hourly,
     "feels_like": feels_like, "wind_chill": wind_chill, "dewpoints": dewpoints, "rain_totals": rain_totals,
     "wind": wind, "current": current, "alerts": alerts, "alert_maps": alert_maps, "outlooks": outlook_graphics,
-    "ndfd_maps": ndfd_maps, "winter_maps": winter_graphics, "cpc_hazards": cpc_graphics, "river_flooding": river_graphics, "tidal_flood_map": tidal_graphics, "holiday_countdown": holiday_countdown, "drought": drought_graphic, "ffg": ffg_graphics, "reports": report_graphics, "tropical_pack": tropical_graphics, "frost_risk": frost_graphics, "temp_drop": tempdrop_graphics, "temp_drop_highs": tempdrop_highs_graphics, "frost_region": frost_region_graphics, "freeze_potential": freeze_potential_graphics, "fronts": fronts_graphics, "sound_flood": sound_flood, "nadocast": nadocast_graphics,
+    "ndfd_maps": ndfd_maps, "winter_maps": winter_graphics, "cpc_hazards": cpc_graphics, "river_flooding": river_graphics, "tidal_flood_map": tidal_graphics, "holiday_countdown": holiday_countdown, "drought": drought_graphics_all, "safety_graphics": safety.safety_graphics, "precip_timeline": timelines.precip_timeline, "today_vs_tomorrow": timelines.today_vs_tomorrow, "what_to_expect": timelines.what_to_expect, "ffg": ffg_graphics, "reports": report_graphics, "tropical_pack": tropical_graphics, "frost_risk": frost_graphics, "temp_drop": tempdrop_graphics, "state_outlooks": state_outlook_graphics, "obs_rain": newgfx.obs_rain_graphics, "city_table": newgfx.city_table_graphics, "rain_timing": newgfx.rain_timing_graphic, "state_fields": newgfx.state_field_graphics, "hr_temps": newgfx.hr_temp_graphics, "aurora": newgfx.aurora_graphic, "tide_error": tideerr.tide_error_graphic, "outage_risk": outagerisk.outage_risk_graphic, "temp_vs_normal": tempnormal.temp_vs_normal_graphic, "holiday_forecast": holidayfx.holiday_forecast_graphics, "snow_probability": snowruler.snow_probability_graphic, "sunset_quality": newgfx.sunset_quality_graphic, "degree_days": newgfx.degree_days_graphic, "state_temps": state_temp_graphics, "temp_drop_highs": tempdrop_highs_graphics, "frost_region": frost_region_graphics, "freeze_potential": freeze_potential_graphics, "fronts": fronts_graphics, "gust_table_48": gust_table_48, "gust_peaks": gust_peaks, "gust_bars_48": gust_bars_48, "gust_bars_48_dir": gust_bars_48_dir, "sound_flood": sound_flood, "nadocast": nadocast_graphics,
     **_extras.GRAPHICS,
 }

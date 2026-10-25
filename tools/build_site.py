@@ -25,8 +25,8 @@ SECTIONS = [  # (title, test on file stem) - first match wins
                                  "above_average", "below_average", "holiday_countdown")),
     ("Charts", lambda n: n in ("feels_like", "wind_chill", "dewpoints", "rain_totals", "wind", "sun_uv",
                                "air_quality")),
-    ("Big Text Maps", lambda n: n.endswith("_big")),
-    ("Full-Screen Maps", lambda n: n.endswith("_full") or n == "drought"),
+    ("Big Text Maps", lambda n: n.endswith(("_big", " Big Text"))),
+    ("Full-Screen Maps", lambda n: n.endswith(("_full", " Full Screen")) or n == "drought"),
     ("Severe & Rain Outlooks", lambda n: n.startswith(("spc_", "ero_", "wpc_qpf", "cpc_"))),
     ("Winter", lambda n: n.startswith(("snow", "ice_prob", "wssi"))),
     ("Wind Maps", lambda n: n in ("wind_map", "gust_map")),
@@ -43,6 +43,8 @@ NICE = {"7day": "7-Day Forecast", "what_to_know": "What To Know", "weather_aware
 
 def nice(stem):
     import re as _re
+    if " " in stem and "_" not in stem:  # already a share-ready title ("Observed Rainfall 24 Hour")
+        return stem
     if _re.match(r"^(T_)?\d+_", stem):  # hurricane set: "05_wind_chances" -> "Wind Chances"
         return _re.sub(r"^(T_)?\d+_", "", stem).replace("_", " ").title().replace("Nhc", "NHC")
     if stem in NICE:
@@ -56,6 +58,10 @@ def nice(stem):
     return s + (" · Full Screen" if full else " · Big Text" if big else "")
 
 
+CAT_ORDER = ["Forecast", "SPC Outlooks", "Severe & Alerts", "Temperature", "Rain & Flooding", "Snow & Ice", "Wind", "Tides & Coast",
+             "Tropical", "Long Range", "Climate & Drought", "Air Quality & Sun", "Aviation", "More"]
+
+
 def _collect(src):
     """-> {format key: [(section title, png path)]} for both the category layout
     ("04 Rain & Flooding/Square/x.png") and the old flat one (x.png, square/x.png, Tropical/square/x.png)."""
@@ -64,12 +70,14 @@ def _collect(src):
     out = {}
     for p in sorted(src.rglob("*.png")):
         parts = p.relative_to(src).parts[:-1]
-        m = _re.match(r"^\d+ (.+)$", parts[0]) if parts else None
+        m = _re.match(r"^(?:\d+ )?(.+)$", parts[0]) if parts else None
+        if m and parts[0] in ("vertical", "post", "square"):  # old flat layout, not a category folder
+            m = None
         if m and (len(parts) == 1 or (len(parts) == 2 and parts[1] in sizes)):  # category layout (wide at the top)
             sect, key = m.group(1), (sizes[parts[1]] if len(parts) == 2 else "wide")
-            if sect == "Tropical" and _re.match(r"^\d+_", p.stem):
+            if sect == "Tropical":
                 sect = "Hurricane Threat"
-            ORDER[sect] = 0 if sect == "Hurricane Threat" else int(parts[0].split()[0])  # storm set first, then 01, 02...
+            ORDER[sect] = 0 if sect == "Hurricane Threat" else CAT_ORDER.index(sect) + 1 if sect in CAT_ORDER else 99  # storm set first, then 01, 02...
         else:  # flat layout
             trop = bool(parts) and parts[0] == "Tropical"
             rest = parts[1:] if trop else parts

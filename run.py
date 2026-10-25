@@ -70,7 +70,7 @@ def render(pkg, cfg, out_dir, only=None):
     out_dir.mkdir(parents=True, exist_ok=True)
     enabled = cfg.get("graphics") or list(graphics.GRAPHICS)
     made = []
-    formats = [f for f in (cfg.get("formats") or ["wide", "vertical", "post"]) if f in theme.FORMATS]
+    formats = [f for f in (cfg.get("formats") or ["wide"]) if f in theme.FORMATS]
     for fmt in formats:
         theme.set_format(fmt)
         if len(formats) > 1:
@@ -94,7 +94,7 @@ def render(pkg, cfg, out_dir, only=None):
                     print(f"  - {name}: not relevant today, skipped")
                 continue
             for fname, c in (cv if isinstance(cv, list) else [(name, cv)]):
-                path = folders.path_for(out_dir, fname, fmt, cfg)  # "<NN Category>/<Size>/<name>.png"
+                path = folders.path_for(out_dir, fname, fmt, cfg)  # "<Category>/<Size>/<name>.png"
                 path.parent.mkdir(parents=True, exist_ok=True)
                 c.save(path)
                 made.append(path)
@@ -103,7 +103,7 @@ def render(pkg, cfg, out_dir, only=None):
                 if spec and cfg.get("fullscreen_maps", True):  # full-screen twin: map fills the image
                     try:
                         from wxgfx import fullscreen
-                        fpath = path.with_name(f"{path.stem}_full.png")
+                        fpath = path.with_name(f"{path.stem}{' Full Screen' if cfg.get('pretty_filenames') is not False else '_full'}.png")
                         fullscreen.render(pkg, cfg, **spec).save(fpath)
                         made.append(fpath)
                         print(f"  + {fpath.relative_to(out_dir)}")
@@ -112,7 +112,7 @@ def render(pkg, cfg, out_dir, only=None):
                 if spec and cfg.get("bigtext_maps", True) and fmt in (cfg.get("bigtext_formats") or ["square"]):
                     try:  # "big text" social twin: giant headline, callouts on the map, tagline banner, logo
                         from wxgfx import bigtext
-                        bpath = path.with_name(f"{path.stem}_big.png")
+                        bpath = path.with_name(f"{path.stem}{' Big Text' if cfg.get('pretty_filenames') is not False else '_big'}.png")
                         bigtext.render(pkg, cfg, fname, **spec).save(bpath)
                         made.append(bpath)
                         print(f"  + {bpath.relative_to(out_dir)}")
@@ -177,7 +177,7 @@ def update_latest(out, latest, prune=True):
                         f.unlink()
                     except OSError:
                         pass
-                if sub.name in ("vertical", "post", "square", "Tropical", "Wide"):  # older layouts: tidy away
+                if sub.name in ("vertical", "post", "square", "Tropical", "Wide") or re.match(r"^\d\d ", sub.name):  # older layouts (incl. "01 Forecast"): tidy away
                     for d in sorted(sub.rglob("*"), key=lambda p: -len(p.parts)) + [sub]:
                         try:
                             d.rmdir() if d.is_dir() else None
@@ -193,8 +193,8 @@ def _update_dir(out, latest, prune=True):
     keep = set()
     for f in sorted(out.iterdir()):
         if f.is_file():
-            m = re.match(r"((?:alert|river)_\d+)_.+\.png$", f.name)
-            name = f"{m.group(1)}.png" if m else f.name  # fixed alert names; full names stay in the dated folder
+            m = re.match(r"((?:alert|river))[_ ](\d+)[_ ].+\.png$", f.name, re.I)
+            name = f"{m.group(1).lower()}_{m.group(2)}.png" if m else f.name  # fixed alert names; full names stay in the dated folder
             _swap_in(f, latest / name)
             keep.add(name)
     for f in latest.iterdir():
@@ -244,7 +244,8 @@ def main():
     only_set = set(args.only.split(",")) if args.only else None
     if not args.no_overrides:  # big-text wording for the square social maps
         pkg["bigtext"] = (overrides.load(args.overrides) or {}).get("bigtext") or pkg.get("bigtext")
-    if "outlooks" in (cfg.get("graphics") or []) and (only_set is None or "outlooks" in only_set):
+        pkg["snow_probs"] = (overrides.load(args.overrides) or {}).get("snow_probs")
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("outlooks", "state_outlooks")):
         if args.sample:
             pkg["_outlooks"] = sample.sample_outlooks()
         else:
@@ -296,7 +297,7 @@ def main():
         else:
             print("Fetching CPC hazards outlook...")
             pkg["_cpc"] = cpcmap.fetch_all(cfg, debug=args.outlook_debug)
-    if "winter_maps" in (cfg.get("graphics") or []) and (only_set is None or "winter_maps" in only_set):
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("winter_maps", "snow_probability")):
         from wxgfx import wintermap
         if args.sample:
             pkg["_winter"] = wintermap.sample()
@@ -326,6 +327,51 @@ def main():
         else:
             print("Fetching NDFD highs and lows for the temperature crash map...")
             pkg["_tempdrop"] = tempdrop.fetch(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if "state_temps" in (cfg.get("graphics") or []) and (only_set is None or "state_temps" in only_set):
+        from wxgfx import statemaps
+        utc_now = now.astimezone(timezone.utc)
+        if args.sample:
+            pkg["_statetemps"] = statemaps.sample_temps(utc_now, tz)
+        else:
+            print("Fetching NDFD highs and lows for the VA/NC state maps...")
+            pkg["_statetemps"] = statemaps.fetch_temps(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if "obs_rain" in (cfg.get("graphics") or []) and (only_set is None or "obs_rain" in only_set):
+        from wxgfx import newgfx
+        utc_now = now.astimezone(timezone.utc)
+        if args.sample:
+            pkg["_obsrain"] = newgfx.sample_obs_rain(utc_now)
+        else:
+            print("Fetching observed rainfall (NWS MRMS radar estimates)...")
+            pkg["_obsrain"] = newgfx.fetch_obs_rain(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("state_fields", "city_table", "hr_temps")):
+        from wxgfx import newgfx
+        utc_now = now.astimezone(timezone.utc)
+        if args.sample:
+            pkg["_fields"] = newgfx.sample_fields(utc_now, tz)
+        else:
+            print("Fetching NDFD daily fields for the VA/NC stencil maps and city table...")
+            pkg["_fields"] = newgfx.fetch_fields(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if "aurora" in (cfg.get("graphics") or []) and (only_set is None or "aurora" in only_set):
+        from wxgfx import newgfx
+        if args.sample:
+            pkg["_aurora"] = newgfx.sample_aurora(now.astimezone(timezone.utc))
+        else:
+            print("Fetching the aurora / Kp forecast (NOAA SWPC)...")
+            pkg["_aurora"] = newgfx.fetch_aurora(cfg, debug=args.outlook_debug)
+    if "tide_error" in (cfg.get("graphics") or []) and (only_set is None or "tide_error" in only_set):
+        from wxgfx import tideerr
+        if args.sample:
+            pkg["_tideerr"] = tideerr.sample(now.astimezone(timezone.utc))
+        else:
+            print("Fetching Sewells Point observed tides + NWS forecast (AHPS / NWPS)...")
+            pkg["_tideerr"] = tideerr.fetch(cfg, ROOT / "cache", now.astimezone(timezone.utc), debug=args.outlook_debug)
+    if "gust_peaks" in (cfg.get("graphics") or []) and (only_set is None or "gust_peaks" in only_set):
+        from wxgfx import gusts
+        if args.sample:
+            pkg["_gusts"] = gusts.sample(now, tz)
+        else:
+            print("Fetching past-48-hour wind gust observations...")
+            pkg["_gusts"] = gusts.fetch(cfg, now, tz, debug=args.outlook_debug)
     if "fronts" in (cfg.get("graphics") or []) and (only_set is None or "fronts" in only_set):
         from wxgfx import fronts
         if args.sample:

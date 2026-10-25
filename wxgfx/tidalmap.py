@@ -21,7 +21,7 @@ from .outlookmap import _legend_chips, _side, _view
 from .theme import Canvas, C, z
 
 TIDAL_VIEW = (-77.45, -75.35, 36.55, 38.05)  # w, e, s, n: James/York/Rappahannock mouths to the Eastern Shore
-BAY_VIEW = (-77.6, -75.15, 36.55, 38.5)  # lower Chesapeake Bay: Cape Henry up past the Potomac mouth (more north: set tidal_bay_view)
+BAY_VIEW = (-77.25, -75.55, 36.7, 38.0)  # lower Bay: just north of Tangier Island down to Cape Henry / Hampton Roads (tidal_bay_view overrides)
 CATS = [  # index threshold, key, label, color
     (1.0, "action", "NEAR FLOOD STAGE", (255, 220, 0)),
     (2.0, "minor", "MINOR", (255, 140, 0)),
@@ -170,12 +170,19 @@ def _window(ev, tz):
     return f"{day} {part(a)}  ·  {hr(a)} – {hr(b)}"
 
 
-def tidal_graphic(ev, pkg, cfg, tz, bay=False):
+def tidal_graphic(ev, pkg, cfg, tz, bay=False, peak=False):
     view = tuple((cfg.get("tidal_bay_view") if bay else cfg.get("tidal_view")) or (BAY_VIEW if bay else TIDAL_VIEW))
     radius = cfg.get("tidal_bay_radius_km", 48) if bay else None  # bigger reach: fills the open middle of the Bay
     title = "CHESAPEAKE BAY TIDAL FLOODING" if bay else "TIDAL FLOODING FORECAST"
+    sub = _window(ev, tz)
+    if peak:  # the single highest tide in the 72-hour cycle, with its day and time
+        pr = next((p for p in sorted(ev["points"], key=lambda p: -p["idx"]) if p["name"].lower().startswith("sewells")),
+                  sorted(ev["points"], key=lambda p: -p["idx"])[0])
+        pt = pr["time"].astimezone(tz)
+        title = "BAY HIGHEST TIDE · NEXT 72 HRS" if bay else "HIGHEST TIDE · NEXT 72 HOURS"
+        sub = f"{pt.strftime('%A').upper()} {pt.strftime('%I:%M %p').lstrip('0')}  ·  {pr['name'].upper()} {pr['ft']:.1f} FT MLLW"
     cv = Canvas(cfg)
-    cv.header(title, _window(ev, tz))
+    cv.header(title, sub)
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
     _paste_rounded(cv, draw_tidal_map(ev, mw, mh, cfg, view=view, radius=radius), mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
@@ -202,7 +209,7 @@ def tidal_graphic(ev, pkg, cfg, tz, bay=False):
     src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "NWS tide gauge forecasts (shading interpolated between gauges)"
     cv.footer(pkg, source=src)
     from . import fullscreen
-    fullscreen.attach(cv, title=title, subtitle=_window(ev, tz),
+    fullscreen.attach(cv, title=title, subtitle=sub,
                       map_fn=lambda pw, ph, view: draw_tidal_map(ev, pw, ph, cfg, view=view, radius=radius),
                       box=view, head_label="SEWELLS POINT (NORFOLK)",
                       head_value=head, head_col=head_col, meaning=meaning, rows=shown,
@@ -223,6 +230,20 @@ def tidal_graphics(pkg, cfg):
         print(f"  - tidal_flood_map: no {least} tidal flooding forecast, nothing exported")
         return None
     out = [(f"tidal_flood_map_{i}", tidal_graphic(e, pkg, cfg, tz)) for i, e in enumerate(evs[:cfg.get("tidal_map_max", 2)], 1)]
+    if cfg.get("tidal_peak_map", True):  # one map for the highest tide in the next 72 hours (always made)
+        from datetime import datetime
+        now = datetime.now(tz)
+        hrs = cfg.get("tidal_peak_hours", 72)
+        def top(evl):
+            win = [e for e in evl if now - timedelta(hours=2) <= e["time"] <= now + timedelta(hours=hrs)]
+            return max(win, key=lambda e: (e["max_idx"], max(p["ft"] for p in e["points"]))) if win else None
+        pe = top(events(sites, cfg))
+        if pe:
+            out.append(("tidal_flood_peak", tidal_graphic(pe, pkg, cfg, tz, peak=True)))
+        if cfg.get("tidal_bay_map", True):
+            pb = top(events(sites, cfg, max_lag_h=7))
+            if pb:
+                out.append(("tidal_flood_peak_bay", tidal_graphic(pb, pkg, cfg, tz, bay=True, peak=True)))
     if cfg.get("tidal_bay_map", True):  # whole Chesapeake Bay + rivers: wider tide-lag window, wider interpolation reach
         bevs = [e for e in events(sites, cfg, max_lag_h=7) if e["max_idx"] >= need or cfg.get("tidal_map_always", False)]
         out += [(f"tidal_flood_bay_{i}", tidal_graphic(e, pkg, cfg, tz, bay=True))

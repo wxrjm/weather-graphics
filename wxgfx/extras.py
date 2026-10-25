@@ -129,7 +129,8 @@ def _tide_chart(cv, box, td, tz):
         cv.text(X_(t), py1 + 34, lab, 18 if w < 1000 else 20, "bold" if not t.hour else "medium",
                 C["text"] if not t.hour else C["muted"], anchor="ms")
         t += timedelta(hours=tick)
-    cv.line([(X_(a), Y_(b)) for a, b in td["curve"]], (176, 190, 212, 150), 2)
+    if not series and not td["observed"]:  # astronomical line is only drawn if it is the only data there is
+        cv.line([(X_(a), Y_(b)) for a, b in td["curve"]], (176, 190, 212, 150), 2)
     if series:
         cv.line([(X_(a), Y_(b)) for a, b in series], (88, 200, 255, 255), 5)
     if len(ext) > 1:  # beyond the end of the NWS forecast: tide + surge carried forward, dashed
@@ -147,7 +148,7 @@ def _tide_chart(cv, box, td, tz):
             cv.text(X_(tt["time"]), Y_(tt["ft"]) - 14, f"{tt['ft']:.1f}'", 18, "bold", anchor="ms", stroke=1.5)
     lx = px0 + 12
     fc_lab = "NWS FORECAST" if td.get("forecast_source") == "NWS" else "FORECAST (TIDE + SURGE NOW)"
-    keys = [("OBSERVED", (255, 255, 255)), (fc_lab, (88, 200, 255)), ("ASTRONOMICAL TIDE", (176, 190, 212))]
+    keys = [("OBSERVED", (255, 255, 255)), (fc_lab, (88, 200, 255))]
     if len(ext) > 1:
         keys.append(("PAST NWS FORECAST (DASHED)", (88, 200, 255)))
     for label, col in keys:
@@ -390,6 +391,9 @@ def yesterday(pkg, cfg):
         items.append(("MONTH TO DATE", _in(pm.get("obs")), _dep(pm.get("departure"), '"'),
                       f"NORMAL {_in(pm.get('normal'))}", (88, 170, 255)))
     cols = 2 if cv.tall else len(items)
+    if not cv.tall:  # shorter columns: no dead space under the tiles
+        hh = min(h, 360)
+        y, h = y, hh
     for (lab, val, sub, sub2, col), box in zip(items, grid(x, y, w, h, len(items), cols, 22)):
         tile(cv, box, lab, val, sub, bar=col, sub2=sub2, vsize=min(130 if not cv.tall else 110, box[3] * 0.34, box[2] * 0.3))
     footer(cv, pkg)
@@ -401,17 +405,19 @@ def _bar_pair(cv, box, title, obs, normal, dep):
     cv.rect(x, y, w, h, C["panel"], r=16)
     cv.text(x + 30, y + 30, title, 26, "bold", C["muted"], anchor="lt")
     top = max(obs or 0, normal or 0) * 1.15 or 1
-    bx, bw = x + 200, w - 250
+    bx, bw = x + 200, w - 270
+    bh = 58
     for i, (lab, v, col) in enumerate((("OBSERVED", obs, (88, 170, 255)), ("NORMAL", normal, (176, 190, 212)))):
-        by = y + 100 + i * (h - 200) / 2.2
-        bh = min(70, (h - 200) / 3)
+        by = y + 84 + i * (bh + 18)
         cv.text(x + 30, by + bh / 2, lab, 22, "bold", anchor="lm")
         cv.rect(bx, by, bw, bh, (255, 255, 255, 20), r=10)
-        cv.rect(bx, by, max(12, bw * (v or 0) / top), bh, (*col, 255), r=10)
-        cv.text(bx + max(12, bw * (v or 0) / top) + 14, by + bh / 2, _in(v), 30, "bold", anchor="lm")
+        fw = max(12, bw * (v or 0) / top / 1.0)
+        cv.rect(bx, by, fw, bh, (*col, 255), r=10)
+        cv.text(bx + fw + 14, by + bh / 2, _in(v), 30, "bold", anchor="lm") if fw < bw - 130 else \
+            cv.text(bx + fw - 14, by + bh / 2, _in(v), 30, "bold", (20, 28, 46), anchor="rm")
     col = GOOD if (dep or 0) >= 0 else WARN
     txt = (f"{abs(dep):.2f}\" SURPLUS" if dep >= 0 else f"{abs(dep):.2f}\" DEFICIT") if dep is not None else "--"
-    pill(cv, x + 30, y + h - 70, txt, col, 26)
+    pill(cv, x + 30, y + 84 + 2 * (bh + 18) + 8, txt, col, 26)
 
 
 def month_rain(pkg, cfg):
@@ -424,6 +430,12 @@ def month_rain(pkg, cfg):
     cv.header("RAINFALL SO FAR", f"NORFOLK INTERNATIONAL AIRPORT  ·  THROUGH {d.strftime('%b').upper()} {d.day}{asof}" if d else "")
     x, y, w, h = area(cv)
     pm, py = cli["precip_month"], cli.get("precip_year") or {}
+    if not cv.tall:
+        hh = min(h, 340)
+        y, h = y, hh
+    else:
+        hh = min(h, 2 * 340 + 22)
+        y, h = y, hh
     boxes = grid(x, y, w, h, 2, 1 if cv.tall else 2, 22)
     _bar_pair(cv, boxes[0], (d.strftime("%B").upper() if d else "THIS MONTH"), pm.get("obs"), pm.get("normal"), pm.get("departure"))
     _bar_pair(cv, boxes[1], f"{d.year if d else ''} SO FAR", py.get("obs"), py.get("normal"), py.get("departure"))
@@ -725,6 +737,8 @@ def _trop_map(cv, box, tr, cfg):
     for cne in tr.get("cones", []):
         for p in cne["polys"]:
             od.polygon([P(*pt[:2]) for pt in p[0]], fill=(255, 255, 255, 60), outline=(255, 255, 255, 220))
+    for ln in tr.get("tracks", []):
+        od.line([P(*pt[:2]) for pt in ln], fill=(255, 255, 255, 235), width=z(4))
     lay.alpha_composite(ov)
     d = ImageDraw.Draw(lay, "RGBA")
     f = font("bold", 22)

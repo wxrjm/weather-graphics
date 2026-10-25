@@ -208,6 +208,10 @@ def sample_outlooks():
                 spc("MRGL", _ellipse(-76.3, 35.6, 1.3, 0.6, 0.3, wobble=0.06))],
             3: [],
         },
+        "spc48": {4: [], 5: [{"level": 1, "code": "15%", "name": "15%", "color": "#FFE066", "polys": _ellipse(-80.5, 36.0, 3.5, 1.6, 0.3, wobble=0.05), "times": {}}],
+                  6: [{"level": 1, "code": "15%", "name": "15%", "color": "#FFE066", "polys": _ellipse(-78.5, 36.5, 3.2, 1.8, 0.4, wobble=0.05), "times": {}},
+                      {"level": 2, "code": "30%", "name": "30%", "color": "#FF8A30", "polys": _ellipse(-79.2, 36.2, 1.6, 0.9, 0.4, wobble=0.07), "times": {}}],
+                  7: [], 8: []},
         "probs": {
             1: {"torn": {"areas": [{"prob": 2, "polys": _ellipse(-76.6, 36.8, 1.0, 0.6, 0.7)}], "sig": []},
                 "wind": {"areas": [{"prob": 5, "polys": _ellipse(-76.9, 36.9, 2.0, 1.3, 0.6)},

@@ -323,7 +323,7 @@ def _crop(td, view, stride):
     """Keep only the grid cells in (and just around) the view; regional views also drop to ~7 km cells."""
     import numpy as np
     w, e, s, n = view
-    m = (td["lon"] >= w - 0.6) & (td["lon"] <= e + 0.6) & (td["lat"] >= s - 0.6) & (td["lat"] <= n + 0.6)
+    m = (td["lon"] >= w - 2.6) & (td["lon"] <= e + 2.6) & (td["lat"] >= s - 2.6) & (td["lat"] <= n + 2.6)
     if not m.any():
         return td
     r, c = np.where(m)
@@ -350,8 +350,9 @@ def _graphic(td, pool, key, title_fn, view_box, n_call, tmin, pkg, cfg, tz, by_d
     bins[0] = (-999, bins[0][1])
     from .ndfdmap import _cell_painter
     paint = _cell_painter({"lat": td["lat"], "lon": td["lon"], "val": td["drop"]}, bins, alpha=225)
-    lay = outlookmap.draw_map([], W, H, cfg, outline=False, painter=paint, view=view, cities=[("-", 0, 0, 2)],
-                              water_alpha=0.3, county_lines=False)  # dim the open ocean: NDFD values out there are coarse
+    lay = outlookmap.draw_map([], W, H, cfg, outline=False, painter=paint, view=view, cities=(None if (view[1] - view[0]) > 6.5 else [("-", 0, 0, 2)]),
+                              water_alpha=0.3, county_lines=(view[1] - view[0]) > 6.5,
+                              skip_pts=[(la_, lo_) for _, la_, lo_ in pool])  # dim the open ocean: NDFD values out there are coarse
     base = cv.img.convert("RGBA")
     base.alpha_composite(lay.resize(base.size) if lay.size != base.size else lay)
     cv.img = base.convert("RGB")

@@ -221,6 +221,9 @@ TIDAL_MAP_EXTRA = [  # more gauges for the tidal flooding map (positions refined
     {"name": "Mobjack Bay", "nwps": "MJBV2", "lat": 37.350, "lon": -76.330},
     {"name": "Tangier Island", "nwps": "PRTV2", "lat": 37.826, "lon": -75.992},
     {"name": "Bailey Creek", "nwps": "BLYV2", "lat": 36.773, "lon": -76.297},
+    {"name": "Fort Monroe", "nwps": "FTMV2", "lat": 37.003, "lon": -76.305},
+    {"name": "Ware River", "nwps": "WRVV2", "lat": 37.355, "lon": -76.425},
+    {"name": "Saxis", "nwps": "SAXV2", "lat": 37.917, "lon": -75.725},
     # ---- the rest of the Bay and its rivers (used by the whole-Bay map)
     {"name": "Lewisetta", "nwps": "LWTV2", "search": "Lewisetta", "coops": "8635750", "lat": 37.995, "lon": -76.465},
     {"name": "Colonial Beach", "nwps": "CLBV2", "search": "Colonial Beach", "coops": "8635027", "lat": 38.253, "lon": -76.959},
@@ -941,37 +944,56 @@ def fetch_tropics(http, cfg):
                            "id": s.get("id")})
     except Exception as e:
         http.log(f"NHC storms: {e}")
-    areas, cones = [], []
+    areas, cones, tracks = [], [], []
     try:
         from .outlooks import Fetcher, polys_of
         fx = Fetcher(http.ua, http.debug)
         info = fx.json(NHC_SERVICE, {"f": "json"})
         layers = [l for l in info.get("layers", []) if not l.get("subLayerIds")]
 
-        def pick(*words, bad=()):
-            for l in layers:
-                n = l["name"].lower()
-                if all(w in n for w in words) and not any(b in n for b in bad):
-                    return l["id"]
-        for lid, kind in ((pick("7", "day", "area") or pick("seven", "area"), "area"), (pick("cone"), "cone")):
-            if lid is None:
-                continue
-            q = fx.json(f"{NHC_SERVICE}/{lid}/query", {"where": "1=1", "outFields": "*", "returnGeometry": "true",
-                                                       "outSR": 4326, "f": "geojson"})
-            for f in q.get("features", []):
-                p = {k.lower(): v for k, v in (f.get("properties") or {}).items()}
-                polys = polys_of(f.get("geometry"))
-                if not polys:
-                    continue
-                if kind == "area":
-                    areas.append({"polys": polys, "chance7": _pct(p.get("prob7day") or p.get("prob_7day")),
-                                  "chance2": _pct(p.get("prob2day") or p.get("prob_2day")),
-                                  "risk": (p.get("risk7day") or "").title()})
-                else:
-                    cones.append({"polys": polys, "name": p.get("stormname") or p.get("stormnum") or ""})
+        def pick_all(*words, bad=()):
+            return [l["id"] for l in layers if all(w in l["name"].lower() for w in words)
+                    and not any(x in l["name"].lower() for x in bad)]
+
+        def first_key(p, *subs):
+            for k, v in p.items():
+                if all(sub in k for sub in subs) and v not in (None, ""):
+                    return v
+        # 7-day outlook shapes are named "Seven-Day: Potential Development Region" (not "...area")
+        area_ids = pick_all("potential development region") or pick_all("seven", "region") or pick_all("7", "day", "area")
+        # every storm bin (AT1..AT5) has its own "Forecast Cone" / "Forecast Track" layer -- use all of them
+        cone_ids = [i for i in pick_all("forecast cone")]
+        track_ids = [i for i in pick_all("forecast track")]
+        for lids, kind in ((area_ids, "area"), (cone_ids, "cone"), (track_ids, "track")):
+            for lid in lids:
+                q = fx.json(f"{NHC_SERVICE}/{lid}/query", {"where": "1=1", "outFields": "*", "returnGeometry": "true",
+                                                           "outSR": 4326, "f": "geojson"})
+                for f in q.get("features", []):
+                    p = {k.lower(): v for k, v in (f.get("properties") or {}).items()}
+                    g = f.get("geometry") or {}
+                    if kind == "track":
+                        lines = g.get("coordinates") or []
+                        if g.get("type") == "LineString":
+                            lines = [lines]
+                        for ln in lines:
+                            if ln:
+                                tracks.append([(pt[0], pt[1]) for pt in ln])
+                        continue
+                    polys = polys_of(g)
+                    if not polys:
+                        continue
+                    if kind == "area":
+                        areas.append({"polys": polys,
+                                      "chance7": _pct(first_key(p, "prob", "7") or first_key(p, "7", "chance")),
+                                      "chance2": _pct(first_key(p, "prob", "2") or first_key(p, "2", "chance")),
+                                      "risk": str(first_key(p, "risk", "7") or "").title()})
+                    else:
+                        cones.append({"polys": polys, "name": p.get("stormname") or p.get("stormnum") or ""})
+                if http.debug:
+                    print(f"   [tropics] layer {lid} ({kind}): ok")
     except Exception as e:
         http.log(f"NHC map layers: {e}")
-    return {"storms": storms, "areas": areas, "cones": cones}
+    return {"storms": storms, "areas": areas, "cones": cones, "tracks": tracks}
 
 
 def _intf(x):

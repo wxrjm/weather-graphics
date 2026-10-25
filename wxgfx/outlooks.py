@@ -43,7 +43,7 @@ QPF_COLORS = [  # threshold (in) -> fill; classic NWS precipitation scale (match
     (6.00, (248, 0, 253)), (7.00, (208, 1, 215)), (8.00, (152, 84, 198)), (9.00, (113, 40, 155)),
     (10.00, (150, 150, 150)),
 ]
-BBOX = (-85.5, 32.5, -73.0, 40.8)  # VA + NC (statewide map) plus margin
+BBOX = (-91.0, 29.5, -69.0, 43.5)  # VA + NC (statewide map) plus a generous buffer
 
 
 def qpf_color(v):
@@ -242,6 +242,43 @@ def fetch_spc(fx, day):
     return _normalize_cat(data.get("features", []), SPC_CATS), "mapservices"
 
 
+SPC48_GEOJSON = "https://www.spc.noaa.gov/products/exper/day4-8/day{d}prob.lyr.geojson"
+SPC48 = {15: ("15%", "#FFE066"), 30: ("30%", "#FF8A30")}
+
+
+def _spc48_pct(props):
+    for v in props.values():
+        try:
+            f = float(str(v).strip().rstrip("%"))
+        except ValueError:
+            continue
+        if f in (0.15, 0.30):
+            return int(round(f * 100))
+        if f in (15, 30):
+            return int(f)
+    for v in props.values():
+        m = re.search(r"\b(15|30)\s*%", str(v))
+        if m:
+            return int(m.group(1))
+    return None
+
+
+def fetch_spc48(fx, day):
+    """SPC Day 4-8 outlook: 15% / 30% probability of severe weather within 25 miles of a point (no polygons = low predictability)."""
+    data = fx.json(SPC48_GEOJSON.format(d=day))
+    fx.log(f"SPC day {day}: {len(data.get('features', []))} features from spc.noaa.gov (day 4-8)")
+    out = []
+    for f in data.get("features", []):
+        pc = _spc48_pct(f.get("properties") or {})
+        polys = polys_of(f.get("geometry"))
+        if pc not in SPC48 or not polys or not _in_view(polys):
+            continue
+        out.append({"level": 1 if pc == 15 else 2, "code": SPC48[pc][0], "name": SPC48[pc][0], "color": SPC48[pc][1],
+                    "polys": polys, "times": {}})
+    out.sort(key=lambda x: x["level"])
+    return out
+
+
 def fetch_ero(fx, day):
     try:
         data = fx.json(ERO_GEOJSON.format(d=day))
@@ -314,6 +351,13 @@ def fetch_all(cfg, debug=False):
             res["probs"][d] = spchazards.fetch(fx, d)
         except Exception as e:
             res["errors"].append(f"SPC day {d}: {e}")
+    res["spc48"] = {}
+    if cfg.get("spc_day48", True):
+        for d in range(4, 9):
+            try:
+                res["spc48"][d] = fetch_spc48(fx, d)
+            except Exception as e:
+                res["errors"].append(f"SPC day {d} (4-8 outlook): {e}")
     for d in cfg.get("ero_days", [1, 2, 3]):
         try:
             res["ero"][d], _ = fetch_ero(fx, d)

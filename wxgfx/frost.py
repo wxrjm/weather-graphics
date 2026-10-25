@@ -218,7 +218,7 @@ def _legend(cv, x, y, maxw):
     outlookmap._legend_chips(cv, x, y, [(lv[3], lv[1].title()) for lv in LEVELS[1:]], maxw)
 
 
-def _crop_field(field, box, pad=1.2):
+def _crop_field(field, box, pad=2.6):
     """Trim a big grid to the map's box (+ margin) so the local maps paint as fast as before."""
     import numpy as np
     w, e, s, n = box

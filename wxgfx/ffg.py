@@ -22,8 +22,8 @@ from .theme import C, Canvas, z
 
 SERVICE = "https://mapservices.weather.noaa.gov/raster/rest/services/precip/rfc_gridded_ffg/MapServer"
 GROUP = {1: 0, 3: 4, 6: 8, 12: 12, 24: 16}  # hours -> group layer id (image sublayer = id + 3)
-BBOX = (-85.5, 32.5, -73.0, 40.8)  # w, s, e, n (VA + NC + margin)
-SIZE = (1250, 830)  # ~1 px per km-ish; the source grid is 5 km
+BBOX = (-92.0, 28.5, -68.0, 44.5)  # w, s, e, n -- generous buffer so the data reaches every edge of any graphic shape
+SIZE = (2400, 1500)  # ~1 px per km-ish; the source grid is 5 km
 # class index (0 = lowest) -> (label, value for "<", our color). Low guidance = flood-prone = hot colors.
 CLASSES = [
     ("< 0.25\"", 0.0, (170, 0, 170)), ("0.25–0.5\"", 0.25, (220, 0, 60)), ("0.5–0.75\"", 0.5, (255, 40, 0)),
@@ -230,7 +230,7 @@ def sample():
     w, s, e, n = BBOX
     res = {"bbox": BBOX, "grids": {}, "errors": []}
     for hrs, base in ((1, 1.2), (3, 1.9), (6, 2.6)):
-        img = Image.new("RGBA", (500, 332), (0, 0, 0, 0))
+        img = Image.new("RGBA", (800, 500), (0, 0, 0, 0))
         p = img.load()
         for y in range(img.height):
             for x in range(img.width):

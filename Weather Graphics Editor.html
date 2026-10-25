@@ -119,7 +119,6 @@ const GRAPHICS = [
     ["nadocast","Nadocast tornado probabilities","AI tornado chances (blended Nadocast models) with legend, peak % and where it is; VA/NC and eastern U.S. maps (only when 2%+)."],
     ["ndfd_maps","Snowfall & wind maps","NDFD snow total, sustained wind, peak gusts."],
     ["winter_maps","Winter probability & WSSI maps","WPC chance of 4/8/12 in. snow and 0.25 in. ice (Days 1-3) + Winter Storm Severity Index. Skipped when nothing is forecast."],
-    ["cpc_hazards","CPC hazards outlook","Days 8-14 hazards on an eastern U.S. map (Great Lakes to the Gulf), plus a separate heavy rain / flooding map."],
     ["tropics","Tropical Outlook","Atlantic storms, cones and outlook areas."],
     ["tropical_pack","Hurricane Threat set (Tropical folder)","25+ storm graphics (track, cone, wind chances & arrival, surge, threats, timeline, prep, evacuations...) saved to output/latest_rickywx/08 Tropical. Only made while a storm threatens."]]],
   ["Coastal", [
@@ -135,11 +134,35 @@ const GRAPHICS = [
     ["month_rain","Rainfall So Far","Month & year vs normal."],
     ["drought","Drought Monitor","Full-screen VA/NC drought map + Norfolk drought level and rainfall vs normal (30/60/90 days, since Jan 1)."],
     ["reports","Rain & Storm Reports","CoCoRaHS 24-hr rain totals map + NWS storm report maps (snow, rain, wind gusts) from LSRs/PNS. Only made when there are reports."],
+    ["safety_graphics","Safety Graphics (10 explainers)","Static explainer graphics in the Safety Graphics folder: hurricane hunter planes, urban flooding, flood damage pie, flood risk levels, tire pressure, freezing rain, wind impacts, how hail forms, severe risk levels, tornado safety. They never change, so turn this off once you have them if you like."],
+    ["cpc_hazards","CPC Hazards Outlook (off by default)","CPC Days 8-14 hazards map and heavy rain / flooding map on the eastern U.S. Turn on only when wanted."],
     ["record_watch","Record Watch","Forecast vs normal vs record, next 5 days."],
+    ["gust_bars_48_dir","48-Hour Gust Bars + Wind Direction","Second 48-hour gust bar graph with a wind-direction arrow at the base of every bar (arrow points where the wind is blowing toward)."],
+    ["gust_bars_48","48-Hour Gust Bars","Bar graph of KORF gusts for the next 48 hours, left to right, one bar per 2 hours, rounded to the nearest 5 mph."],
+    ["gust_table_48","48-Hour Gust Table","KORF wind gust forecast for the next 48 hours: max gust, sustained wind and direction per 3-hour block."],
+    ["gust_peaks","Peak Gusts (Past 48 Hrs)","Text-only: highest wind gust reported in the past 24 and 48 hours at Norfolk and nearby stations."],
     ["fronts","Forecast Fronts","WPC front positions: Today / Tomorrow / Day 3 side by side plus a full map per day (cold, warm, stationary, occluded fronts, highs and lows)."],
     ["frost_risk","Frost & Freeze Risk","Table of lows + frost/freeze risk by location for the next 3 nights, plus a risk map per frosty night (only when frost is possible)."],
     ["temp_drop","Temperature Crash","Biggest high-to-low drops across the Mid-Atlantic and Hampton Roads (only when a big drop is forecast)."],
     ["temp_drop_highs","Big One-Day Drop in Highs","Biggest one-day fall in daily highs, Mid-Atlantic and Hampton Roads (only when big)."],
+    ["state_outlooks","VA/NC Stencil: Severe, Excessive Rain & Rainfall","SPC severe + WPC excessive-rain outlooks and WPC rainfall totals on a Virginia/North Carolina stencil with a card per state."],
+    ["state_temps","VA/NC Stencil: High & Low Temps","NDFD daily highs and lows on the Virginia/North Carolina stencil with each state's warmest/coolest spots."],
+    ["obs_rain","Observed Rainfall (24/48/72 hr)","What actually fell: NWS MRMS radar estimates, local map + VA/NC stencil."],
+    ["city_table","City-by-City Forecast Table","12 Hampton Roads + OBX towns: high, low, rain chance, wind, gust."],
+    ["precip_timeline","Precipitation Timeline","Smooth rain-chance curve over the next 36 hours with the precip type (rain, snow, wintry mix, storms) colored underneath."],
+    ["today_vs_tomorrow","Today vs Tomorrow Morning","Split-screen temperature comparison: today's high next to tomorrow morning's low, with a weather-matched background."],
+    ["what_to_expect","What To Expect","Timing table: rain, storms, wintry mix and snow bars across the next six AM / PM / Night blocks."],
+    ["rain_timing","When Will It Rain?","48-hour strip of hourly rain chance and intensity."],
+    ["state_fields","VA/NC Stencil: Wind, Gusts, Rain Chance, Snow, Frost, Dew Points","NDFD fields on the stencil, one per day."],
+    ["hr_temps","Hampton Roads Close-up Temps","DMA-sized highs/lows map with city labels."],
+    ["aurora","Aurora / Kp Forecast","NOAA SWPC Kp forecast + OVATION aurora map."],
+    ["snow_probability","Snow Probability Rulers","Snow piles + rulers with the chance of at least X inches. Auto from WPC, or type exact numbers (overrides.json \"snow_probs\")."],
+    ["holiday_forecast","Holiday Forecasts","Themed hourly forecast (0-3 days out) or day summary (4-6 days) for upcoming holidays; eve + day side by side."],
+    ["temp_vs_normal","Above / Below Average","7-day bars above or below normal temperature, +/- degrees from a centre line."],
+    ["outage_risk","Power Outage Risk","7-day outage risk cards from forecast peak wind gusts (one level higher on wet soil)."],
+    ["tide_error","Tide Forecast Check","Sewells Point: how far above/below the NWS (AHPS) forecast recent tides ran, with average error. Needs a day of archived runs."],
+    ["sunset_quality","Sunrise & Sunset Color","Times plus an estimated color-quality rating from forecast sky cover."],
+    ["degree_days","Heating & Cooling Degree Days","Week-ahead HDD / CDD from the forecast."],
     ["frost_region","Frost Risk Maps","Frost risk map for the Mid-Atlantic and Hampton Roads (only when frost is possible)."],
     ["freeze_potential","Freeze Potential Maps","How cold the lows get: 36/32/28/24/20 map for the Mid-Atlantic and Hampton Roads (only when freezing)."],
     ["below_average","Cooler Than Average","How many degrees below the average high: one-day spotlight or multi-day cool stretch (only when cool)."],
@@ -244,7 +267,7 @@ async function init() {
   } else {
     $("#mode").textContent = "Standalone: load & download files";
     $("#saveBtn").textContent = "Load files…"; $("#dlCfg").classList.remove("hidden"); $("#dlOv").classList.remove("hidden");
-    cfg = cfg || { graphics: [], formats: ["wide", "vertical", "post"], location: {} }; ov = ov || { enabled: false };
+    cfg = cfg || { graphics: [], formats: ["wide"], location: {} }; ov = ov || { enabled: false };
   }
   renderNav(); render();
 }
@@ -297,9 +320,9 @@ function tGraphics(m) {
   const on = new Set(cfg.graphics || []);
   const setOn = (id, v) => { const g = cfg.graphics = cfg.graphics || []; if (v && !g.includes(id)) g.push(id); if (!v) cfg.graphics = g.filter(x => x !== id); markDirty(); };
   m.append(h("h3", {}, "Output sizes"));
-  const fm = new Set(cfg.formats || ["wide", "vertical", "post"]);
+  const fm = new Set(cfg.formats || ["wide"]);
   m.append(h("div", { class: "grid g3" }, FORMATS.map(([id, t, d]) => h("label", { class: "chk" },
-    h("input", { type: "checkbox", checked: fm.has(id), onchange: e => { const f = new Set(cfg.formats || ["wide", "vertical", "post"]);
+    h("input", { type: "checkbox", checked: fm.has(id), onchange: e => { const f = new Set(cfg.formats || ["wide"]);
       e.target.checked ? f.add(id) : f.delete(id); cfg.formats = FORMATS.map(x => x[0]).filter(x => f.has(x)); markDirty(); } }),
     h("div", {}, h("b", {}, t), h("small", {}, d))))));
   for (const [group, items] of GRAPHICS) {

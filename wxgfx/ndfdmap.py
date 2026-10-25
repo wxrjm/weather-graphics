@@ -33,6 +33,16 @@ WIND_BINS = [  # mph -> color
 ]
 
 
+WIND_VIEW = (-78.3, -74.65, 35.65, 38.4)  # w, e, s, n -- Richmond to the Atlantic, Salisbury to Nags Head
+
+
+def _wind_box(cfg):
+    return tuple(cfg.get("wind_view") or WIND_VIEW)
+
+
+MARGIN = 2.6  # degrees of data kept around a map's box so contours reach every edge of the graphic
+
+
 def _bin(v, bins):
     col = None
     for t, c in bins:
@@ -79,7 +89,8 @@ def _messages(path, box):
                     lat = eccodes.codes_get_array(gid, "latitudes").reshape(ny, nx)
                     lon = eccodes.codes_get_array(gid, "longitudes").reshape(ny, nx)
                     lon = np.where(lon > 180, lon - 360, lon)
-                    m = (lon >= w - 0.3) & (lon <= e + 0.3) & (lat >= s - 0.3) & (lat <= n + 0.3)
+                    # generous margin: the map view is stretched to the graphic's shape, so it shows more than `box`
+                    m = (lon >= w - MARGIN) & (lon <= e + MARGIN) & (lat >= s - MARGIN) & (lat <= n + MARGIN)
                     if not m.any():
                         raise RuntimeError("sector does not cover the map area")
                     rows, cols = np.where(m)
@@ -91,7 +102,8 @@ def _messages(path, box):
 
 
 def _covers(lat, lon, box):
-    w, e, s, n = box
+    w, e, s, n = box  # a sector must reach a buffer around the map so the data fills the whole graphic
+    w, e, s, n = w - 1.0, e + 1.0, s - 1.0, n + 1.0
     return lon.min() <= w + 0.5 and lon.max() >= e - 1.5 and lat.min() <= s + 0.3 and lat.max() >= n - 0.3
 
 
@@ -107,7 +119,7 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
         print("  ! " + out["errors"][-1])
         return out
     import numpy as np
-    box = tuple(cfg.get("outlook_view") or outlookmap.VIEW_BOX)
+    snow_box = tuple(cfg.get("outlook_view") or outlookmap.VIEW_BOX)
     ua = cfg["user_agent"]
     cache = Path(cache_dir)
     cache.mkdir(parents=True, exist_ok=True)
@@ -117,6 +129,7 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
         if key != "snow" and key not in (cfg.get("wind_maps") or ["wind", "gust"]):
             continue
         end = now_utc + timedelta(hours=hours)
+        box = snow_box if key == "snow" else _wind_box(cfg)
         for sector in sectors:
             try:
                 grids, lat = [], None
@@ -170,10 +183,16 @@ def _box_blur(a, r, passes=3):
     return a
 
 
-def _cell_painter(field, bins, alpha=255):
+def _cell_painter(field, bins, alpha=255, smooth=0):
     """Draw every grid cell as a quad whose corners are midpoints between cell centres."""
     import numpy as np
     lat, lon, val = field["lat"], field["lon"], field["val"]
+    if smooth:  # blend neighbouring grid cells first (NaN-aware) so isolated spikes don't make speckles
+        m0 = (~np.isnan(val)).astype(np.float32)
+        r0 = max(1, int(round(smooth)))
+        v0 = _box_blur(np.nan_to_num(val).astype(np.float32) * m0, r0, 3)
+        w0 = _box_blur(m0, r0, 3)
+        val = np.where(m0 > 0, v0 / np.maximum(w0, 1e-3), np.nan)
 
     def pad(a):
         a = np.pad(a, 1, mode="edge")
@@ -195,11 +214,18 @@ def _cell_painter(field, bins, alpha=255):
         di = ImageDraw.Draw(ids)
         ny, nx = val.shape
         flat = np.full(ny * nx + 1, np.nan, dtype=np.float32)
+        try:  # only paint cells that can show up in this view (the data is cropped with a wide margin)
+            xs_, ys_ = proj(clon[:-1, :-1], clat[:-1, :-1])
+            near = (xs_ > -220) & (xs_ < W + 220) & (ys_ > -220) & (ys_ < H + 220)
+        except Exception:
+            near = np.ones((ny, nx), dtype=bool)
         for j in range(ny):
             row = val[j]
+            if not near[j].any():
+                continue
             for i in range(nx):
                 v = row[i]
-                if v != v:
+                if v != v or not near[j, i]:
                     continue
                 k = j * nx + i + 1
                 flat[k] = v
@@ -212,8 +238,9 @@ def _cell_painter(field, bins, alpha=255):
         cx0, cy0 = proj(clon[ny // 2, nx // 2], clat[ny // 2, nx // 2])
         cx1, _ = proj(clon[ny // 2, nx // 2 + 1], clat[ny // 2, nx // 2 + 1])
         cell = max(1.0, abs(cx1 - cx0))
-        r = max(2, int(round(cell * 0.75)))
-        vs, ms = _box_blur(v, r, 3), _box_blur(m, r, 3)
+        r = max(2, int(round(cell * (0.75 if not smooth else 1.1))))
+        passes = 3 if not smooth else 5
+        vs, ms = _box_blur(v, r, passes), _box_blur(m, r, passes)
         field_ = np.where(ms > 1e-3, vs / np.maximum(ms, 1e-3), np.nan)
         cls = np.zeros((H, W), dtype=np.uint8)
         for k, (t, _) in enumerate(bins):
@@ -255,11 +282,12 @@ def _snow_txt(v):
     return next((t for lim, t in steps if v < lim), '24"+')
 
 
-def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pkg, cfg, fmt_row):
+def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pkg, cfg, fmt_row, view=None, smooth=0,
+                 rows_title="LOCAL FORECAST", source=None):
     cv = Canvas(cfg)
     cv.header(title, subtitle)
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
-    lay = outlookmap.draw_map([], mw, mh, cfg, outline=False, painter=_cell_painter(field, bins))
+    lay = outlookmap.draw_map([], mw, mh, cfg, outline=False, painter=_cell_painter(field, bins, smooth=smooth), view=view)
     _paste_rounded(cv, lay, mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
     _color_bar(cv, mx + 16, my + mh - 70, bins, unit, mw - 32)
@@ -270,14 +298,14 @@ def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pk
         v = _value_at(field, lo, la)
         side_rows.append((name, _bin(v or 0, bins), fmt_row(v)))
     outlookmap._side(cv, px, py, pw_, ph_, head_col, cfg["location"].get("area", "Hampton Roads Area").upper(),
-                     head_txt(hv), meaning(hv), side_rows, "LOCAL FORECAST")
-    src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "National Weather Service (NDFD)"
+                     head_txt(hv), meaning(hv), side_rows, rows_title)
+    src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else (source or "National Weather Service (NDFD)")
     cv.footer(pkg, source=src)
     from . import fullscreen
     fullscreen.attach(cv, title=title, subtitle=subtitle,
                       map_fn=lambda pw, ph, view: outlookmap.draw_map([], pw, ph, cfg, outline=False,
-                                                                       painter=_cell_painter(field, bins), view=view),
-                      box=tuple(cfg.get("outlook_view") or outlookmap.VIEW_BOX),
+                                                                       painter=_cell_painter(field, bins, smooth=smooth), view=view),
+                      box=tuple(view or cfg.get("outlook_view") or outlookmap.VIEW_BOX),
                       head_label=cfg["location"].get("area", "Hampton Roads Area").upper(), head_value=head_txt(hv),
                       head_col=head_col, meaning=meaning(hv), rows=side_rows,
                       overlay=lambda c, x, y, mw_: _color_bar(c, x, y, bins, unit, mw_), source=src)
@@ -324,7 +352,8 @@ def ndfd_maps(pkg, cfg):
              if v is not None else "Wind data unavailable.") if key == "wind" else
             (lambda v: f"Peak gusts in the Hampton Roads area over the next 24 hours: up to {rnd(v)} mph."
              + (" Secure loose outdoor items." if v and v >= 35 else "") if v is not None else "Wind data unavailable."),
-            None, pkg, cfg, lambda v: f"{rnd(v)} mph" if v is not None else "--")))
+            None, pkg, cfg, lambda v: f"{rnd(v)} mph" if v is not None else "--",
+            view=_wind_box(cfg), smooth=cfg.get("wind_smooth", 2))))
     return out or None
 
 
@@ -332,8 +361,8 @@ def ndfd_maps(pkg, cfg):
 def sample(now_utc):
     """Synthetic NDFD-like grids (2.5 km) for offline testing: a coastal snowstorm + windy day."""
     import numpy as np
-    lat = np.linspace(34.9, 39.3, 190)[:, None] * np.ones((1, 230))
-    lon = np.ones((190, 1)) * np.linspace(-79.8, -73.8, 230)[None, :]
+    lat = np.linspace(32.0, 42.0, 300)[:, None] * np.ones((1, 330))
+    lon = np.ones((300, 1)) * np.linspace(-82.0, -70.0, 330)[None, :]
     blob = lambda cx, cy, sx, sy: np.exp(-(((lon - cx) / sx) ** 2 + ((lat - cy) / sy) ** 2))
     snow = 9 * blob(-76.6, 36.7, 1.1, 0.55) + 3 * blob(-77.8, 37.4, 0.9, 0.6) - 0.6
     wind = 12 + 22 * blob(-75.4, 36.3, 1.2, 1.0) + 6 * blob(-76.2, 37.4, 0.8, 0.5)

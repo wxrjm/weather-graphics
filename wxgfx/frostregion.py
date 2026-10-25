@@ -93,8 +93,9 @@ def _render(pkg, cfg, night, kind, view_box, pool, n_call, area_label):
         paint = _cell_painter({"lat": nt["lat"], "lon": nt["lon"], "val": nt["risk"]}, frost.BINS, alpha=215)
     else:
         paint = _cell_painter({"lat": nt["lat"], "lon": nt["lon"], "val": -nt["low"]}, _bins_for_freeze(), alpha=215)
-    lay = outlookmap.draw_map([], W, H, cfg, outline=False, painter=paint, view=view, cities=[("-", 0, 0, 2)],
-                              water_alpha=0.3, county_lines=False)
+    lay = outlookmap.draw_map([], W, H, cfg, outline=False, painter=paint, view=view, cities=(None if (view[1] - view[0]) > 6.5 else [("-", 0, 0, 2)]),
+                              water_alpha=0.3, county_lines=(view[1] - view[0]) > 6.5,
+                              skip_pts=[(la_, lo_) for _, la_, lo_ in pool])
     base = cv.img.convert("RGBA")
     base.alpha_composite(lay.resize(base.size) if lay.size != base.size else lay)
     cv.img = base.convert("RGB")

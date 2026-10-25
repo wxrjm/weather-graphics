@@ -143,7 +143,7 @@ def drought_graphic(pkg, cfg):
     box = tuple(cfg.get("drought_view") or STATE_VIEW)
 
     def map_fn(pw, ph, view):
-        return draw_map(layers, pw, ph, cfg, outline=False, view=view, dma=dma,
+        return draw_map(layers, pw, ph, cfg, outline=False, view=view, dma=dma, shade_lines=True,
                         cities=cfg.get("state_map_cities") or STATE_CITIES)
 
     loc = cfg["location"]
@@ -201,3 +201,49 @@ def sample(now):
         d += timedelta(days=1)
     return {"map": {"areas": areas, "valid": (now.date() - timedelta(days=2)).isoformat()},
             "rain": {"through": end.isoformat(), "periods": deficits(rows, end)}}
+
+
+def drought_stencil_graphic(pkg, cfg):
+    """VA + NC stencil version: only the two states' counties are drawn, filled with the drought categories."""
+    import math
+    from PIL import ImageDraw
+    from . import statemaps
+    from .theme import C, Canvas, z
+    data = pkg.get("_drought")
+    if not data or not data.get("map"):
+        return None
+    mp = data["map"]
+    areas = mp["areas"]
+    layers = [(CATS[a["dm"]][3], a["polys"]) for a in areas]
+    cv = Canvas(cfg)
+    valid = f"VALID {_md(mp['valid'])}" if mp.get("valid") else "U.S. DROUGHT MONITOR"
+    cv.header("DROUGHT MONITOR", f"VIRGINIA & NORTH CAROLINA  ·  {valid}")
+    mx, my, mw, mh = cv.M, 150, cv.W - 2 * cv.M, cv.H - 150 - 28
+    # share of each state's counties (by center point) in drought
+    cs = statemaps._counties()
+    per = {"VA": [0, 0], "NC": [0, 0]}
+    for k in cs:
+        per[k["st"]][1] += 1
+        if _cat_at([a for a in areas if a["dm"] >= 1], k["lon"], k["lat"]) is not None:
+            per[k["st"]][0] += 1
+    cities = [(*c, None) for c in statemaps.CITIES]
+    lay = statemaps.stencil_map(mw, mh, cfg, layers, cities=cities, alpha=0.92, bg=(0, 0, 0, 0), shade_lines=True,
+                                view=cfg.get("state_clean_view") or (-84.12, -74.98, 33.585, 39.765))
+    base = cv.img.convert("RGBA")
+    base.alpha_composite(lay, (z(mx), z(my)))
+    cv.img = base.convert("RGB")
+    cv.d = ImageDraw.Draw(cv.img, "RGBA")
+    lx, ly = cv.M, 230  # left column is empty (west of the stencil): vertical legend + county counts
+    cv.rect(lx - 14, ly - 18, 430, 60 + 52 * len(CATS) + 130, (13, 21, 38, 215), r=12)
+    cv.text(lx, ly + 14, "DROUGHT CATEGORY", 20, "bold", C["muted"], anchor="ls")
+    for i, c in enumerate(CATS):
+        yy = ly + 46 + i * 52
+        cv.rect(lx, yy, 34, 34, (*c[3], 255), r=6)
+        cv.text(lx + 50, yy + 18, f"{c[1]}  {c[2].upper()}", 24, "bold", anchor="lm")
+    yy = ly + 46 + len(CATS) * 52 + 24
+    cv.text(lx, yy, "COUNTIES IN D1+ DROUGHT", 20, "bold", C["muted"], anchor="ls")
+    for j, (st, (n, t)) in enumerate(per.items()):
+        cv.text(lx, yy + 44 + j * 46, f"{st}: {n} OF {t}", 30, "bold", anchor="ls")
+    src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "U.S. Drought Monitor (NDMC/USDA/NOAA)"
+    cv.footer(pkg, source=src)
+    return cv

@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parent / "data" / "region_counties.json"
+US_DATA = Path(__file__).resolve().parent / "data" / "us_counties.json"  # all other states (keyless Census shapes)
 
 # Official NWS hazard map colors (weather.gov/help-map), plus a keyword fallback.
 COLORS = {
@@ -75,12 +76,22 @@ def counties():
     if _counties is None:
         raw = json.loads(DATA.read_text())
         _counties = {c["fips"]: c for c in raw["counties"]}
+        have = {f[:2] for f in _counties}
+        extra_lines = []
+        if US_DATA.exists():  # every other state, so county lines reach the edge of any wide map
+            us = json.loads(US_DATA.read_text())
+            for c in us["counties"]:
+                if c["fips"][:2] not in have:
+                    _counties[c["fips"]] = c
+            for st, rings in us.get("state_rings", {}).items():
+                if st not in have:
+                    extra_lines += rings
         for c in _counties.values():  # bounding box for fast off-map culling
             xs = [x for p in c["polys"] for x, _ in p[0]]
             ys = [y for p in c["polys"] for _, y in p[0]]
             c["bb"] = (min(xs), max(xs), min(ys), max(ys))
         global _state_lines
-        _state_lines = raw.get("state_lines", [])
+        _state_lines = raw.get("state_lines", []) + extra_lines
     return _counties
 
 
@@ -206,7 +217,7 @@ def parse(features, tz, cfg):
         out.append({
             "event": event, "severity": p.get("severity"),
             "color": "#%02X%02X%02X" % color_for(event),
-            "headline": p.get("headline") or "", "ends_label": until,
+            "headline": p.get("headline") or "", "ends_label": until, "ends": p.get("ends") or p.get("expires"),
             "fips": fips, "area_desc": p.get("areaDesc") or "",
             "affects_home": bool(home and home in fips) or not fips,
             "polygon": _polygon(f.get("geometry")),
