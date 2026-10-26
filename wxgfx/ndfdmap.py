@@ -9,6 +9,7 @@ If they're missing these graphics are skipped with a message; nothing else is af
 """
 import os
 import tempfile
+import warnings
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -67,12 +68,54 @@ def _download(url, dest, ua, max_age_s=1800):
     return p
 
 
+SCAN_INFO = {}  # what the last decoded GRIB looked like (shown by tools/frost_probe.py)
+
+
+def _fix_row_order(vals, lon=None, flip=None):
+    """Some NDFD files decode with every other row mirrored left-to-right relative to its coordinates (alternate-row
+    scanning), which drops values from the far western grid edge (cold, inland) next to the coast in stripes.
+    Un-mirrors those rows when that makes neighbouring rows MUCH more alike; smooth fields already in order are
+    left alone. `lon` (2-D) says which rows run east-to-west; `flip` re-uses an earlier decision (boolean per row).
+    -> (values, flip rows or None)"""
+    import numpy as np
+    if flip is not None:
+        out = vals.copy()
+        out[flip] = out[flip, ::-1]
+        return out, flip
+    if vals.ndim != 2 or vals.shape[0] < 6 or vals.shape[1] < 6:
+        return vals, None
+
+    def rough(a):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            return np.nanmean(np.abs(np.diff(a, axis=0)))
+
+    base = rough(vals)
+    if not np.isfinite(base) or base <= 0:
+        return vals, None
+    cands = []
+    if lon is not None:
+        dec = lon[:, -1] < lon[:, 0]  # rows whose coordinates run east -> west
+        if dec.any() and not dec.all():
+            cands.append(dec)
+    odd = np.zeros(vals.shape[0], dtype=bool)
+    odd[1::2] = True
+    cands += [odd, ~odd]
+    for k, rows in enumerate(cands):
+        t = vals.copy()
+        t[rows] = t[rows, ::-1]
+        r = rough(t)
+        if np.isfinite(r) and r < 0.6 * base:  # first candidate that clearly repairs it wins (coordinate-based first)
+            return t, rows
+    return vals, None
+
+
 def _messages(path, box):
     """Yield (valid_end_utc, lat2d, lon2d, values2d) cropped to box, using ecCodes."""
     import eccodes
     import numpy as np
     w, e, s, n = box
-    crop = None
+    crop = flip = None
     with open(path, "rb") as f:
         while True:
             gid = eccodes.codes_grib_new_from_file(f)
@@ -89,6 +132,13 @@ def _messages(path, box):
                     lat = eccodes.codes_get_array(gid, "latitudes").reshape(ny, nx)
                     lon = eccodes.codes_get_array(gid, "longitudes").reshape(ny, nx)
                     lon = np.where(lon > 180, lon - 360, lon)
+                    vals, flip = _fix_row_order(vals, lon)
+                    SCAN_INFO.update({"shape": (ny, nx), "rows_flipped": 0 if flip is None else int(flip.sum())})
+                    for key in ("alternativeRowScanning", "jPointsAreConsecutive", "iScansNegatively", "jScansPositively", "gridType"):
+                        try:
+                            SCAN_INFO[key] = eccodes.codes_get(gid, key)
+                        except Exception:
+                            pass
                     # generous margin: the map view is stretched to the graphic's shape, so it shows more than `box`
                     m = (lon >= w - MARGIN) & (lon <= e + MARGIN) & (lat >= s - MARGIN) & (lat <= n + MARGIN)
                     if not m.any():
@@ -96,6 +146,8 @@ def _messages(path, box):
                     rows, cols = np.where(m)
                     crop = (rows.min(), rows.max() + 1, cols.min(), cols.max() + 1)
                     clat, clon = lat[crop[0]:crop[1], crop[2]:crop[3]], lon[crop[0]:crop[1], crop[2]:crop[3]]
+                else:
+                    vals, _ = _fix_row_order(vals, flip=flip) if flip is not None else (vals, None)
                 yield valid, clat, clon, vals[crop[0]:crop[1], crop[2]:crop[3]]
             finally:
                 eccodes.codes_release(gid)
