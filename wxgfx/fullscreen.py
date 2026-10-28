@@ -63,11 +63,52 @@ def layout(cv):
     return cv.H - 75 - 360, 2, 3
 
 
+SIDE_W = 560  # width of the info column on the right of wide full-screen graphics
+SIDE_GAP = 26
+
+
 def view_for(cv, box):
+    from . import outlookmap
+    if not cv.tall:  # wide: info column on the right -> push the map's content into the left part of the image
+        W, H = cv.W, cv.H
+        b = expand_view(box, 215 / H, 75 / H)
+        w0, e0, s0, n0 = outlookmap._view(W, H, b)
+        avail = (W - cv.M - SIDE_W - SIDE_GAP) / W  # share of the width left for the map's content
+        content = (box[1] - box[0]) / (e0 - w0)
+        g = max(1.0, content / avail)
+        cx, cy = (w0 + e0) / 2, (s0 + n0) / 2
+        sx, sy = (e0 - w0) * g, (n0 - s0) * g
+        shift = (1 - avail) / 2 * 0.0 + (SIDE_W + SIDE_GAP + cv.M - cv.M) / 2 / W  # content centre moves left by half the column
+        w1, e1 = cx - sx / 2, cx + sx / 2
+        return w1 + shift * sx, e1 + shift * sx, cy - sy / 2, cy + sy / 2
     bars_top, _, _ = layout(cv)
     top_frac = 210 / cv.H
-    bot_frac = (cv.H - bars_top + (70 if not cv.tall else 64)) / cv.H
+    bot_frac = (cv.H - bars_top + 64) / cv.H
     return expand_view(box, top_frac, bot_frac)
+
+
+def _place_legend(cv, overlay, subtitle):
+    """Put the legend in the top banner: on the subtitle line when it fits beside the subtitle, otherwise on a row
+    right under the banner rule."""
+    from PIL import Image
+    S = z(1)
+    probe = Canvas(cv.cfg)
+    probe.img = Image.new("RGB", cv.img.size, (0, 0, 0))
+    probe.d = ImageDraw.Draw(probe.img, "RGBA")
+    full_w = cv.W - 2 * cv.M
+    overlay(probe, 0, 100, full_w)
+    bb = probe.img.getbbox()
+    if not bb:
+        return
+    dx0, dy0 = bb[0] / S, bb[1] / S - 100
+    lw, lh = (bb[2] - bb[0]) / S, (bb[3] - bb[1]) / S
+    size = cv.fit(subtitle.upper(), 27 if not cv.tall else 24, "bold", cv.W - 2 * cv.M - (430 if not cv.tall else 220))
+    sub_end = cv.M + 2 + cv.width(subtitle.upper(), size, "bold")
+    right_limit = cv.W - cv.M - (250 if not cv.tall else 130)
+    if lh <= 60 and sub_end + 30 + lw <= right_limit:
+        overlay(cv, sub_end + 30 - dx0, 155 - lh / 2 - dy0, lw)  # same line as the subtitle
+    else:
+        overlay(cv, cv.M - dx0, 192 - dy0, full_w)  # row under the rule
 
 
 def attach(cv, **spec):
@@ -85,8 +126,13 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
         # local maps: zoom in on the Hampton Roads DMA (the bars take up the bottom of the frame)
         box = tuple(cfg.get("fullscreen_local_view") or (-77.7, -75.2, 36.05, 37.85))
     cv = Canvas(cfg)
-    bars_top, _, _ = layout(cv)
-    alertmap.KEEP_OUT[:] = [(0, 0, cv.W, 215), (0, bars_top - 84, cv.W, cv.H)]  # no labels under title/bars
+    side = not cv.tall
+    bars_top, ncol, nrow = layout(cv)
+    sx = cv.W - cv.M - SIDE_W  # left edge of the right-hand info column (wide only)
+    if side:
+        alertmap.KEEP_OUT[:] = [(0, 0, cv.W, 245), (sx - 14, 0, cv.W, cv.H)]  # no map labels under the banner / info column
+    else:
+        alertmap.KEEP_OUT[:] = [(0, 0, cv.W, 245), (0, bars_top - 84, cv.W, cv.H)]
     try:
         lay = map_fn(cv.W, cv.H, view_for(cv, box))
     finally:
@@ -95,15 +141,22 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
     base.alpha_composite(lay.resize(base.size) if lay.size != base.size else lay)
     cv.img = base.convert("RGB")
     cv.d = ImageDraw.Draw(cv.img, "RGBA")
-    bars_top, ncol, nrow = layout(cv)
     _fade(cv, 0, 250, 235, 0)
-    _fade(cv, bars_top - 110, cv.H, 0, 245)
+    if side:
+        _fade(cv, cv.H - 150, cv.H, 0, 235)
+    else:
+        _fade(cv, bars_top - 110, cv.H, 0, 245)
     cv.header(title, subtitle)
     if overlay:
-        overlay(cv, cv.M, bars_top - 74, cv.W - 2 * cv.M)
+        _place_legend(cv, overlay, subtitle)
     M, W = cv.M, cv.W - 2 * cv.M
     bottom = cv.H - 75
-    if not cv.tall:
+    if side:
+        hx, hy, hw, hh = sx, 215, SIDE_W, 196
+        gx, gy, gw = sx, hy + hh + 10, SIDE_W
+        gh = bottom - gy
+        ncol, nrow = 1, 8
+    elif not cv.tall:
         hx, hy, hw, hh = M, bars_top, 560, bottom - bars_top
         gx, gy, gw, gh = M + 580, bars_top, W - 580, bottom - bars_top
     else:
@@ -118,11 +171,11 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
     cv.rect(hx + 30, hy + 48, pw, 52, (*head_col, 255), r=12)
     cv.text(hx + 30 + pw / 2, hy + 74, head_value, 34, "bold", _ink(head_col), anchor="mm", maxw=pw - 24)
     if meaning:
-        cv.paragraph(hx + 30, hy + 110, meaning, 19, "regular", hw - 60, max_lines=2 if not cv.tall else 1, lh=1.22)
+        cv.paragraph(hx + 30, hy + 110, meaning, 19, "regular", hw - 60, max_lines=3 if side else 2 if not cv.tall else 1, lh=1.22)
     # value chips
     rows = rows[:ncol * nrow]
     if rows:
-        gap = 12
+        gap = 10 if side else 12
         cw = (gw - gap * (ncol - 1)) / ncol
         nr = -(-len(rows) // ncol)
         rh = min(80, (gh - gap * (nr - 1)) / max(1, nr))
@@ -131,7 +184,7 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
             x, y = gx + c * (cw + gap), gy + r * (rh + gap)
             cv.rect(x, y, cw, rh, (20, 31, 54, 235), r=12)
             cv.rect(x + 14, y + rh * 0.22, 14, rh * 0.56, (*col, 255) if col else (70, 86, 112, 255), r=4)
-            if rh >= 64:  # two lines: small label over a big value
+            if rh >= 60:  # two lines: small label over a big value
                 cv.text(x + 40, y + rh * 0.3, name.upper(), min(17, rh * 0.22), "bold", C["muted"], anchor="lm",
                         maxw=cw - 56)
                 cv.text(x + 40, y + rh * 0.68, val, min(30, rh * 0.4), "bold", anchor="lm", maxw=cw - 56)
