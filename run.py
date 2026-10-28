@@ -245,7 +245,7 @@ def main():
     if not args.no_overrides:  # big-text wording for the square social maps
         pkg["bigtext"] = (overrides.load(args.overrides) or {}).get("bigtext") or pkg.get("bigtext")
         pkg["snow_probs"] = (overrides.load(args.overrides) or {}).get("snow_probs")
-    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("outlooks", "state_outlooks")):
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("outlooks", "state_outlooks", "spc_hazards", "spc_3panel")):
         if args.sample:
             pkg["_outlooks"] = sample.sample_outlooks()
         else:

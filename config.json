@@ -27,6 +27,8 @@
     "wind",
     "gust_bars_48",
     "gust_bars_48_dir",
+    "spc_hazards",
+    "spc_3panel",
     "precip_timeline",
     "today_vs_tomorrow",
     "what_to_expect",
