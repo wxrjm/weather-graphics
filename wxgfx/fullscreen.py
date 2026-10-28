@@ -153,7 +153,7 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
     bottom = cv.H - 75
     if side:
         hx, hy, hw, hh = sx, 215, SIDE_W, 196
-        gx, gy, gw = sx, hy + hh + 10, SIDE_W
+        gx, gy, gw = sx, hy + hh + 6, SIDE_W
         gh = bottom - gy
         ncol, nrow = 1, 8
     elif not cv.tall:
@@ -164,7 +164,12 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
         hx, hy, hw = M, bars_top, W
         gx, gy, gw, gh = M, bars_top + hh + 14, W, bottom - bars_top - hh - 14
     # headline card
-    cv.rect(hx, hy, hw, hh, (20, 31, 54, 235), r=16)
+    if side:  # one panel holds the headline and every value row
+        nrows = min(len(rows), 8)
+        rh0 = min(80, (gh - 4) / max(1, nrows)) if nrows else 0
+        cv.rect(hx, hy, hw, min(bottom - hy, hh + 4 + nrows * rh0 + 12), (20, 31, 54, 235), r=16)
+    else:
+        cv.rect(hx, hy, hw, hh, (20, 31, 54, 235), r=16)
     cv.rect(hx, hy, 10, hh, (*head_col, 255), r=5)
     cv.text(hx + 30, hy + 18, head_label, 19, "bold", C["muted"], anchor="lt", maxw=hw - 50)
     pw = min(hw - 60, cv.width(head_value, 34, "bold") + 44)
@@ -175,14 +180,20 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
     # value chips
     rows = rows[:ncol * nrow]
     if rows:
-        gap = 10 if side else 12
+        gap = 0 if side else 12
         cw = (gw - gap * (ncol - 1)) / ncol
         nr = -(-len(rows) // ncol)
         rh = min(80, (gh - gap * (nr - 1)) / max(1, nr))
+        if side:
+            gy += 4
+            cv.line([(gx + 24, gy - 6), (gx + gw - 24, gy - 6)], (255, 255, 255, 50), 2)
         for k, (name, col, val) in enumerate(rows):
             r, c = divmod(k, ncol)
             x, y = gx + c * (cw + gap), gy + r * (rh + gap)
-            cv.rect(x, y, cw, rh, (20, 31, 54, 235), r=12)
+            if not side:
+                cv.rect(x, y, cw, rh, (20, 31, 54, 235), r=12)
+            elif k:
+                cv.line([(x + 24, y), (x + cw - 24, y)], (255, 255, 255, 28), 1)
             cv.rect(x + 14, y + rh * 0.22, 14, rh * 0.56, (*col, 255) if col else (70, 86, 112, 255), r=4)
             if rh >= 60:  # two lines: small label over a big value
                 cv.text(x + 40, y + rh * 0.3, name.upper(), min(17, rh * 0.22), "bold", C["muted"], anchor="lm",
