@@ -154,9 +154,10 @@
   "wpc_qpf": true,
   "_outlooks": "SPC Day 1 is always drawn; other days are skipped when there's no risk area on the map.",
   "formats": [
-    "wide"
+    "wide",
+    "square"
   ],
-  "_formats": "Only wide is on by default; add \"vertical\", \"post\" and/or \"square\" here (or tick them in the editor) to render those sizes. wide = 1920x1080 (TV/OBS/YouTube, top of output folder); vertical = 1080x1920 (Stories/Reels/TikTok) in output/.../vertical; post = 1080x1350 (Facebook/Instagram feed, 4:5) in output/.../post; square = 1080x1080 (1:1, Facebook/Instagram square) in output/.../square",
+  "_formats": "Wide and square are on by default; add \"vertical\" and/or \"post\" here (or tick them in the editor) to render those sizes. wide = 1920x1080 (TV/OBS/YouTube, top of output folder); vertical = 1080x1920 (Stories/Reels/TikTok) in output/.../vertical; post = 1080x1350 (Facebook/Instagram feed, 4:5) in output/.../post; square = 1080x1080 (1:1, Facebook/Instagram square) in output/.../square",
   "tide_station": "8638610",
   "tide_nwps_gauge": "SWPV2",
   "tide_station_name": "Sewells Point (Norfolk)",
