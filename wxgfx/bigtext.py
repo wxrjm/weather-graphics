@@ -111,6 +111,11 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
     M = 34
     # ---- geometry
     title_txt = str(o.get("title") or title).upper()
+    model_tag = None  # a leading model name ("RRFS Peak Wind Gusts") moves out of the headline to the map corner
+    for mdl in ("ECMWF", "RRFS", "HRRR", "GFS", "ICON", "GEM", "NBM", "NAM", "HREF", "NDFD"):
+        if title_txt.startswith(mdl + " ") and len(title_txt) > len(mdl) + 1:
+            model_tag, title_txt = mdl, title_txt[len(mdl) + 1:].strip()
+            break
     lines, size = _wrap2(cv, title_txt, W - 2 * M, 128 if H <= W * 1.05 else 120)
     lh = size * 1.02
     cap = str(o.get("caption") or big_caption or (subtitle or "").split("·")[0]).strip()
@@ -253,6 +258,11 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
     else:
         cv.text((x0 + x1) / 2, map_y + y0 + 44, "METEOROLOGIST", 16, "medium", C["muted"], anchor="mm")
         cv.text((x0 + x1) / 2, map_y + y0 + 78, cfg.get("brand_name", "RICKY MATTHEWS").upper(), 26, "bold", anchor="mm")
+    if model_tag:  # small model label, bottom-right of the map
+        lbl = f"MODEL: {model_tag}"
+        lw = cv.width(lbl, 26, "bold") + 30
+        cv.rect(W - M - lw + 10, map_y + map_h - 14 - 46, lw, 46, (13, 21, 38, 215), r=8)
+        cv.text(W - M - lw / 2 + 10, map_y + map_h - 14 - 23 + 1, lbl, 26, "bold", (255, 255, 255), anchor="mm")
     # ---- tagline banner
     ty = H - tag_h
     cv.rect(0, ty, W, tag_h, (*NAVY, 255))
@@ -265,5 +275,5 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
     cv.text(W / 2, ty + tag_h / 2 + 2, tag, ts, "bold", (255, 255, 255), anchor="mm", maxw=W - 2 * M)
     if credit_text:  # small "data from" strip at the bottom of the map, just above the tagline banner
         from .fullscreen import credit
-        credit(cv, credit_text, right=W - M, bottom=map_y + map_h - 24 - 70 - 12 if cap_box else map_y + map_h - 14)
+        credit(cv, credit_text, right=W - M, bottom=map_y + map_h - 24 - 70 - 12 if cap_box else map_y + map_h - (66 if model_tag else 14))
     return cv
