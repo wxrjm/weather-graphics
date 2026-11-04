@@ -162,11 +162,13 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
     keep = [(b[4] - 6, b[5] - 6, b[4] + b[6] + 6, b[5] + b[7] + 6) for b in call_boxes] + [logo_box]
     if cap_box:
         keep.append(cap_box)
+    alertmap.LABEL_LIMIT.update({"tier": int(cfg.get("bigtext_label_tier", 1)), "max": int(cfg.get("bigtext_max_labels", 9))})
     alertmap.KEEP_OUT[:] = keep  # city labels stay clear of the callouts / caption / logo
     try:
         lay = map_fn(W, map_h, box)
     finally:
         alertmap.KEEP_OUT[:] = []
+        alertmap.LABEL_LIMIT.clear()
     base = cv.img.convert("RGBA")
     base.alpha_composite(lay.resize((z(W), z(map_h))) if lay.size != (z(W), z(map_h)) else lay, (0, z(map_y)))
     cv.img = base.convert("RGB")

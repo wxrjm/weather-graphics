@@ -57,6 +57,7 @@ def _view(alert, pw, ph, cfg):
     return cx - span_x / 2, cx + span_x / 2, cy - span_y / 2, cy + span_y / 2
 
 
+LABEL_LIMIT = {}  # optional {'tier': max tier drawn, 'max': max labels} (set by the big-text layout)
 KEEP_OUT = []  # (x0, y0, x1, y1) in canvas px where labels mustn't go (set by full-screen layouts)
 
 
@@ -70,6 +71,8 @@ def draw_cities(d, proj, W_, H_, cfg, bottom_pad=70, cities=None):
         name, la, lo = city[:3]
         name = abbr.get(name, name).upper()
         tier = city[3] if len(city) > 3 else 1
+        if tier > LABEL_LIMIT.get("tier", 9) or len(placed) >= LABEL_LIMIT.get("max", 999):
+            continue
         f = fonts.get(tier, fonts[2])
         x, y = proj(lo, la)
         tw = d.textlength(name, font=f)
