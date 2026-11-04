@@ -123,7 +123,7 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
     band_h = int(28 + lh * len(lines) + 24 + (54 if cap_in_band else 0))
     tag_h = 96
     leg_mode = str(o.get("legend", cfg.get("bigtext_legend", "overlay"))).lower()  # overlay|strip|cities|top|none
-    leg_h = 104 if leg_mode in ("strip", "cities", "top") else 0
+    leg_h = 186 if leg_mode == "both" else 104 if leg_mode in ("strip", "cities", "top") else 0
     map_y, map_h = band_h + (leg_h if leg_mode == "top" else 0), H - band_h - tag_h - leg_h
     leg_y = band_h if leg_mode == "top" else H - tag_h - leg_h
     # ---- map: fill the middle; local maps zoom to the DMA like the full-screen twins
@@ -181,14 +181,9 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
                 stroke=3, stroke_fill=(8, 16, 34))
     if cap_in_band:  # time period as a small line under the headline, inside the navy band
         cv.text(W / 2, band_h - 22, cap.upper(), 36, "medium", (176, 205, 240), anchor="ms", maxw=W - 2 * M)
-    # ---- legend bar (outside the map)
-    if leg_h:
-        cv.rect(0, leg_y, W, leg_h, (*NAVY_DK, 255))
-        if leg_mode == "top":
-            cv.line([(0, leg_y + leg_h), (W, leg_y + leg_h)], (255, 255, 255, 120), 2)
-        else:
-            cv.line([(0, leg_y), (W, leg_y)], (255, 255, 255, 120), 2)
-        if leg_mode == "cities":
+    # ---- legend bar (outside the map): value scale ("strip"), places with values ("cities"), or both
+    def _legend_row(kind, ry, rh, fs0):
+        if kind == "cities":
             items = [(nm.upper(), col, val) for nm, col, val, _, _ in
                      _pick_callouts(callout_rows or rows or [], _coords(cfg), proj, (0, 0, W, map_h), min(n_leg, 3) or 3)]
         else:
@@ -207,28 +202,41 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
             if len(items) > 5:
                 idx = [round(i * (len(items) - 1) / 4) for i in range(5)]
                 items = [items[i] for i in sorted(set(idx))]
-        if items:
-            fs = 46
-            names = leg_mode == "cities"
-            wids = [cv.width(v, fs, "bold") + 44 + (cv.width(n, 28, "bold") + 16 if names else 0) for n, _, v in items]
-            gap = 22
-            while sum(wids) + gap * (len(items) - 1) > W - 2 * M and fs > 28:
-                fs -= 2
-                wids = [cv.width(v, fs, "bold") + 44 + (cv.width(n, 28, "bold") + 16 if names else 0) for n, _, v in items]
-            x = (W - (sum(wids) + gap * (len(items) - 1))) / 2
-            ch = fs * 1.4
-            cy = leg_y + (leg_h - ch) / 2
-            for (n, col, v), w in zip(items, wids):
-                if names:
-                    nw = cv.width(n, 28, "bold") + 16
-                    cv.text(x, cy + ch / 2 + 2, n, 28, "bold", (255, 255, 255), anchor="lm")
-                    bx, bw = x + nw, w - nw
-                else:
-                    bx, bw = x, w
-                cv.rect(bx - 4, cy - 4, bw + 8, ch + 8, (255, 255, 255, 255), r=6)
-                cv.rect(bx, cy, bw, ch, (*col, 255), r=4)
-                cv.text(bx + bw / 2, cy + ch / 2 + 2, v, fs, "bold", _ink(col), anchor="mm")
-                x += w + gap
+        if not items:
+            return
+        names = kind == "cities"
+        nfs = 28 if fs0 >= 44 else 26
+        fs = fs0
+        wid = lambda: [cv.width(v, fs, "bold") + 44 + (cv.width(n, nfs, "bold") + 16 if names else 0) for n, _, v in items]
+        wids, gap = wid(), 22
+        while sum(wids) + gap * (len(items) - 1) > W - 2 * M and fs > 26:
+            fs -= 2
+            wids = wid()
+        x = (W - (sum(wids) + gap * (len(items) - 1))) / 2
+        ch = fs * 1.4
+        cy = ry + (rh - ch) / 2
+        for (n, col, v), w in zip(items, wids):
+            if names:
+                nw = cv.width(n, nfs, "bold") + 16
+                cv.text(x, cy + ch / 2 + 2, n, nfs, "bold", (255, 255, 255), anchor="lm")
+                bx, bw = x + nw, w - nw
+            else:
+                bx, bw = x, w
+            cv.rect(bx - 4, cy - 4, bw + 8, ch + 8, (255, 255, 255, 255), r=6)
+            cv.rect(bx, cy, bw, ch, (*col, 255), r=4)
+            cv.text(bx + bw / 2, cy + ch / 2 + 2, v, fs, "bold", _ink(col), anchor="mm")
+            x += w + gap
+
+    if leg_h:
+        cv.rect(0, leg_y, W, leg_h, (*NAVY_DK, 255))
+        cv.line([(0, leg_y + (leg_h if leg_mode == "top" else 0))] + [(W, leg_y + (leg_h if leg_mode == "top" else 0))],
+                (255, 255, 255, 120), 2)
+        if leg_mode == "both":
+            _legend_row("cities", leg_y + 6, 84, 38)
+            cv.line([(M, leg_y + 92), (W - M, leg_y + 92)], (255, 255, 255, 45), 1.5)
+            _legend_row("strip", leg_y + 94, 92, 42)
+        else:
+            _legend_row("cities" if leg_mode == "cities" else "strip", leg_y, leg_h, 46)
     # ---- callouts on the map
     for nm, col, val, fs, bx, by, bw, bh in call_boxes:
         y = map_y + by
