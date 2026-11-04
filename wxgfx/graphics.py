@@ -1,6 +1,7 @@
 """Each graphic: fn(pkg, cfg) -> Canvas (or None when not relevant today)."""
 from .theme import Canvas, C, z
 from .icons import draw_icon
+from . import social
 
 NIGHT_ICONS = True
 
@@ -29,7 +30,7 @@ def seven_day(pkg, cfg):
     cols = cols[:7]
     cv.header(f"{len(cols)}-DAY FORECAST", pkg["location"]["area"])
     if cv.tall:
-        return _seven_day_rows(cv, cols, pkg)
+        return social.seven_day(cv, cols, pkg) if cv.social else _seven_day_rows(cv, cols, pkg)
     n = len(cols)
     gap, x0, top, h = 16, 70, 205, 800
     cw = (1780 - gap * (n - 1)) / n
@@ -96,7 +97,7 @@ def daily(pkg, cfg):
     d = pkg["days"][t["day_index"]]
     cv.header(t.get("title", "TODAY'S FORECAST"), f"{d['dow_long']}, {d['date_label']}  ·  {pkg['location']['area']}")
     if cv.tall:
-        return _daily_tall(cv, t, d, pkg)
+        return social.daily(cv, t, d, pkg) if cv.social else _daily_tall(cv, t, d, pkg)
     # left: icon, hi/lo, headline
     lx, lw, top = 70, 560, 205
     cv.rect(lx, top, lw, 620, C["panel"], r=18)
@@ -394,6 +395,8 @@ def hourly(pkg, cfg):
         return None
     cv = Canvas(cfg)
     cv.header("NEXT 24 HOURS", pkg["location"]["area"])
+    if cv.social:
+        return social.hourly(cv, hrs, pkg)
     if cv.tall:
         T, B = cv.top, cv.bottom
         x0, x1 = cv.M + 44, cv.W - cv.M - 44
@@ -446,6 +449,8 @@ def current(pkg, cfg):
     tiles = [("FEELS LIKE", f"{o.get('feels_like')}°"), ("DEWPOINT", f"{o.get('dewpoint')}°"),
              ("HUMIDITY", f"{o.get('humidity')}%"), ("WIND", wind),
              ("PRESSURE", f"{o.get('pressure')}\""), ("VISIBILITY", f"{o.get('visibility')} mi")]
+    if cv.social:
+        return social.current(cv, o, tiles, pkg)
     if cv.tall:
         M, W, top = cv.M, cv.W - 2 * cv.M, cv.top
         vert = cv.fmt == "vertical"
@@ -585,7 +590,7 @@ from .reports import report_graphics  # noqa: E402
 from .tropicalgfx import tropical_graphics  # noqa: E402
 from .frost import frost_graphics  # noqa: E402
 from .tempdrop import tempdrop_graphics, tempdrop_highs_graphics  # noqa: E402
-from . import newgfx, safety, spchaz, timelines  # noqa: E402
+from . import models, newgfx, safety, spchaz, timelines  # noqa: E402
 from . import tideerr  # noqa: E402
 from . import outagerisk  # noqa: E402
 from . import tempnormal  # noqa: E402
@@ -603,6 +608,6 @@ GRAPHICS = {
     "daily": daily, "what_to_know": what_to_know, "7day": seven_day, "hourly": hourly,
     "feels_like": feels_like, "wind_chill": wind_chill, "dewpoints": dewpoints, "rain_totals": rain_totals,
     "wind": wind, "current": current, "alerts": alerts, "alert_maps": alert_maps, "outlooks": outlook_graphics,
-    "ndfd_maps": ndfd_maps, "winter_maps": winter_graphics, "cpc_hazards": cpc_graphics, "river_flooding": river_graphics, "tidal_flood_map": tidal_graphics, "holiday_countdown": holiday_countdown, "drought": drought_graphics_all, "safety_graphics": safety.safety_graphics, "spc_hazards": spchaz.hazard_graphics, "spc_3panel": spchaz.three_panel_graphics, "precip_timeline": timelines.precip_timeline, "today_vs_tomorrow": timelines.today_vs_tomorrow, "what_to_expect": timelines.what_to_expect, "ffg": ffg_graphics, "reports": report_graphics, "tropical_pack": tropical_graphics, "frost_risk": frost_graphics, "temp_drop": tempdrop_graphics, "state_outlooks": state_outlook_graphics, "obs_rain": newgfx.obs_rain_graphics, "city_table": newgfx.city_table_graphics, "rain_timing": newgfx.rain_timing_graphic, "state_fields": newgfx.state_field_graphics, "hr_temps": newgfx.hr_temp_graphics, "aurora": newgfx.aurora_graphic, "tide_error": tideerr.tide_error_graphic, "outage_risk": outagerisk.outage_risk_graphic, "temp_vs_normal": tempnormal.temp_vs_normal_graphic, "holiday_forecast": holidayfx.holiday_forecast_graphics, "snow_probability": snowruler.snow_probability_graphic, "sunset_quality": newgfx.sunset_quality_graphic, "degree_days": newgfx.degree_days_graphic, "state_temps": state_temp_graphics, "temp_drop_highs": tempdrop_highs_graphics, "frost_region": frost_region_graphics, "freeze_potential": freeze_potential_graphics, "fronts": fronts_graphics, "gust_table_48": gust_table_48, "gust_peaks": gust_peaks, "gust_bars_48": gust_bars_48, "gust_bars_48_dir": gust_bars_48_dir, "sound_flood": sound_flood, "nadocast": nadocast_graphics,
+    "ndfd_maps": ndfd_maps, "winter_maps": winter_graphics, "cpc_hazards": cpc_graphics, "river_flooding": river_graphics, "tidal_flood_map": tidal_graphics, "holiday_countdown": holiday_countdown, "drought": drought_graphics_all, "safety_graphics": safety.safety_graphics, "spc_hazards": spchaz.hazard_graphics, "spc_3panel": spchaz.three_panel_graphics, "model_maps": models.model_graphics, "rrfs_maps": models.rrfs_graphics, "precip_timeline": timelines.precip_timeline, "today_vs_tomorrow": timelines.today_vs_tomorrow, "what_to_expect": timelines.what_to_expect, "ffg": ffg_graphics, "reports": report_graphics, "tropical_pack": tropical_graphics, "frost_risk": frost_graphics, "temp_drop": tempdrop_graphics, "state_outlooks": state_outlook_graphics, "obs_rain": newgfx.obs_rain_graphics, "city_table": newgfx.city_table_graphics, "rain_timing": newgfx.rain_timing_graphic, "state_fields": newgfx.state_field_graphics, "hr_temps": newgfx.hr_temp_graphics, "aurora": newgfx.aurora_graphic, "tide_error": tideerr.tide_error_graphic, "outage_risk": outagerisk.outage_risk_graphic, "temp_vs_normal": tempnormal.temp_vs_normal_graphic, "holiday_forecast": holidayfx.holiday_forecast_graphics, "snow_probability": snowruler.snow_probability_graphic, "sunset_quality": newgfx.sunset_quality_graphic, "degree_days": newgfx.degree_days_graphic, "state_temps": state_temp_graphics, "temp_drop_highs": tempdrop_highs_graphics, "frost_region": frost_region_graphics, "freeze_potential": freeze_potential_graphics, "fronts": fronts_graphics, "gust_table_48": gust_table_48, "gust_peaks": gust_peaks, "gust_bars_48": gust_bars_48, "gust_bars_48_dir": gust_bars_48_dir, "sound_flood": sound_flood, "nadocast": nadocast_graphics,
     **_extras.GRAPHICS,
 }

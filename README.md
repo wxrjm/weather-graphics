@@ -363,6 +363,14 @@ as east / south of the line, since the feed does not say). Config: `fronts_days`
 `fronts_always` (make it even when no fronts are forecast). If it ever looks wrong, run
 `python run.py --only fronts --outlook-debug` and look at the "fronts day N" lines.
 
+## Model data maps (graphic keys: `model_maps`, `rrfs_maps`) → `Model Data/`
+`model_maps` uses the Open-Meteo API (ECMWF, GFS, ICON, HRRR) for rainfall and gust maps and side-by-side comparison panels with the KORF value on each. `rrfs_maps` reads NOAA RRFS GRIB2 directly (rain, gusts, 10 m wind, simulated future radar).
+Config keys: `model_list`, `model_compare`, `model_rain_hours`, `model_compare_hours`, `model_gust_hours`, `model_grid_step`, `model_view`, `model_panel_view`, `open_meteo_apikey`, `rrfs_hours`, `rrfs_stride`, `rrfs_bases`, `rrfs_radar_frames`, `rrfs_radar_step`, `model_maps_always`.
+Note: Open-Meteo's free tier is non-commercial. For monetized use set `open_meteo_apikey` (customer API). Results are cached 150 minutes. Check live runs once: the Open-Meteo model ids and RRFS field names could not be tested from the build sandbox.
+
+## Social formats (square / vertical / post)
+`social_minimal` (default true) uses minimal-text, big-type layouts for forecast cards (daily, 7-day, hourly, current, commute, weekend, city table); map graphics save their Big Text layout as the main file when `social_bigtext_main` is true. Dense graphics not listed still use the standard layout.
+
 ## Output folders
 `output/latest_rickywx/` (and each dated run folder) is sorted by type, then by size:
 

@@ -106,6 +106,7 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
            overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None, credit_text=None):
     o = _opts(pkg, cfg, name)
     cv = Canvas(cfg)
+    cv.social = False  # these layouts are already built for social / full-screen sizes
     W, H = cv.W, cv.H
     M = 34
     # ---- geometry

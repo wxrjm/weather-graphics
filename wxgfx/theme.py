@@ -69,6 +69,8 @@ class Canvas:
         self.W, self.H = FORMATS[FMT]
         self.tall = self.H >= self.W  # square uses the narrow layouts too
         self.square = self.H == self.W
+        # social formats: fewer words, bigger type. Secondary text under social_min_text px is not drawn, the rest is enlarged.
+        self.social = bool(self.tall and cfg.get("social_minimal", True))
         self.M = 70 if not self.tall else 56  # side margin
         self.img = _background(self.W, self.H)  # RGB so RGBA fills blend
         self.d = ImageDraw.Draw(self.img, "RGBA")
@@ -80,7 +82,18 @@ class Canvas:
     def line(self, pts, fill, width):
         self.d.line([(z(a), z(b)) for a, b in pts], fill=fill, width=z(width), joint="curve")
 
+    def _social_size(self, size):
+        """-> enlarged size for social formats, or None for tiny secondary text that gets left out."""
+        if size < self.cfg.get("social_min_text", 0):
+            return None
+        k = self.cfg.get("social_scale", 1.0)
+        return size * k if size <= 34 else size * (1 + (k - 1) * 0.5) if size <= 48 else size
+
     def text(self, x, y, s, size, weight="bold", fill=None, anchor="la", stroke=0, stroke_fill=None, maxw=None):
+        if self.social and not getattr(self, "_raw", False):
+            size = self._social_size(size)
+            if size is None:
+                return 0
         size = self.fit(s, size, weight, maxw) if maxw else size
         self.d.text((z(x), z(y)), s, font=font(weight, size), fill=fill or C["text"], anchor=anchor,
                     stroke_width=z(stroke), stroke_fill=stroke_fill or C["shadow"])
@@ -109,6 +122,8 @@ class Canvas:
 
     def paragraph(self, x, y, s, size, weight, maxw, max_lines=4, lh=1.32, fill=None, anchor="la", valign=None, box_h=None):
         """Wrap text; shrink until it fits max_lines. valign='middle' centers in box_h."""
+        if self.social and size < self.cfg.get("social_para_min", 0):
+            return 0  # social formats: no small prose
         while True:
             lines = self.wrap(s, size, weight, maxw)
             if len(lines) <= max_lines or size <= 16:
@@ -194,6 +209,12 @@ class Canvas:
         src = source or pkg.get("source", "NWS NDFD")
         parts = ([f"{loc['name'].upper()} ({loc['station']})"] if show_location else []) + \
                 ([f"DATA: {src.upper()}"] if show_source else []) + [f"GRAPHIC CREATED: {pkg['issued_label'].upper()}"]
+        if self.social:  # short and legible: just when it was made
+            self._raw = True
+            self.text(self.M, self.H - 30, f"UPDATED {pkg['issued_label'].upper()}", 24, "medium", C["muted"], anchor="ls",
+                      maxw=self.W - 2 * self.M)
+            self._raw = False
+            return
         self.text(self.M, self.H - 34, "  ·  ".join(parts), 19 if not self.tall else 18, "medium", C["muted"],
                   anchor="ls", maxw=self.W - 2 * self.M)
 

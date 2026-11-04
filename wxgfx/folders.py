@@ -9,6 +9,7 @@ import re
 
 CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - first match wins
     ("Holidays", lambda n: n == "holiday_countdown" or n.endswith("_forecast")),
+    ("Model Data", lambda n: n.startswith(("model_", "rrfs_"))),
     ("Forecast", lambda n: n in ("daily", "what_to_know", "7day", "hourly", "current", "commute", "weekend",
                                     "holiday_countdown", "rain_timing", "sunset_quality", "precip_timeline", "today_vs_tomorrow", "what_to_expect") or n.startswith(("fronts_", "city_table"))),
     ("Safety Graphics", lambda n: n.startswith("safety_")),
@@ -43,6 +44,8 @@ RAW_PREFIX = ("alert_", "river_")  # kept lower-case with their number so OBS ca
 
 TITLES = {
     "spc_tornado_day1": "SPC Day 1 Tornado Outlook", "spc_wind_day1": "SPC Day 1 Damaging Wind Outlook", "spc_hail_day1": "SPC Day 1 Large Hail Outlook", "spc_tornado_day2": "SPC Day 2 Tornado Outlook", "spc_wind_day2": "SPC Day 2 Damaging Wind Outlook", "spc_hail_day2": "SPC Day 2 Large Hail Outlook", "spc_3panel_day1": "SPC Day 1 Severe Risks Hampton Roads 3 Panel", "spc_3panel_day2": "SPC Day 2 Severe Risks Hampton Roads 3 Panel", 
+    "model_compare_rain": "Model Rainfall Comparison", "model_compare_gust": "Model Wind Gust Comparison",
+    "rrfs_rain": "RRFS Rainfall Forecast", "rrfs_gust": "RRFS Peak Gusts", "rrfs_wind": "RRFS Sustained Winds", "rrfs_radar": "RRFS Future Radar",
     "precip_timeline": "Precipitation Timeline", "today_vs_tomorrow": "Today vs Tomorrow Morning", "what_to_expect": "What To Expect",
     "safety_hurricane_hunters": "Hurricane Hunters Plane Comparison", "safety_urban_flooding": "Urban Area Flooding",
     "safety_high_risk_damage": "High Risk Days Flood Damage", "safety_flood_risk_levels": "Flood Risk Levels",
@@ -55,6 +58,11 @@ TITLES = {
     "what_to_know": "What to Know", "weather_aware": "Be Weather Aware", "feels_like": "Heat Index", "month_rain": "Rainfall So Far",
     "yesterday": "Climate Report", "state_spc_day4_8": "SPC Day 4-8 Severe Outlook", "drought_stencil": "Drought Monitor VA NC Stencil", "drought": "Drought Monitor", "temp_drop": "Temperature Drop", "wpc_qpf": "Rainfall Potential",
 }
+
+
+for _k, _l in {"gfs": "GFS", "ecmwf": "ECMWF", "icon": "ICON", "gem": "GEM", "hrrr": "HRRR", "nbm": "NBM", "nam": "NAM"}.items():
+    TITLES[f"model_rain_{_k}"] = f"{_l} Rainfall Forecast"
+    TITLES[f"model_gust_{_k}"] = f"{_l} Peak Gusts"
 
 
 def pretty(name):

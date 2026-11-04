@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from PIL import Image, ImageDraw
 
 from . import extras_data as X
+from . import social
 from .icons import draw_icon
 from .theme import C, Canvas, font, z
 
@@ -563,6 +564,8 @@ def commute(pkg, cfg):
         return None
     cv = Canvas(cfg)
     cv.header("COMMUTE FORECAST", f"{pkg['location']['area']}  ·  YOUR NEXT TWO DRIVES")
+    if cv.social:
+        return social.commute(cv, wins, pkg)
     x, y, w, h = area(cv)
     for win, (bx, by, bw, bh) in zip(wins, grid(x, y, w, h, len(wins), 1 if cv.tall else len(wins), 22)):
         col = RATE_COL.get(win["rating"], NEUTRAL)
@@ -601,6 +604,8 @@ def weekend(pkg, cfg):
         return None
     cv = Canvas(cfg)
     cv.header("WEEKEND PLANNER", pkg["location"]["area"])
+    if cv.social:
+        return social.weekend(cv, wk, pkg, TAG_COL)
     x, y, w, h = area(cv)
     for d, (bx, by, bw, bh) in zip(wk, grid(x, y, w, h, len(wk), 1 if cv.tall else len(wk), 22)):
         cv.rect(bx, by, bw, bh, C["panel"], r=18)

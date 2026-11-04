@@ -96,10 +96,19 @@ def render(pkg, cfg, out_dir, only=None):
             for fname, c in (cv if isinstance(cv, list) else [(name, cv)]):
                 path = folders.path_for(out_dir, fname, fmt, cfg)  # "<Category>/<Size>/<name>.png"
                 path.parent.mkdir(parents=True, exist_ok=True)
-                c.save(path)
+                spec = getattr(c, "full_spec", None)
+                big_main = False
+                if spec and getattr(c, "social", False) and cfg.get("social_bigtext_main", True) and cfg.get("bigtext_maps", True):
+                    try:  # social sizes: the minimal-text "Big Text" layout IS the graphic (giant headline, callouts on the map)
+                        from wxgfx import bigtext
+                        bigtext.render(pkg, cfg, fname, **spec).save(path)
+                        big_main = True
+                    except Exception as e:
+                        print(f"  ! {fname}_big ({fmt}) failed, using the standard layout: {e!r}")
+                if not big_main:
+                    c.save(path)
                 made.append(path)
                 print(f"  + {path.relative_to(out_dir)}")
-                spec = getattr(c, "full_spec", None)
                 if spec and cfg.get("fullscreen_maps", True):  # full-screen twin: map fills the image
                     try:
                         from wxgfx import fullscreen
@@ -109,7 +118,7 @@ def render(pkg, cfg, out_dir, only=None):
                         print(f"  + {fpath.relative_to(out_dir)}")
                     except Exception as e:
                         print(f"  ! {fname}_full ({fmt}) failed: {e!r}")
-                if spec and cfg.get("bigtext_maps", True) and fmt in (cfg.get("bigtext_formats") or ["square"]):
+                if spec and not big_main and cfg.get("bigtext_maps", True) and fmt in (cfg.get("bigtext_formats") or ["square"]):
                     try:  # "big text" social twin: giant headline, callouts on the map, tagline banner, logo
                         from wxgfx import bigtext
                         bpath = path.with_name(f"{path.stem}{' Big Text' if cfg.get('pretty_filenames') is not False else '_big'}.png")
@@ -396,6 +405,21 @@ def main():
         else:
             print("Fetching NDFD snowfall and wind grids...")
             pkg["_ndfdmaps"] = ndfdmap.fetch(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("model_maps", "rrfs_maps")):
+        from wxgfx import models
+        utc_now = now.astimezone(timezone.utc)
+        g_on = set(cfg.get("graphics") or [])
+        want_ = lambda k: k in g_on and (only_set is None or k in only_set)
+        if args.sample:
+            pkg["_models"] = models.sample(utc_now, cfg)
+        else:
+            pkg["_models"] = {"now": utc_now, "om": {}, "rrfs": {}, "errors": []}
+            if want_("model_maps"):
+                print("Fetching Open-Meteo model grids (GFS, ECMWF, ICON, HRRR)...")
+                pkg["_models"].update(models.fetch_om(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug))
+            if want_("rrfs_maps") or want_("model_maps"):
+                print("Fetching NOAA RRFS (rain, wind, simulated radar)...")
+                pkg["_models"]["rrfs"] = models.fetch_rrfs(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug).get("rrfs", {})
     from wxgfx import extras, extras_data, extras_sample
     enabled = set(cfg.get("graphics") or [])
     want = set()

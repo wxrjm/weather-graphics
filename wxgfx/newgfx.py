@@ -642,22 +642,30 @@ def _table(cfg, pkg, d, today, rows):
     cv.header("CITY-BY-CITY FORECAST", f"{_day_name(d, today)}, {d.strftime('%b').upper()} {d.day}  ·  HAMPTON ROADS & OUTER BANKS  ·  NWS NDFD")
     x0, x1 = cv.M, cv.W - cv.M
     top = 205 if not cv.tall else 215
+    if cv.social:
+        rows = rows[:6 if cv.fmt != "vertical" else 8]
     n = len(rows)
-    hh = 46
-    rh = min(66, (cv.H - 70 - top - hh) / n)
+    hh = 46 if not cv.social else 52
+    rh = min(66 if not cv.social else (190 if cv.fmt == "vertical" else 118), (cv.H - 70 - top - hh) / n)
     cols = [("HIGH", 0.50, "°"), ("LOW", 0.61, "°"), ("RAIN", 0.72, "%"), ("WIND", 0.84, ""), ("GUST", 0.95, "")]
-    if cv.tall:
+    if cv.social:
+        cols = [("HIGH", 0.62, "°"), ("LOW", 0.80, "°"), ("RAIN", 0.98, "%")]
+    elif cv.tall:
         cols = [("HIGH", 0.42, "°"), ("LOW", 0.56, "°"), ("RAIN", 0.70, "%"), ("WIND", 0.84, ""), ("GUST", 0.97, "")]
     W_ = x1 - x0
     cv.rect(x0, top, W_, hh, (255, 255, 255, 30), r=10)
-    cv.text(x0 + 24, top + hh / 2, "CITY", 22, "bold", C["muted"], anchor="lm")
+    if not cv.social:
+        cv.text(x0 + 24, top + hh / 2, "CITY", 22, "bold", C["muted"], anchor="lm")
     for lab, fx, _ in cols:
-        cv.text(x0 + W_ * fx, top + hh / 2, lab + (" MPH" if lab in ("WIND", "GUST") else ""), 19 if cv.tall else 22, "bold", C["muted"], anchor="rm")
+        cv.text(x0 + W_ * fx - (75 if cv.social else 0), top + hh / 2, lab + (" MPH" if lab in ("WIND", "GUST") else ""), 30 if cv.social else 19 if cv.tall else 22, "bold", C["muted"], anchor="mm" if cv.social else "rm")
     for r_, r in enumerate(rows):
         y = top + hh + 6 + r_ * rh
         cv.rect(x0, y, W_, rh - 6, (255, 255, 255, 16 if r_ % 2 else 26), r=10)
-        statemaps._tag(cv, x0 + 22, y + (rh - 6) / 2, r["st"], 24)
-        cv.text(x0 + 82, y + (rh - 6) / 2, r["name"].upper(), min(32, rh * 0.5), "bold", anchor="lm", maxw=W_ * 0.3)
+        if cv.social:
+            cv.text(x0 + 30, y + (rh - 6) / 2, r["name"].upper(), min(52, rh * 0.42), "bold", anchor="lm", maxw=W_ * 0.34)
+        else:
+            statemaps._tag(cv, x0 + 22, y + (rh - 6) / 2, r["st"], 24)
+            cv.text(x0 + 82, y + (rh - 6) / 2, r["name"].upper(), min(32, rh * 0.5), "bold", anchor="lm", maxw=W_ * 0.3)
         for lab, fx, suf in cols:
             v = r[{"HIGH": "hi", "LOW": "lo", "RAIN": "pop", "WIND": "wind", "GUST": "gust"}[lab]]
             x = x0 + W_ * fx
@@ -672,10 +680,12 @@ def _table(cfg, pkg, d, today, rows):
                 vv = round(v) if lab == "WIND" else int(5 * round(v / 5))
                 col = _bin(v, ndfdmap.WIND_BINS) or (70, 86, 112)
             pw = 118 if not cv.tall else 96
+            if cv.social:
+                pw = 150
             ph = (rh - 6) * 0.72
             cv.rect(x - pw, y + (rh - 6 - ph) / 2, pw, ph, (*col, 255), r=8)
             lum = 0.3 * col[0] + 0.59 * col[1] + 0.11 * col[2]
-            cv.text(x - pw / 2, y + (rh - 6) / 2, f"{vv}{suf}", min(30, ph * 0.62), "bold", (20, 28, 46) if lum > 150 else C["text"], anchor="mm")
+            cv.text(x - pw / 2, y + (rh - 6) / 2, f"{vv}{suf}", min(30 if not cv.social else 56, ph * (0.62 if not cv.social else 0.66)), "bold", (20, 28, 46) if lum > 150 else C["text"], anchor="mm")
     cv.footer(pkg, source=_src(pkg, "NWS NDFD"))
     return cv
 

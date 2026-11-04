@@ -126,6 +126,7 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
         # local maps: zoom in on the Hampton Roads DMA (the bars take up the bottom of the frame)
         box = tuple(cfg.get("fullscreen_local_view") or (-77.7, -75.2, 36.05, 37.85))
     cv = Canvas(cfg)
+    cv.social = False  # these layouts are already built for social / full-screen sizes
     side = not cv.tall
     bars_top, ncol, nrow = layout(cv)
     sx = cv.W - cv.M - SIDE_W  # left edge of the right-hand info column (wide only)
