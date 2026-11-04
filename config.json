@@ -155,10 +155,7 @@
   ],
   "wpc_qpf": true,
   "_outlooks": "SPC Day 1 is always drawn; other days are skipped when there's no risk area on the map.",
-  "formats": [
-    "wide",
-    "square"
-  ],
+  "formats": ["wide", "post"],
   "_formats": "Wide and square are on by default; add \"vertical\" and/or \"post\" here (or tick them in the editor) to render those sizes. wide = 1920x1080 (TV/OBS/YouTube, top of output folder); vertical = 1080x1920 (Stories/Reels/TikTok) in output/.../vertical; post = 1080x1350 (Facebook/Instagram feed, 4:5) in output/.../post; square = 1080x1080 (1:1, Facebook/Instagram square) in output/.../square",
   "tide_station": "8638610",
   "tide_nwps_gauge": "SWPV2",
@@ -401,9 +398,7 @@
   "tropical_zone": "VAZ095",
   "_bigtext": "Big-text social twins (<name>_big.png) of every map: giant headline, value callouts on the map, caption box, tagline banner, logo. Text options: overrides.json -> bigtext (see README).",
   "bigtext_maps": true,
-  "bigtext_formats": [
-    "square"
-  ],
+  "bigtext_formats": ["post"],
   "_social": "Social sizes (square / vertical / post): social_minimal drops tiny text and enlarges the rest; social_bigtext_main makes the Big Text layout the main file for every map graphic; social_min_text / social_scale / social_para_min tune it.",
   "social_minimal": true,
   "social_bigtext_main": true,
