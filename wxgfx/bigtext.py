@@ -112,7 +112,7 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
     # ---- geometry
     title_txt = str(o.get("title") or title).upper()
     model_tag = None  # a leading model name ("RRFS Peak Wind Gusts") moves out of the headline to the map corner
-    for mdl in ("ECMWF", "RRFS", "HRRR", "GFS", "ICON", "GEM", "NBM", "NAM", "HREF", "NDFD"):
+    for mdl in ("ECMWF", "RRFS", "HRRR", "GFS", "ICON", "GEM", "NBM", "HREF", "NDFD"):
         if title_txt.startswith(mdl + " ") and len(title_txt) > len(mdl) + 1:
             model_tag, title_txt = mdl, title_txt[len(mdl) + 1:].strip()
             break

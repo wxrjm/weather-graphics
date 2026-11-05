@@ -1,7 +1,7 @@
 """Model data maps: rainfall and wind from several forecast models.
 
 Two sources, both free:
-  * Open-Meteo (https://open-meteo.com/en/docs)  -> GFS, ECMWF IFS, ICON, GEM, HRRR, NBM, NAM point forecasts requested on a grid
+  * Open-Meteo (https://open-meteo.com/en/docs)  -> GFS, ECMWF IFS, ICON, GEM, HRRR, NBM point forecasts requested on a grid
     (multi-location calls) and drawn as smooth maps. No key for non-commercial use; set "open_meteo_apikey" in config.json for
     commercial use (it then uses customer-api.open-meteo.com).
   * NOAA RRFS (Rapid Refresh Forecast System, the 3 km model that replaces HRRR/NAM/RAP) -> real GRIB2 from the operational
@@ -35,7 +35,6 @@ OM_URL_PAID = "https://customer-api.open-meteo.com/v1/forecast"
 OM_MODELS = {  # our key -> (Open-Meteo model id, label)
     "gfs": ("gfs_seamless", "GFS"), "ecmwf": ("ecmwf_ifs025", "ECMWF"), "icon": ("icon_seamless", "ICON"),
     "gem": ("gem_seamless", "GEM"), "hrrr": ("gfs_hrrr", "HRRR"), "nbm": ("ncep_nbm_conus", "NBM"),
-    "nam": ("ncep_nam_conus", "NAM"),
 }
 DEFAULT_MODELS = ["gfs", "ecmwf", "icon", "hrrr"]
 DEFAULT_COMPARE = ["ecmwf", "gfs", "icon", "rrfs"]

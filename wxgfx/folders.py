@@ -60,7 +60,7 @@ TITLES = {
 }
 
 
-for _k, _l in {"gfs": "GFS", "ecmwf": "ECMWF", "icon": "ICON", "gem": "GEM", "hrrr": "HRRR", "nbm": "NBM", "nam": "NAM"}.items():
+for _k, _l in {"gfs": "GFS", "ecmwf": "ECMWF", "icon": "ICON", "gem": "GEM", "hrrr": "HRRR", "nbm": "NBM"}.items():
     TITLES[f"model_rain_{_k}"] = f"{_l} Rainfall Forecast"
     TITLES[f"model_gust_{_k}"] = f"{_l} Peak Gusts"
 
