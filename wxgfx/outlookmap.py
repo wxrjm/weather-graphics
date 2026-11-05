@@ -403,18 +403,63 @@ def _cat_graphic(kind, day, feats, pkg, cfg):
     return cv
 
 
-def _qpf_bar(cv, bx, by, bw):
-    """Color bar: linear 0-12 in scale, like the NWS/WPC reference bar."""
+def _plotted_qpf(feats, ext):
+    """(lowest, highest) QPF band value drawn inside the visible extent (w, e, s, n)."""
+    w, e, so, n = ext
+    vs = []
+    for f in feats:
+        if any(w <= x <= e and so <= y <= n for p in f["polys"] for x, y, *_ in p[0][::max(1, len(p[0]) // 80)]) or \
+                outlooks.contains(f["polys"], (w + e) / 2, (so + n) / 2):
+            vs.append(f["value"])
+    return (min(vs), max(vs)) if vs else None
+
+
+def _qpf_range_txt(feats, cfg, rad=None):
+    """Headline from the bands within a radius (default 35 mi) of the home point; whole 0.5-inch steps."""
+    import math
+    loc = cfg["location"]
+    rad = float(rad or cfg.get("model_range_radius_mi", 35))
+    allv = [t for t, _c in outlooks.QPF_COLORS]  # band edges; the top of a band is the next edge
+    los, his, open_top = [], [], False
+    pts = [(0, 0)] + [(rad * k / 3 * math.cos(a * math.pi / 6), rad * k / 3 * math.sin(a * math.pi / 6))
+                      for k in (1, 2, 3) for a in range(12)]
+    for dx, dy in pts:
+        lon = loc["lon"] + dx / (69.0 * math.cos(math.radians(loc["lat"])))
+        lat = loc["lat"] + dy / 69.0
+        inside = [f["value"] for f in feats if outlooks.contains(f["polys"], lon, lat)]
+        v = max(inside) if inside else 0.0
+        up = next((x for x in allv if x > v + 1e-6), None)
+        los.append(v)
+        if up is None and inside:
+            open_top = True
+        his.append(up if up is not None else v)
+    lo_v, hi_v = min(los), max(his)
+    if hi_v <= 0.1:
+        return None
+    a = math.floor(lo_v * 2) / 2
+    if open_top:
+        return f'{a:g}"+'
+    b = max(math.ceil(hi_v * 2) / 2, a + 0.5)
+    return f'UP TO {b:g}"' if a <= 0 else f'{a:g}–{b:g}"'
+
+
+def _qpf_bar(cv, bx, by, bw, top_in=12.0):
+    """Color bar: linear scale, only as high as the values plotted on the map (default 0-12 in like the NWS/WPC bar)."""
     bw = min(bw, 1100)
     cv.rect(bx, by, bw, 62, (13, 21, 38, 225), r=10)
-    x0, x1, top_in = bx + 22, bx + bw - 48, 12.0
+    x0, x1 = bx + 22, bx + bw - 48
     xin = lambda v: x0 + (x1 - x0) * v / top_in
-    edges = [t for t, _ in outlooks.QPF_COLORS] + [top_in]
-    for (t, c), nxt in zip(outlooks.QPF_COLORS, edges[1:]):
+    bands = [(t, c) for t, c in outlooks.QPF_COLORS if t < top_in]
+    edges = [t for t, _ in bands] + [top_in]
+    for (t, c), nxt in zip(bands, edges[1:]):
         cv.rect(xin(t), by + 10, xin(nxt) - xin(t) + 0.5, 20, (*c, 255))
-    for i in range(13):
-        cv.line([(xin(i), by + 30), (xin(i), by + 37)], (255, 255, 255, 220), 2)
-        cv.text(xin(i), by + 54, str(i), 17, "bold", anchor="ms")
+    step = 0.5 if top_in <= 3 else 1
+    k = 0
+    while k * step <= top_in + 1e-9:
+        v = k * step
+        cv.line([(xin(v), by + 30), (xin(v), by + 37)], (255, 255, 255, 220), 2)
+        cv.text(xin(v), by + 54, f"{v:g}", 17, "bold", anchor="ms")
+        k += 1
     cv.text(bx + bw - 12, by + 54, "IN", 15, "bold", C["muted"], anchor="rs")
 
 
@@ -442,7 +487,12 @@ def _qpf_graphic(qpf, pkg, cfg, statewide=False):
     _paste_rounded(cv, lay, mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
     vals = sorted({f["value"] for f in feats})
-    _qpf_bar(cv, mx + 16, my + mh - 74, mw - 32)
+    _vb = tuple(cfg.get("state_view") or STATE_VIEW) if statewide else tuple(cfg.get("outlook_view") or VIEW_BOX)
+    _pr = _plotted_qpf(feats, _vb)
+    top_in = 12.0
+    if _pr:  # legend stops just above the highest band that appears on the map
+        top_in = next((t for t, _c in outlooks.QPF_COLORS if t > _pr[1] + 1e-6), 12.0)
+    _qpf_bar(cv, mx + 16, my + mh - 74, mw - 32, top_in)
 
     def at(lon, lat):
         inside = [f["value"] for f in feats if outlooks.contains(f["polys"], lon, lat)]
@@ -455,6 +505,7 @@ def _qpf_graphic(qpf, pkg, cfg, statewide=False):
     loc = cfg["location"]
     v, txt = at(loc["lon"], loc["lat"])
     head_col = outlooks.qpf_color(v) if v else (70, 86, 112)
+    txt = (_qpf_range_txt(feats, cfg) or txt) if v else txt  # range from the bands within ~35 mi of home, not one exact band
     spoken = txt.replace('–', ' to ').replace('"+', '" or more')
     meaning = (f"{span.title().replace(' Total', '')} rainfall total for the Hampton Roads area: {spoken}.") if v else \
         "Little or no rain is expected in the Hampton Roads area over this period."
@@ -477,7 +528,8 @@ def _qpf_graphic(qpf, pkg, cfg, statewide=False):
     fullscreen.attach(cv, title="RAINFALL FORECAST MAP", subtitle=subtitle, map_fn=mfn, box=box,
                       head_label=cfg['location'].get('area', 'HAMPTON ROADS AREA').upper(),
                       head_value=txt if v else "LITTLE OR NO RAIN", head_col=head_col, meaning=meaning, rows=rows,
-                      overlay=lambda c, x, y, mw_: _qpf_bar(c, x, y - 4, mw_), source=None)
+                      overlay=lambda c, x, y, mw_: _qpf_bar(c, x, y - 4, mw_, top_in), source=None,
+                      legend_fn=lambda ext: _plotted_qpf(feats, ext), legend_bins=list(outlooks.QPF_COLORS), legend_unit="IN")
     return cv
 
 
