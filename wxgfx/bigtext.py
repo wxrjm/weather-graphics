@@ -199,7 +199,15 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
                 except ValueError:
                     return 0
             items = sorted(items, key=_num)
-            if len(items) > 5:
+            if items and all(i[2].endswith('"') for i in items):  # rainfall: legend steps are whole 0.5" increments, never smaller
+                from .models import RAIN_BINS, _bin_color
+                top = max(_num(i) for i in items)
+                n = max(1, math.ceil(top * 2 - 1e-9))
+                steps = [k * 0.5 for k in range(1, n + 1)]
+                if len(steps) > 5:
+                    steps = [steps[round(i * (len(steps) - 1) / 4)] for i in range(5)]
+                items = [("", _bin_color(v, RAIN_BINS), f'{v:.1f}"') for v in steps]
+            elif len(items) > 5:
                 idx = [round(i * (len(items) - 1) / 4) for i in range(5)]
                 items = [items[i] for i in sorted(set(idx))]
         if not items:

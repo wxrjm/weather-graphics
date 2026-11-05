@@ -402,7 +402,7 @@
   "_social": "Social sizes (square / vertical / post): social_minimal drops tiny text and enlarges the rest; social_bigtext_main makes the Big Text layout the main file for every map graphic; social_min_text / social_scale / social_para_min tune it.",
   "social_minimal": true,
   "social_bigtext_main": true,
-  "bigtext_legend": "both",
+  "bigtext_legend": "strip",
   "bigtext_callouts": 4,
   "_fronts": "WPC forecast fronts (mapservices.weather.noaa.gov natl_fcst_wx_chart, no key): fronts_outlook (Today / Tomorrow / Day 3) plus a full map per day with cold/warm/stationary/occluded fronts and H/L centers. WPC only publishes Days 1-3 as vectors. fronts_days picks days; fronts_always makes it even with no fronts.",
   "fronts_days": [1, 2, 3],
