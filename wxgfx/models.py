@@ -475,6 +475,29 @@ def _src(pkg, label):
     return label
 
 
+def _range_txt(field, kind, cfg):
+    """Headline range from the colors plotted within a radius of Norfolk (rain: 0.5" steps, wind: 5 mph steps)."""
+    np = _np()
+    loc = cfg["location"]
+    rad = float(cfg.get("model_range_radius_mi", 25))
+    dy = (field["lat"] - loc["lat"]) * 69.0
+    dx = (field["lon"] - loc["lon"]) * 69.0 * math.cos(math.radians(loc["lat"]))
+    v = field["val"][np.hypot(dx, dy) <= rad]
+    v = v[v == v]
+    if v.size == 0:
+        return None
+    lo, hi = float(np.nanmin(v)), float(np.nanmax(v))
+    if kind == "rain":
+        if hi < 0.1:
+            return "NO RAIN"
+        a, b = math.floor(lo * 2) / 2, math.ceil(hi * 2) / 2
+        b = max(b, a + 0.5)
+        return f'UP TO {b:g}"' if a <= 0 else f'{a:g}–{b:g}"'
+    a, b = int(lo // 5 * 5), int(math.ceil(hi / 5) * 5)
+    b = max(b, a + 5)
+    return f"UP TO {b} MPH" if a <= 0 else f"{a}–{b} MPH"
+
+
 def _single(field, kind, label, tag, pkg, cfg, tz):
     """One model, one map (rain total / peak gust / sustained wind) with the local list + full-screen twin."""
     np = _np()
@@ -484,9 +507,10 @@ def _single(field, kind, label, tag, pkg, cfg, tz):
         bins, unit = RAIN_BINS, "IN"
         title = f"{label} RAINFALL FORECAST"
         sub = f"NEXT {field['hours']} HOURS  ·  THROUGH {_when(end, tz)}  ·  {tag}"
-        head = lambda v: _rain_txt(v) if v and v >= 0.01 else "NO RAIN"
-        meaning = lambda v: (f"The {label} model has about {_rain_txt(v)} of rain for the Hampton Roads area through {_when(end, tz).title()}. "
-                             "Model output is guidance, not a forecast: rain totals vary from run to run.") if v and v >= 0.01 \
+        rng = _range_txt(field, "rain", cfg)
+        head = lambda v: rng or (_rain_txt(v) if v and v >= 0.01 else "NO RAIN")
+        meaning = lambda v: (f"The {label} model has {rng.lower() if rng else _rain_txt(v)} of rain around Norfolk through {_when(end, tz).title()}. "
+                             "Model output is guidance, not a forecast: rain totals vary from run to run.") if (rng or "") != "NO RAIN" and (v and v >= 0.01) \
             else f"The {label} model keeps the Hampton Roads area dry through {_when(end, tz).title()}."
         fmt_row = _rain_txt
     else:
@@ -494,9 +518,10 @@ def _single(field, kind, label, tag, pkg, cfg, tz):
         nm = "PEAK WIND GUSTS" if kind == "gust" else "SUSTAINED WINDS"
         title = f"{label} {nm}"
         sub = f"{'MAX ' if kind == 'wind' else ''}NEXT {field['hours']} HOURS  ·  THROUGH {_when(end, tz)}  ·  {tag}"
-        head = lambda v: f"{_gust_round(v)} MPH" if v is not None else "N/A"
+        rng = _range_txt(field, kind, cfg)
+        head = lambda v: rng or (f"{_gust_round(v)} MPH" if v is not None else "N/A")
         what = "gusts" if kind == "gust" else "sustained winds"
-        meaning = lambda v: (f"The {label} model shows {what} up to about {_gust_round(v)} mph in the Hampton Roads area over the next "
+        meaning = lambda v: (f"The {label} model shows {what} of {rng.lower() if rng else 'about ' + str(_gust_round(v)) + ' mph'} around Norfolk over the next "
                              f"{field['hours']} hours." + (" Secure loose outdoor items." if kind == "gust" and v and v >= 40 else "")) \
             if v is not None else "Wind data unavailable."
         fmt_row = lambda v: f"{_gust_round(v)} mph" if v is not None else "--"
