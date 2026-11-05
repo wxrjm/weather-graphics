@@ -479,7 +479,7 @@ def _range_txt(field, kind, cfg):
     """Headline range from the colors plotted within a radius of Norfolk (rain: 0.5" steps, wind: 5 mph steps)."""
     np = _np()
     loc = cfg["location"]
-    rad = float(cfg.get("model_range_radius_mi", 25))
+    rad = float(cfg.get("model_range_radius_mi", 35))
     dy = (field["lat"] - loc["lat"]) * 69.0
     dx = (field["lon"] - loc["lon"]) * 69.0 * math.cos(math.radians(loc["lat"]))
     v = field["val"][np.hypot(dx, dy) <= rad]
@@ -529,7 +529,7 @@ def _single(field, kind, label, tag, pkg, cfg, tz):
                                 rows_title="LOCAL MODEL VALUE", source=_src(pkg, tag))
 
 
-def _panels(cfg, pkg, title, subtitle, panels, bins, unit, pill_fn, summary=None, view=None):
+def _panels(cfg, pkg, title, subtitle, panels, bins, unit, pill_fn, summary=None, view=None, range_kind=None):
     """Side-by-side map panels. panels = [(label, sub_label, field)] (2-4)."""
     np = _np()
     cv = Canvas(cfg)
@@ -575,7 +575,8 @@ def _panels(cfg, pkg, title, subtitle, panels, bins, unit, pill_fn, summary=None
         cv.text(mx, my, city, 24, "bold", anchor="mm", stroke=3.5)  # Norfolk is the center of the map, labeled instead of a dot
         # local value pill
         v = ndfdmap._value_at(field, loc["lon"], loc["lat"])
-        txt = f"{city}  {pill_fn(v)}"
+        rt = _range_txt(field, range_kind, cfg) if range_kind else None
+        txt = f"{city}  {rt or pill_fn(v)}"
         vw = cv.width(txt, 28, "bold")
         col = _bin_color(v, bins) or (70, 86, 112)
         cv.rect(px + 12, py + ph - 62, vw + 46, 50, (13, 21, 38, 235), r=12)
@@ -583,6 +584,9 @@ def _panels(cfg, pkg, title, subtitle, panels, bins, unit, pill_fn, summary=None
         cv.text(px + 42, py + ph - 37, txt, 28, "bold", anchor="lm")
     if summary:
         cv.text(M, cv.bottom - 86, summary, 25, "bold", anchor="lm", maxw=cv.W - 2 * M)
+    rngs = [r for r in (ndfdmap._plotted_range(f, box) for _l, _s, f in panels) if r]
+    if rngs:  # legend only covers values that appear in at least one panel
+        bins = ndfdmap._trim_bins(bins, (min(r[0] for r in rngs), max(r[1] for r in rngs)))
     ndfdmap._color_bar(cv, M, cv.bottom - 62, bins, unit, cv.W - 2 * M)
     return cv
 
@@ -620,15 +624,19 @@ def _compare(kind, now_utc, pkg, cfg, tz):
         summ = None
         if len(vals) >= 2:
             hi, lo_ = max(vals, key=lambda x: x[1]), min(vals, key=lambda x: x[1])
-            summ = f"AT {st}:  WETTEST {hi[0]} {_rain_txt(hi[1])}   ·   DRIEST {lo_[0]} {_rain_txt(lo_[1])}"
+            fl = {a: f for a, _s, f in panels}
+            rr = lambda lab, v: _range_txt(fl[lab], "rain", cfg) or _rain_txt(v)
+            summ = f"AROUND {st}:  WETTEST {hi[0]} {rr(*hi)}   ·   DRIEST {lo_[0]} {rr(*lo_)}"
     else:
         title, bins, unit, pill = "MODEL WIND GUST COMPARISON", GUST_BINS, "MPH", lambda v: f"{_gust_round(v)} MPH" if v is not None else "N/A"
         sub = f"PEAK GUSTS  ·  NEXT {hours} HOURS  ·  " + "  ·  ".join(p[0] for p in panels)
         summ = None
         if len(vals) >= 2:
             hi, lo_ = max(vals, key=lambda x: x[1]), min(vals, key=lambda x: x[1])
-            summ = f"AT {st}:  STRONGEST {hi[0]} {_gust_round(hi[1])} MPH   ·   LIGHTEST {lo_[0]} {_gust_round(lo_[1])} MPH"
-    cv = _panels(cfg, pkg, title, sub, panels, bins, unit, pill, summ)
+            fl = {a: f for a, _s, f in panels}
+            rg = lambda lab, v: _range_txt(fl[lab], "gust", cfg) or f"{_gust_round(v)} MPH"
+            summ = f"AROUND {st}:  STRONGEST {hi[0]} {rg(*hi)}   ·   LIGHTEST {lo_[0]} {rg(*lo_)}"
+    cv = _panels(cfg, pkg, title, sub, panels, bins, unit, pill, summ, range_kind=kind)
     srcs = ["Open-Meteo"] + (["NOAA RRFS"] if any(p[0] == "RRFS" for p in panels) else [])
     cv.footer(pkg, source=_src(pkg, " + ".join(srcs)))
     return cv
