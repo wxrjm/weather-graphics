@@ -36,6 +36,9 @@ OM_MODELS = {  # our key -> (Open-Meteo model id, label)
     "gfs": ("gfs_seamless", "GFS"), "ecmwf": ("ecmwf_ifs025", "ECMWF"), "icon": ("icon_seamless", "ICON"),
     "gem": ("gem_seamless", "GEM"), "hrrr": ("gfs_hrrr", "HRRR"), "nbm": ("ncep_nbm_conus", "NBM"),
 }
+OM_META = {"gfs": "ncep_gfs025", "ecmwf": "ecmwf_ifs025", "icon": "dwd_icon", "gem": "cmc_gem_gdps", "hrrr": "ncep_hrrr_conus",
+           "nbm": "ncep_nbm_conus"}  # Open-Meteo /data/<id>/static/meta.json -> last_run_initialisation_time
+OM_CYCLE = {"gfs": (6, 5), "ecmwf": (6, 7), "icon": (6, 4), "gem": (12, 5), "hrrr": (1, 2), "nbm": (1, 1.5)}  # (hours between runs, hours until available)
 DEFAULT_MODELS = ["gfs", "ecmwf", "icon", "hrrr"]
 DEFAULT_COMPARE = ["ecmwf", "gfs", "icon", "rrfs"]
 LABELS = {**{k: v[1] for k, v in OM_MODELS.items()}, "rrfs": "RRFS"}
@@ -158,6 +161,26 @@ def _pick(h, var):
     return None
 
 
+def _est_run(key, now_utc):
+    """Most recent run that should be out by now (used when Open-Meteo's meta file can't be read)."""
+    step, delay = OM_CYCLE.get(key, (6, 5))
+    t = now_utc - timedelta(hours=delay)
+    return t.replace(hour=int(t.hour // step * step), minute=0, second=0, microsecond=0)
+
+
+def _om_run(key, cfg, cache, now_utc):
+    """-> model initialisation time (UTC). Open-Meteo's meta.json when reachable, else a schedule-based estimate."""
+    try:
+        url = f"https://api.open-meteo.com/data/{OM_META[key]}/static/meta.json"
+        d = _http_json(url, cfg["user_agent"], cache / f"meta_{OM_META[key]}.json", 900)
+        t = d.get("last_run_initialisation_time")
+        if t:
+            return datetime.fromtimestamp(int(t), tz=timezone.utc)
+    except Exception:
+        pass
+    return _est_run(key, now_utc)
+
+
 def fetch_om(cfg, cache_dir, now_utc, debug=False):
     """-> {"om": {key: {label, lat, lon, times, rain, gust, wind}}, "errors": [...]}; stacks are (time, lat, lon) numpy arrays."""
     np = _np()
@@ -208,7 +231,8 @@ def fetch_om(cfg, cache_dir, now_utc, debug=False):
             if np.isnan(stacks["precipitation"]).all():
                 raise RuntimeError("no precipitation data returned for this model")
             out["om"][key] = {"label": label, "lat": lats, "lon": lons, "times": times, "rain": stacks["precipitation"],
-                              "gust": stacks["wind_gusts_10m"], "wind": stacks["wind_speed_10m"]}
+                              "gust": stacks["wind_gusts_10m"], "wind": stacks["wind_speed_10m"],
+                              "run": _om_run(key, cfg, cache, now_utc)}
             if debug:
                 print(f"   [models] {label}: {len(pts)} points, {len(times)} hours")
         except Exception as ex:
@@ -446,7 +470,9 @@ def fetch_rrfs(cfg, cache_dir, now_utc, debug=False):
 
 # ------------------------------------------------------------------ drawing
 def _src(pkg, label):
-    return "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else label
+    if "SAMPLE" in pkg.get("source", ""):
+        return "SAMPLE DATA" + ("  ·  " + label.split("·")[-1].strip() if "·" in label else "")
+    return label
 
 
 def _single(field, kind, label, tag, pkg, cfg, tz):
@@ -548,7 +574,7 @@ def _compare(kind, now_utc, pkg, cfg, tz):
             sub = f"{rrfs['cycle']:%HZ} RUN" if f and rrfs.get("cycle") else ""
         elif key in om:
             f = om_field(om[key], "rain" if kind == "rain" else "gust", now_utc, hours)
-            sub = ""
+            sub = f"{om[key]['run']:%HZ} RUN" if om[key].get("run") else ""
         else:
             continue
         if not f or (key != "rrfs" and not f.get("full")):
@@ -594,14 +620,15 @@ def model_graphics(pkg, cfg):
     np = _np()
     for key, m in data["om"].items():
         label = m["label"]
+        otag = "OPEN-METEO" + (f"  ·  {m['run']:%HZ} RUN" if m.get("run") else "")
         f = om_field(m, "rain", now, rain_h)
         if f is not None and (np.nanmax(f["val"]) >= 0.01 or cfg.get("model_maps_always")):
             f["hours"] = max(1, int(round((f["end"] - now).total_seconds() / 3600)))
-            out.append((f"model_rain_{key}", _single(f, "rain", label, "OPEN-METEO", pkg, cfg, tz)))
+            out.append((f"model_rain_{key}", _single(f, "rain", label, otag, pkg, cfg, tz)))
         g = om_field(m, "gust", now, gust_h)
         if g is not None:
             g["hours"] = max(1, int(round((g["end"] - now).total_seconds() / 3600)))
-            out.append((f"model_gust_{key}", _single(g, "gust", label, "OPEN-METEO", pkg, cfg, tz)))
+            out.append((f"model_gust_{key}", _single(g, "gust", label, otag, pkg, cfg, tz)))
     for kind in ("rain", "gust"):
         cv = _compare(kind, now, pkg, cfg, tz)
         if cv:
@@ -665,7 +692,8 @@ def sample(now_utc, cfg):
     for key, (shift, amp, hz) in {"gfs": (0, 1.0, nt), "ecmwf": (3, 1.35, nt), "icon": (-3, 0.8, nt), "hrrr": (1, 1.1, 48),
                                   "gem": (5, 1.2, nt), "nbm": (0, 0.95, nt)}.items():
         rain, gust, wind = storm(shift, amp, hz)
-        out["om"][key] = {"label": LABELS[key], "lat": lats, "lon": lons, "times": times, "rain": rain, "gust": gust, "wind": wind}
+        out["om"][key] = {"label": LABELS[key], "lat": lats, "lon": lons, "times": times, "rain": rain, "gust": gust, "wind": wind,
+                          "run": _est_run(key, now_utc)}
     # RRFS-like 3 km grid
     la = np.linspace(33.0, 40.9, 260)
     lo = np.linspace(-81.9, -71.9, 330)

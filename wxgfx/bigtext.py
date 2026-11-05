@@ -269,7 +269,9 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
         cv.text((x0 + x1) / 2, map_y + y0 + 44, "METEOROLOGIST", 16, "medium", C["muted"], anchor="mm")
         cv.text((x0 + x1) / 2, map_y + y0 + 78, cfg.get("brand_name", "RICKY MATTHEWS").upper(), 26, "bold", anchor="mm")
     if model_tag:  # small model label, bottom-right of the map
-        lbl = f"MODEL: {model_tag}"
+        import re as _re
+        _run = _re.search(r"(\d\d)Z RUN", str(source or ""))
+        lbl = f"MODEL: {model_tag}" + (f"  ·  {_run.group(1)}Z RUN" if _run else "")
         lw = cv.width(lbl, 26, "bold") + 30
         cv.rect(W - M - lw + 10, map_y + map_h - 14 - 46, lw, 46, (13, 21, 38, 215), r=8)
         cv.text(W - M - lw / 2 + 10, map_y + map_h - 14 - 23 + 1, lbl, 26, "bold", (255, 255, 255), anchor="mm")

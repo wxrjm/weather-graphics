@@ -351,7 +351,8 @@ def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pk
         side_rows.append((name, _bin(v or 0, bins), fmt_row(v)))
     outlookmap._side(cv, px, py, pw_, ph_, head_col, cfg["location"].get("area", "Hampton Roads Area").upper(),
                      head_txt(hv), meaning(hv), side_rows, rows_title)
-    src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else (source or "National Weather Service (NDFD)")
+    src = ("SAMPLE DATA" + (f"  ·  {source.split('·')[-1].strip()}" if source and "Z RUN" in source else "")
+           if "SAMPLE" in pkg.get("source", "") else (source or "National Weather Service (NDFD)"))
     cv.footer(pkg, source=src)
     from . import fullscreen
     fullscreen.attach(cv, title=title, subtitle=subtitle,
