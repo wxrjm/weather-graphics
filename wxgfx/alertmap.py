@@ -67,7 +67,9 @@ def draw_cities(d, proj, W_, H_, cfg, bottom_pad=70, cities=None):
     placed = []
     fonts = {1: font("bold", 16), 2: font("medium", 13)}
     abbr = cfg.get("abbreviations") or {}
-    for city in cities or cfg.get("map_cities") or DEFAULT_CITIES:
+    home = ((cfg.get("location") or {}).get("short") or "").lower()
+    clist = sorted(cities or cfg.get("map_cities") or DEFAULT_CITIES, key=lambda c: c[0].lower() != home)  # home city first
+    for city in clist:
         name, la, lo = city[:3]
         name = abbr.get(name, name).upper()
         tier = city[3] if len(city) > 3 else 1

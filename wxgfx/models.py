@@ -29,7 +29,7 @@ from . import ndfdmap, outlookmap
 from .alertmap import _paste_rounded
 from .theme import C, Canvas, z
 
-MODEL_VIEW = (-79.2, -74.0, 35.0, 38.8)  # w, e, s, n -- Virginia / northeast NC and the western Atlantic
+MODEL_VIEW = (-78.8, -73.6, 35.0, 38.8)  # w, e, s, n -- centered on Norfolk (-76.2, 36.9)
 OM_URL = "https://api.open-meteo.com/v1/forecast"
 OM_URL_PAID = "https://customer-api.open-meteo.com/v1/forecast"
 OM_MODELS = {  # our key -> (Open-Meteo model id, label)
@@ -63,7 +63,7 @@ RADAR_BINS = [  # dBZ
     (35, (20, 120, 40)), (40, (250, 230, 60)), (45, (250, 170, 40)), (50, (240, 90, 40)), (55, (220, 30, 40)),
     (60, (170, 20, 90)), (65, (220, 60, 200)), (70, (255, 255, 255)),
 ]
-PANEL_VIEW = (-78.5, -74.7, 35.0, 38.8)  # narrower than MODEL_VIEW: tall side-by-side panels show more north-south
+PANEL_VIEW = (-78.1, -74.3, 35.0, 38.8)  # narrower than MODEL_VIEW: tall side-by-side panels show more north-south
 PANEL_CITIES = [("Richmond", 37.54, -77.44, 1), ("Raleigh", 35.78, -78.64, 1),
                 ("Salisbury", 38.36, -75.60, 2), ("Nags Head", 35.96, -75.62, 2), ("Wilmington", 34.23, -77.94, 2)]
 
@@ -503,6 +503,7 @@ def _panels(cfg, pkg, title, subtitle, panels, bins, unit, pill_fn, summary=None
     ph = (bot - top - gap * (rows - 1)) / rows
     box = tuple(view or cfg.get("model_panel_view") or PANEL_VIEW)
     loc = cfg["location"]
+    city = (loc.get("short") or "Norfolk").upper()
     for k, (label, sublabel, field) in enumerate(panels):
         r, c = divmod(k, cols)
         px, py = M + c * (pw + gap), top + r * (ph + gap)
@@ -521,11 +522,10 @@ def _panels(cfg, pkg, title, subtitle, panels, bins, unit, pill_fn, summary=None
         # Norfolk marker
         w_, e_, s_, n_ = outlookmap._view(pw, ph, box)
         mx, my = px + (loc["lon"] - w_) / (e_ - w_) * pw, py + (n_ - loc["lat"]) / (n_ - s_) * ph
-        cv.d.ellipse([z(mx - 8), z(my - 8), z(mx + 8), z(my + 8)], fill=(255, 255, 255, 255), outline=(13, 21, 38, 255), width=z(3))
-        cv.text(mx + 14, my - 14, loc.get("station", "ORF"), 22, "bold", anchor="lm", stroke=3)
+        cv.text(mx, my, city, 24, "bold", anchor="mm", stroke=3.5)  # Norfolk is the center of the map, labeled instead of a dot
         # local value pill
         v = ndfdmap._value_at(field, loc["lon"], loc["lat"])
-        txt = f"{loc.get('station', 'ORF')}  {pill_fn(v)}"
+        txt = f"{city}  {pill_fn(v)}"
         vw = cv.width(txt, 28, "bold")
         col = _bin_color(v, bins) or (70, 86, 112)
         cv.rect(px + 12, py + ph - 62, vw + 46, 50, (13, 21, 38, 235), r=12)
@@ -563,7 +563,7 @@ def _compare(kind, now_utc, pkg, cfg, tz):
     loc = cfg["location"]
     vals = [(lab, ndfdmap._value_at(f, loc["lon"], loc["lat"])) for lab, _s, f in panels]
     vals = [(a, b) for a, b in vals if b is not None]
-    st = loc.get("station", "ORF")
+    st = (loc.get("short") or "Norfolk").upper()
     if kind == "rain":
         title, bins, unit, pill = "MODEL RAINFALL COMPARISON", RAIN_BINS, "IN", _rain_txt
         sub = f"NEXT {hours} HOURS  ·  " + "  ·  ".join(p[0] for p in panels)
