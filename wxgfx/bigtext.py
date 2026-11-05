@@ -103,7 +103,7 @@ def _pick_callouts(rows, coords, proj, area, n):
 
 
 def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value, head_col, meaning, rows,
-           overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None, credit_text=None):
+           overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None, credit_text=None, legend_fn=None, legend_bins=None, legend_unit=None):
     o = _opts(pkg, cfg, name)
     cv = Canvas(cfg)
     cv.social = False  # these layouts are already built for social / full-screen sizes
@@ -183,7 +183,30 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
         cv.text(W / 2, band_h - 22, cap.upper(), 36, "medium", (176, 205, 240), anchor="ms", maxw=W - 2 * M)
     # ---- legend bar (outside the map): value scale ("strip"), places with values ("cities"), or both
     def _legend_row(kind, ry, rh, fs0):
-        if kind == "cities":
+        plotted = legend_fn((vw, ve, vs, vn)) if (legend_fn and kind != "cities") else None
+        if plotted and legend_bins:  # only the colors that actually appear on the map
+            lo, hi = plotted
+            un = str(legend_unit or "")
+            if un.upper() in ("IN", '"'):  # rainfall: whole 0.5" steps, never below 0.5"
+                a0 = max(1, math.floor(lo * 2 + 1e-9))
+                z0 = max(a0, math.floor(hi * 2 + 1e-9))
+                steps = [k * 0.5 for k in range(a0, z0 + 1)]
+                lab = lambda v: f'{v:.1f}"'
+            else:
+                ts = [t for t, _ in legend_bins]
+                steps = [t for i, t in enumerate(ts) if t <= hi + 1e-9 and (i + 1 >= len(ts) or ts[i + 1] > lo + 1e-9)]
+                lab = lambda v: f"{v:g}" + (" " + un.lower() if un.isalpha() else un)
+            if len(steps) > 5:
+                steps = [steps[round(i * (len(steps) - 1) / 4)] for i in range(5)]
+            items = []
+            for v in steps:
+                col = None
+                for t, c in legend_bins:
+                    if v + 1e-9 >= t:
+                        col = c
+                if col:
+                    items.append(("", col, lab(v)))
+        elif kind == "cities":
             items = [(nm.upper(), col, val) for nm, col, val, _, _ in
                      _pick_callouts(callout_rows or rows or [], _coords(cfg), proj, (0, 0, W, map_h), min(n_leg, 3) or 3)]
         else:

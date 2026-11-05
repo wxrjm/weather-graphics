@@ -314,6 +314,26 @@ def _value_at(field, lon, lat):
     return None if v != v else float(v)
 
 
+def _plotted_range(field, ext):
+    """(lowest, highest) value actually drawn inside the visible extent (w, e, s, n)."""
+    import numpy as np
+    w, e, so, n = ext
+    m = (field["lon"] >= w) & (field["lon"] <= e) & (field["lat"] >= so) & (field["lat"] <= n) & ~np.isnan(field["val"])
+    if not m.any():
+        return None
+    return float(field["val"][m].min()), float(field["val"][m].max())
+
+
+def _trim_bins(bins, rng):
+    """Keep only the legend bins that appear inside the plotted range (no unused high end)."""
+    if not rng:
+        return bins
+    lo, hi = rng
+    keep = [(t, c) for i, (t, c) in enumerate(bins)
+            if t <= hi + 1e-9 and (i + 1 >= len(bins) or bins[i + 1][0] > lo + 1e-9)]
+    return keep or bins
+
+
 def _color_bar(cv, x, y, bins, unit, maxw):
     bw = min(maxw, 64 * len(bins) + 40)
     cv.rect(x, y, bw, 58, (13, 21, 38, 225), r=10)
@@ -342,7 +362,9 @@ def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pk
     lay = outlookmap.draw_map([], mw, mh, cfg, outline=False, painter=_cell_painter(field, bins, smooth=smooth), view=view)
     _paste_rounded(cv, lay, mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
-    _color_bar(cv, mx + 16, my + mh - 70, bins, unit, mw - 32)
+    ext = tuple(view or cfg.get("outlook_view") or outlookmap.VIEW_BOX)
+    lbins = _trim_bins(bins, _plotted_range(field, ext))
+    _color_bar(cv, mx + 16, my + mh - 70, lbins, unit, mw - 32)
     hv = _value_at(field, cfg["location"]["lon"], cfg["location"]["lat"])
     head_col = _bin(hv or 0, bins) or (70, 86, 112)
     side_rows = []
@@ -361,7 +383,8 @@ def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pk
                       box=tuple(view or cfg.get("outlook_view") or outlookmap.VIEW_BOX),
                       head_label=cfg["location"].get("area", "Hampton Roads Area").upper(), head_value=head_txt(hv),
                       head_col=head_col, meaning=meaning(hv), rows=side_rows,
-                      overlay=lambda c, x, y, mw_: _color_bar(c, x, y, bins, unit, mw_), source=src)
+                      overlay=lambda c, x, y, mw_: _color_bar(c, x, y, lbins, unit, mw_), source=src,
+                      legend_fn=lambda ext: _plotted_range(field, ext), legend_bins=bins, legend_unit=unit)
     return cv
 
 
