@@ -65,6 +65,9 @@ def draw_cities(d, proj, W_, H_, cfg, bottom_pad=70, cities=None):
     """Text-only city labels centered on the city's location (no dots). If a label would collide
     with one already placed it nudges slightly up/down, otherwise it's dropped (bigger cities first)."""
     placed = []
+    # breathing room: keep labels a few px apart, and cap how many go on a map by its size (about one per 40,000 px^2)
+    gap = z(cfg.get("label_gap", 9))
+    cap = max(5, int((W_ / 2) * (H_ / 2) / cfg.get("label_area_per", 40000)))
     fonts = {1: font("bold", 16), 2: font("medium", 13)}
     abbr = cfg.get("abbreviations") or {}
     home = ((cfg.get("location") or {}).get("short") or "").lower()
@@ -73,7 +76,7 @@ def draw_cities(d, proj, W_, H_, cfg, bottom_pad=70, cities=None):
         name, la, lo = city[:3]
         name = abbr.get(name, name).upper()
         tier = city[3] if len(city) > 3 else 1
-        if tier > LABEL_LIMIT.get("tier", 9) or len(placed) >= LABEL_LIMIT.get("max", 999):
+        if tier > LABEL_LIMIT.get("tier", 9) or len(placed) >= min(cap, LABEL_LIMIT.get("max", 999)):
             continue
         f = fonts.get(tier, fonts[2])
         x, y = proj(lo, la)
@@ -84,7 +87,7 @@ def draw_cities(d, proj, W_, H_, cfg, bottom_pad=70, cities=None):
             box = (x - tw / 2 - z(3), y + dy - th / 2 - z(2), x + tw / 2 + z(3), y + dy + th / 2 + z(2))
             blocked = placed + [tuple(z(v) for v in k) for k in KEEP_OUT]
             if box[0] > z(6) and box[2] < W_ - z(6) and box[1] > z(6) and box[3] < H_ - z(bottom_pad) and \
-                    not any(box[0] < b[2] and box[2] > b[0] and box[1] < b[3] and box[3] > b[1] for b in blocked):
+                    not any(box[0] - gap < b[2] and box[2] + gap > b[0] and box[1] - gap < b[3] and box[3] + gap > b[1] for b in blocked):
                 spot = (x, y + dy, box)
                 break
         if not spot:

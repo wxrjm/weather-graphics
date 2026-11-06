@@ -62,6 +62,10 @@ def _background(w, h):
     return Image.composite(Image.new("RGB", size, C["glow"]), img, m)
 
 
+def cfg_footer_short(cv):
+    return cv.cfg.get("footer_minimal", True)
+
+
 class Canvas:
     def __init__(self, cfg):
         self.cfg = cfg
@@ -71,6 +75,7 @@ class Canvas:
         self.square = self.H == self.W
         # social formats: fewer words, bigger type. Secondary text under social_min_text px is not drawn, the rest is enlarged.
         self.social = bool(self.tall and cfg.get("social_minimal", True))
+        self.minimal = bool(cfg.get("text_minimal", True))  # drop explanatory prose and agency boilerplate
         self.M = 70 if not self.tall else 56  # side margin
         self.img = _background(self.W, self.H)  # RGB so RGBA fills blend
         self.d = ImageDraw.Draw(self.img, "RGBA")
@@ -169,6 +174,11 @@ class Canvas:
         M, maxw = self.M, self.W - 2 * self.M - (220 if self.tall else 430)
         self.text(M, 118, title.upper(), 60 if not self.tall else 54, "bold", anchor="ls", maxw=maxw)
         rule_y = 134
+        if subtitle and self.minimal:  # keep what/when, drop who ("NWS NDFD", "STORM PREDICTION CENTER", ...)
+            drop = ("NWS", "NATIONAL WEATHER SERVICE", "NWS NDFD", "STORM PREDICTION CENTER", "WEATHER PREDICTION CENTER",
+                    "NOAA", "NOAA NHC", "NATIONAL HURRICANE CENTER", "CLIMATE PREDICTION CENTER", "OPEN-METEO")
+            keep = [p for p in subtitle.split("·") if p.strip().upper() not in drop]
+            subtitle = "·".join(keep).strip() if keep else subtitle
         if subtitle:
             self.text(M + 2, 164, subtitle.upper(), 27 if not self.tall else 24, "bold", subtitle_color, anchor="ls",
                       maxw=maxw + (0 if not self.tall else 20))
@@ -209,7 +219,7 @@ class Canvas:
         src = source or pkg.get("source", "NWS NDFD")
         parts = ([f"{loc['name'].upper()} ({loc['station']})"] if show_location else []) + \
                 ([f"DATA: {src.upper()}"] if show_source else []) + [f"GRAPHIC CREATED: {pkg['issued_label'].upper()}"]
-        if self.social:  # short and legible: just when it was made
+        if self.social or self.minimal and cfg_footer_short(self):  # short and legible: just when it was made
             self._raw = True
             self.text(self.M, self.H - 30, f"UPDATED {pkg['issued_label'].upper()}", 24, "medium", C["muted"], anchor="ls",
                       maxw=self.W - 2 * self.M)

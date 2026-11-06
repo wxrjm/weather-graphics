@@ -132,13 +132,13 @@ def stencil_map(w, h, cfg, layers=None, painter=None, cities=None, tags=True, al
         blocked = _cities(d, proj, W_, H_, cl, draw=False)
         tl = Image.new("RGBA", (W_, H_), (0, 0, 0, 0))
         td = ImageDraw.Draw(tl)
-        ft = font("bold", 46)
+        ft = font("bold", 88)
         for st, m in masks.items():
             ys, xs = np.nonzero(np.asarray(m))
             if not len(xs):
                 continue
             cx, cy = float(xs.mean()), float(ys.mean())
-            tw, th = td.textlength(st, font=ft) / 2 + z(8), z(24)
+            tw, th = td.textlength(st, font=ft) / 2 + z(8), z(44)
             ma = np.asarray(m)
             best = None
             for r in range(0, z(260), z(6)):  # spiral outwards from the centroid until a clear spot is found
@@ -165,6 +165,8 @@ def stencil_map(w, h, cfg, layers=None, painter=None, cities=None, tags=True, al
 
 def _cities(d, proj, W_, H_, cities, draw=True):
     placed = []
+    gap = z(9)
+    cap = max(5, int((W_ / 2) * (H_ / 2) / 40000)) if not any(c[4] for c in cities) else 999  # value maps keep every city
     f1, f2, fv = font("bold", 16), font("medium", 13), font("bold", 25)
     for name, la, lo, tier, val in cities:
         x, y = proj(lo, la)
@@ -175,7 +177,7 @@ def _cities(d, proj, W_, H_, cities, draw=True):
         tw = max(d.textlength(nm, font=fn), d.textlength(val, font=fv) if val else 0)
         th = z(17 if tier == 1 else 14) + (z(26) if val else 0)
         box = (x - tw / 2 - z(4), y - th / 2 - z(3), x + tw / 2 + z(4), y + th / 2 + z(3))
-        if any(box[0] < b[2] and box[2] > b[0] and box[1] < b[3] and box[3] > b[1] for b in placed):
+        if len(placed) >= cap or any(box[0] - gap < b[2] and box[2] + gap > b[0] and box[1] - gap < b[3] and box[3] + gap > b[1] for b in placed):
             continue
         placed.append(box)
         if not draw:
@@ -210,21 +212,25 @@ def _panel(cv, box, label, cards, meaning, legend):
     leg_h = 74 if compact else 96
     mean_h = 96 if compact else 170
     ch = min(190, (y + h - cy - leg_h - mean_h - 30) / max(1, len(cards)) - 12)
+    tagw = 112 if compact else 138
     for card in cards:
         cv.rect(x + 20, cy, w - 40, ch, (255, 255, 255, 14), r=14)
-        _tag(cv, x + 40, cy + ch * 0.22, card["st"], 26 if compact else 32)
-        bh = ch * 0.52
+        det = card.get("detail")
+        bh = ch * (0.52 if det else 0.74)
+        by = cy + ch * (0.06 if det else 0.13)
+        _tag(cv, x + 36, by + bh / 2, card["st"], 40 if compact else 52)  # big state label, centered on its bar
         col = card.get("col") or (70, 86, 112)
-        cv.rect(x + 100, cy + ch * 0.06, w - 140, bh, (*col, 255), r=10)
+        cv.rect(x + tagw, by, w - tagw - 40, bh, (*col, 255), r=10)
         lum = 0.3 * col[0] + 0.59 * col[1] + 0.11 * col[2]
-        cv.text(x + 100 + (w - 140) / 2, cy + ch * 0.06 + bh / 2, card["value"], 34 if not compact else 26, "bold",
-                (20, 28, 46) if lum > 150 else C["text"], anchor="mm", maxw=w - 170)
-        cv.text(x + 40, cy + ch * 0.78, card["detail"], 20 if not compact else 17, "medium", C["muted"], anchor="lm",
-                maxw=w - 80)
+        cv.text(x + tagw + (w - tagw - 40) / 2, by + bh / 2, card["value"], 34 if not compact else 26, "bold",
+                (20, 28, 46) if lum > 150 else C["text"], anchor="mm", maxw=w - tagw - 70)
+        if det:
+            cv.text(x + 40, cy + ch * 0.78, det, 20 if not compact else 17, "medium", C["muted"], anchor="lm", maxw=w - 80)
         cy += ch + 12
     cv.line([(x + 26, cy + 4), (x + w - 26, cy + 4)], (255, 255, 255, 60), 1.5)
-    cv.text(x + 26, cy + 14, "WHAT IT MEANS", 19 if compact else 21, "bold", C["muted"], anchor="lt")
-    cv.paragraph(x + 26, cy + (40 if compact else 46), meaning, 21 if compact else 25, "regular", w - 52,
+    if not cv.minimal:
+        cv.text(x + 26, cy + 14, "WHAT IT MEANS", 19 if compact else 21, "bold", C["muted"], anchor="lt")
+    cv.paragraph(x + 26, cy + (40 if compact else 46), "" if cv.minimal else meaning, 21 if compact else 25, "regular", w - 52,
                  max_lines=3 if compact else 5, lh=1.28)
     legend(cv, x + 26, y + h - leg_h + 6, w - 52)
 
@@ -294,8 +300,7 @@ def _cat_graphic(kind, day, feats, pkg, cfg):
         lv, _, n = best[st]
         c = next((c for c in cats if c[0] == lv), None) if lv else None
         if c:
-            cards.append({"st": st, "value": f"{c[2].upper()}  ({c[0]}/{top_n})", "col": _rgb(c[3]),
-                          "detail": f"RISK AREA TOUCHES {round(100 * n / tot[st])}% OF {st} COUNTIES"})
+            cards.append({"st": st, "value": f"{c[2].upper()}  ({c[0]}/{top_n})", "col": _rgb(c[3])})
         else:
             cards.append({"st": st, "value": "NO SEVERE RISK" if kind == "spc" else "NO RISK", "col": None,
                           "detail": "NOTHING IN THE OUTLOOK FOR " + st})

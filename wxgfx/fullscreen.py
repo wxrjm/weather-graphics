@@ -181,7 +181,7 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
     pw = min(hw - 60, cv.width(head_value, 34, "bold") + 44)
     cv.rect(hx + 30, hy + 48, pw, 52, (*head_col, 255), r=12)
     cv.text(hx + 30 + pw / 2, hy + 74, head_value, 34, "bold", _ink(head_col), anchor="mm", maxw=pw - 24)
-    if meaning:
+    if meaning and not cv.minimal:
         cv.paragraph(hx + 30, hy + 110, meaning, 19, "regular", hw - 60, max_lines=3 if side else 2 if not cv.tall else 1, lh=1.22)
     # value chips
     rows = rows[:ncol * nrow]

@@ -202,6 +202,7 @@ def _legend_chips(cv, x, y, items, maxw):
 
 
 def _side(cv, x, y, w, h, head_col, head_label, head_value, meaning, rows, row_title):
+    meaning = "" if cv.minimal else meaning
     compact = h < 440  # short panel under a stacked map (square / 4:5)
     cv.rect(x, y, w, h, C["panel"], r=18)
     cv.text(x + 26, y + (20 if compact else 26), head_label, 20 if compact else 22, "bold", C["muted"], anchor="lt")
@@ -237,6 +238,7 @@ def _side(cv, x, y, w, h, head_col, head_label, head_value, meaning, rows, row_t
 
 
 def _hazard_side(cv, x, y, w, h, head_col, head_label, head_value, meaning, hazards, title):
+    meaning = "" if cv.minimal else meaning
     compact = w > 900 and h < 700  # short, wide panel under a stacked map (4:5 post)
     bh = 84 if not compact else 64
     cv.rect(x, y, w, h, C["panel"], r=18)

@@ -1071,8 +1071,15 @@ def weather_aware(pkg, cfg):
     cv.text(dx + 30, cy, "WHAT TO KNOW", 22, "bold", C["muted"], anchor="lt")
     cy += 44
     items = [d for d in info.get("details") or [] if d][:4]
+    ALSO_TXT = {"HEAVY RAIN": "Heavy Rain: Potential for heavy rain and isolated flooding."}
+    def _also(t):
+        u = t.upper()
+        if u in ALSO_TXT:
+            return ALSO_TXT[u]
+        return f"{t.title()} also in effect." if u.endswith(("WATCH", "WARNING", "ADVISORY", "STATEMENT")) else f"{t.title()} also possible."
+    items += [_also(t) for t in (info.get("also") or [])[:2]]  # secondary hazards as bullets, not a footnote
     act = info.get("action")
-    also = info.get("also") or []
+    also = []
     avail = dy + dh - cy - (150 if act else 20) - (60 if also else 0)
     for size in range(34, 18, -1):
         need = sum(len(cv.wrap(d, size, "regular", dw - 110)) * size * 1.28 + 22 for d in items)

@@ -102,8 +102,7 @@ def _hazard_graphic(key, day, data, pkg, cfg):
     for st in ("VA", "NC"):
         p, n = best[st]
         if p:
-            cards.append({"st": st, "value": f"{p}%  ·  {_level_word(key, p)}", "col": _color(key, p),
-                          "detail": f"RISK AREA TOUCHES {round(100 * n / max(1, tot[st]))}% OF {st} COUNTIES"})
+            cards.append({"st": st, "value": f"{p}%  ·  {_level_word(key, p)}", "col": _color(key, p)})
         else:
             cards.append({"st": st, "value": "NO RISK", "col": None, "detail": "NOTHING IN THE OUTLOOK FOR " + st})
     top = max(best["VA"][0], best["NC"][0])
