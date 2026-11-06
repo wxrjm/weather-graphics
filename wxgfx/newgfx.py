@@ -712,7 +712,7 @@ def rain_timing_graphic(pkg, cfg):
     wet = [r for r in rows if r["pop"] >= 40 or r["q"] >= 0.01]
     total = sum(r["q"] for r in rows)
     cv = Canvas(cfg)
-    cv.header("WHEN WILL IT RAIN?", f"NEXT {len(rows)} HOURS  ·  {pkg['location']['area'].upper()}  ·  NWS NDFD")
+    cv.header("WHEN WILL IT RAIN?", f"NEXT {len(rows)} HOURS" + ("" if cv.social else f"  ·  {pkg['location']['area'].upper()}  ·  NWS NDFD"))
     fmt = lambda t: t.strftime("%a %I %p").lstrip("0").upper().replace(" 0", " ")
     # summary tiles
     if wet:
@@ -740,22 +740,25 @@ def rain_timing_graphic(pkg, cfg):
             cur = None
     if best[0] >= 4 and wet:
         summary += f" Longest dry stretch: {fmt(best[1])} to {fmt(best[2])}."
+    soc = cv.social  # social sizes: no summary tiles or caption, one big takeaway line, larger chart type
     ty = 205
     tw = (cv.W - 2 * cv.M - 3 * 18) / 4
-    for k, (lab, val, col) in enumerate(tiles):
-        x = cv.M + k * (tw + 18)
-        cv.rect(x, ty, tw, 100, (20, 31, 54, 235), r=12)
-        cv.rect(x, ty, 7, 100, (*col, 255), r=3)
-        cv.text(x + 24, ty + 14, lab, 19, "bold", C["muted"], anchor="lt")
-        cv.text(x + 24, ty + 48, val, 32, "bold", anchor="lt", maxw=tw - 40)
+    if not soc:
+        for k, (lab, val, col) in enumerate(tiles):
+            x = cv.M + k * (tw + 18)
+            cv.rect(x, ty, tw, 100, (20, 31, 54, 235), r=12)
+            cv.rect(x, ty, 7, 100, (*col, 255), r=3)
+            cv.text(x + 24, ty + 14, lab, 19, "bold", C["muted"], anchor="lt")
+            cv.text(x + 24, ty + 48, val, 32, "bold", anchor="lt", maxw=tw - 40)
     # chart
-    cx, cy, cw, ch = cv.M, ty + 122, cv.W - 2 * cv.M, cv.H - (ty + 122) - 150
+    top_ = ty if soc else ty + 122
+    cx, cy, cw, ch = cv.M, top_, cv.W - 2 * cv.M, cv.H - top_ - (215 if soc else 150)
     cv.rect(cx, cy, cw, ch, C["panel"], r=16)
-    px0, px1, py0, py1 = cx + 90, cx + cw - 30, cy + 30, cy + ch - 70
-    for p_ in (0, 25, 50, 75, 100):
+    px0, px1, py0, py1 = cx + (110 if soc else 90), cx + cw - 30, cy + 30, cy + ch - (80 if soc else 70)
+    for p_ in (0, 25, 50, 75, 100) if not soc else (0, 50, 100):
         yy = py1 - (py1 - py0) * p_ / 100
         cv.line([(px0, yy), (px1, yy)], (255, 255, 255, 40 if p_ else 90), 1.2)
-        cv.text(px0 - 14, yy, f"{p_}%", 19, "bold", C["muted"], anchor="rm")
+        cv.text(px0 - 14, yy, f"{p_}%", 28 if soc else 19, "bold", C["muted"], anchor="rm")
     n = len(rows)
     bw = (px1 - px0) / n
     for i, r in enumerate(rows):
@@ -766,12 +769,20 @@ def rain_timing_graphic(pkg, cfg):
             cv.rect(x + bw * 0.1, py1 - h, bw * 0.8, h, (*col, 255), r=min(6, bw * 0.3))
         if r["t"].hour == 0 or i == 0:  # day divider
             cv.line([(x, py0 - 6), (x, py1 + 40)], (255, 255, 255, 110), 1.5)
-            cv.text(x + 8, py1 + 44, r["t"].strftime("%a %b ").upper() + str(r["t"].day), 20, "bold", anchor="lt")
-        if r["t"].hour % 3 == 0:
-            cv.text(x + bw / 2, py1 + 8, r["t"].strftime("%I%p").lstrip("0").lower().replace("m", ""), 17, "bold", C["muted"], anchor="mt")
+            left = (24 - r["t"].hour) % 24 if i == 0 else 24
+            if not soc or i > 0 or left >= 9:  # skip a first-day label that would collide with the next one
+                cv.text(x + 8, py1 + 46, r["t"].strftime("%a").upper() if soc else r["t"].strftime("%a %b ").upper() + str(r["t"].day),
+                        30 if soc else 20, "bold", anchor="lt")
+        if r["t"].hour % (6 if soc else 3) == 0:
+            cv.text(x + bw / 2, py1 + 8, r["t"].strftime("%I%p").lstrip("0").lower().replace("m", ""), 26 if soc else 17, "bold",
+                    C["muted"], anchor="mt")
     # legend + summary
-    _chips(cv, cv.W - cv.M, cv.H - 138, [(c, lab) for _, c, lab in INTENSITY], "BAR HEIGHT = RAIN CHANCE  ·  COLOR = HOURLY RAIN")
-    cv.text(cv.M, cv.H - 118, summary, 24, "bold", anchor="lt", maxw=cv.W - 2 * cv.M - 760)
+    if soc:
+        cv.text(cv.W / 2, cv.H - 186, summary.split(".")[0] + ".", 34, "bold", anchor="mt", maxw=cv.W - 2 * cv.M)
+        _chips(cv, cv.W - cv.M, cv.H - 130, [(c, lab) for _, c, lab in INTENSITY])
+    else:
+        _chips(cv, cv.W - cv.M, cv.H - 138, [(c, lab) for _, c, lab in INTENSITY], "BAR HEIGHT = RAIN CHANCE  ·  COLOR = HOURLY RAIN")
+        cv.text(cv.M, cv.H - 118, summary, 24, "bold", anchor="lt", maxw=cv.W - 2 * cv.M - 760)
     cv.footer(pkg, source=_src(pkg, "NWS NDFD"))
     return cv
 
