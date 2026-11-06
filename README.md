@@ -130,7 +130,7 @@ four sizes. `"fullscreen_local_view"` sets the zoom for the local Hampton Roads 
 Social-feed version of every map graphic: a giant two-line headline across the top, the map filling the middle,
 colored value boxes dropped right on the map (e.g. `3–4"`, `SLGT (2/5)`, spread out so they don't overlap), a white
 time-period caption, a bold tagline banner across the bottom, and the logo (`logo_path`) in the lower-left of the map.
-Legend: `"bigtext_legend"` = `strip` (default: value-scale chips under the map; rainfall steps are 0.5" increments), `both` (cities row + strip), `cities`, `top`, `overlay` (boxes on the map) or `none`. Labels: `"bigtext_max_labels"` (default 9) and `"bigtext_label_tier"` (1 = major cities only) control map city labels. 4:5 post size by default (more map); `"bigtext_formats": ["post", "square"]` adds other sizes. `"bigtext_callouts"` = how many
+Colors: `"map_color_mode": "smooth"` (default) blends map colors continuously between legend stops; `"banded"` gives hard bands. `"rain_palette": "smooth"` swaps in the blue-to-plum rain palette. Legend: `"bigtext_legend"` = `strip` (default: value-scale chips under the map; rainfall steps are 0.5" increments), `both` (cities row + strip), `cities`, `top`, `overlay` (boxes on the map) or `none`. Labels: `"bigtext_max_labels"` (default 9) and `"bigtext_label_tier"` (1 = major cities only) control map city labels. 4:5 post size by default (more map); `"bigtext_formats": ["post", "square"]` adds other sizes. `"bigtext_callouts"` = how many
 value boxes (default 4, 0 = none).
 
 Change the words for a storm in `overrides.json` (or `config.json` → `bigtext_text`); `"*"` applies to all of them:
