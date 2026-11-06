@@ -55,6 +55,17 @@ RAIN_BINS = [  # inches -> color
     (1, (250, 230, 70)), (1.5, (240, 180, 40)), (2, (240, 130, 30)), (3, (230, 60, 40)),
     (4, (190, 30, 30)), (6, (210, 60, 200)), (8, (140, 70, 200)),
 ]
+RAIN_SMOOTH = [  # "smooth" palette: one hue flow (ice blue -> blue -> teal -> green -> yellow -> orange -> red -> plum), built to be blended
+    (0.01, (198, 228, 244)), (0.1, (142, 202, 238)), (0.25, (84, 164, 228)), (0.5, (50, 170, 172)),
+    (1, (124, 198, 98)), (1.5, (238, 222, 86)), (2, (246, 178, 58)), (3, (240, 114, 54)),
+    (4, (214, 58, 68)), (6, (176, 50, 150)), (8, (124, 74, 198)),
+]
+
+
+def _rain_bins(cfg):
+    return RAIN_SMOOTH if (cfg or {}).get("rain_palette") == "smooth" else RAIN_BINS
+
+
 GUST_BINS = [  # mph
     (15, (170, 222, 236)), (20, (110, 196, 214)), (25, (70, 170, 170)), (30, (120, 200, 90)),
     (35, (220, 220, 70)), (40, (248, 190, 50)), (45, (246, 140, 40)), (50, (232, 84, 40)),
@@ -504,7 +515,7 @@ def _single(field, kind, label, tag, pkg, cfg, tz):
     view = _view_box(cfg)
     end = field["end"]
     if kind == "rain":
-        bins, unit = RAIN_BINS, "IN"
+        bins, unit = _rain_bins(cfg), "IN"
         title = f"{label} RAINFALL FORECAST"
         sub = f"NEXT {field['hours']} HOURS  ·  THROUGH {_when(end, tz)}  ·  {tag}"
         rng = _range_txt(field, "rain", cfg)
@@ -557,7 +568,7 @@ def _panels(cfg, pkg, title, subtitle, panels, bins, unit, pill_fn, summary=None
     for k, (label, sublabel, field) in enumerate(panels):
         r, c = divmod(k, cols)
         px, py = M + c * (pw + gap), top + r * (ph + gap)
-        lay = outlookmap.draw_map([], pw, ph, cfg, outline=False, painter=ndfdmap._cell_painter(field, bins), view=box,
+        lay = outlookmap.draw_map([], pw, ph, cfg, outline=False, painter=ndfdmap._cell_painter(field, bins, ramp=cfg.get('map_color_mode') == 'smooth'), view=box,
                                   cities=PANEL_CITIES)
         _paste_rounded(cv, lay, px, py)
         cv.d.rounded_rectangle([z(px), z(py), z(px + pw), z(py + ph)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
@@ -619,7 +630,7 @@ def _compare(kind, now_utc, pkg, cfg, tz):
     vals = [(a, b) for a, b in vals if b is not None]
     st = (loc.get("short") or "Norfolk").upper()
     if kind == "rain":
-        title, bins, unit, pill = "MODEL RAINFALL COMPARISON", RAIN_BINS, "IN", _rain_txt
+        title, bins, unit, pill = "MODEL RAINFALL COMPARISON", _rain_bins(cfg), "IN", _rain_txt
         sub = f"NEXT {hours} HOURS  ·  " + "  ·  ".join(p[0] for p in panels)
         summ = None
         if len(vals) >= 2:

@@ -223,7 +223,7 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
                     return 0
             items = sorted(items, key=_num)
             if items and all(i[2].endswith('"') for i in items):  # rainfall: legend steps are whole 0.5" increments, never smaller
-                from .models import RAIN_BINS, _bin_color
+                from .models import _bin_color, _rain_bins; RAIN_BINS = _rain_bins(cfg)
                 top = max(_num(i) for i in items)
                 n = max(1, math.ceil(top * 2 - 1e-9))
                 steps = [k * 0.5 for k in range(1, n + 1)]

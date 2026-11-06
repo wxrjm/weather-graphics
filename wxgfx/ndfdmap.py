@@ -235,7 +235,7 @@ def _box_blur(a, r, passes=3):
     return a
 
 
-def _cell_painter(field, bins, alpha=255, smooth=0):
+def _cell_painter(field, bins, alpha=255, smooth=0, ramp=False):
     """Draw every grid cell as a quad whose corners are midpoints between cell centres."""
     import numpy as np
     lat, lon, val = field["lat"], field["lon"], field["val"]
@@ -301,6 +301,14 @@ def _cell_painter(field, bins, alpha=255, smooth=0):
         rgb = cols[cls]
         edge = np.clip((ms - 0.35) / 0.3, 0, 1)  # soft, anti-aliased outer edge
         a = (edge * alpha * (cls > 0)).astype(np.uint8)
+        if ramp:  # smooth mode: blend colors continuously between the legend stops; the lightest values fade into the map
+            ts = np.array([t for t, _ in bins], dtype=np.float32)
+            fv = np.nan_to_num(field_, nan=0.0)
+            rgb = np.stack([np.interp(fv, ts, np.array([c[ch] for _, c in bins], dtype=np.float32)) for ch in range(3)],
+                           axis=-1).astype(np.uint8)
+            t_hi = ts[min(3, len(ts) - 1)]
+            fade = 0.55 + 0.45 * np.clip((fv - ts[0]) / max(1e-6, t_hi - ts[0]), 0, 1)
+            a = (edge * alpha * fade * (fv >= ts[0] - 1e-9)).astype(np.uint8)
         layer = Image.fromarray(np.dstack([rgb, a]), "RGBA")
         base.alpha_composite(layer)
     return paint
@@ -359,7 +367,7 @@ def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pk
     cv = Canvas(cfg)
     cv.header(title, subtitle)
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
-    lay = outlookmap.draw_map([], mw, mh, cfg, outline=False, painter=_cell_painter(field, bins, smooth=smooth), view=view)
+    lay = outlookmap.draw_map([], mw, mh, cfg, outline=False, painter=_cell_painter(field, bins, smooth=smooth, ramp=cfg.get('map_color_mode') == 'smooth'), view=view)
     _paste_rounded(cv, lay, mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
     ext = tuple(view or cfg.get("outlook_view") or outlookmap.VIEW_BOX)
@@ -379,7 +387,7 @@ def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pk
     from . import fullscreen
     fullscreen.attach(cv, title=title, subtitle=subtitle,
                       map_fn=lambda pw, ph, view: outlookmap.draw_map([], pw, ph, cfg, outline=False,
-                                                                       painter=_cell_painter(field, bins, smooth=smooth), view=view),
+                                                                       painter=_cell_painter(field, bins, smooth=smooth, ramp=cfg.get('map_color_mode') == 'smooth'), view=view),
                       box=tuple(view or cfg.get("outlook_view") or outlookmap.VIEW_BOX),
                       head_label=cfg["location"].get("area", "Hampton Roads Area").upper(), head_value=head_txt(hv),
                       head_col=head_col, meaning=meaning(hv), rows=side_rows,
