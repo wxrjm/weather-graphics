@@ -224,8 +224,8 @@ def _side(cv, x, y, w, h, head_col, head_label, head_value, meaning, rows, row_t
     per_max = max(1, int((y + h - 10 - ry) // min_rh))
     rows = rows[:per_max * ncol]
     per = -(-len(rows) // ncol) if rows else 1
-    rh = min(46, (y + h - 10 - ry) / per)
-    fs = min(26, rh * 0.66)
+    rh = min(62 if cv.minimal else 46, (y + h - 10 - ry) / per)
+    fs = min(30 if cv.minimal else 26, rh * 0.66)
     cw = (w - 52 - (40 if ncol == 2 else 0)) / ncol
     for k, (name, col, val) in enumerate(rows):
         c, r = divmod(k, per)
@@ -264,12 +264,15 @@ def _hazard_side(cv, x, y, w, h, head_col, head_label, head_value, meaning, haza
     def block_h(r, size):
         return head_h + len(cv.wrap(r.get("text", ""), size, "regular", cw - 34)) * size * 1.22
 
-    for size in range(24 if not compact else 21, 14, -1):  # shrink text until every row fits
+    for size in range((30 if cv.minimal else 24) if not compact else 21, 14, -1):  # shrink text until every row fits
         pairs = [rows[i:i + ncol] for i in range(0, len(rows), ncol)]
         need = sum(max(block_h(r, size) for r in pr) + 14 for pr in pairs)
         if need <= avail:
             break
-    for pr in [rows[i:i + ncol] for i in range(0, len(rows), ncol)]:
+    pairs = [rows[i:i + ncol] for i in range(0, len(rows), ncol)]
+    need = sum(max(block_h(r, size) for r in pr) + 14 for pr in pairs)
+    rgap = 14 + max(0, min(40, (avail - need) / max(1, len(pairs))))  # spread rows into leftover space
+    for pr in pairs:
         rowh = max(block_h(r, size) for r in pr)
         if ry + rowh > y + h - 8:
             break
@@ -290,7 +293,7 @@ def _hazard_side(cv, x, y, w, h, head_col, head_label, head_value, meaning, haza
                     (20, 28, 46) if pl > 150 else C["text"], anchor="mm")
             for i, ln in enumerate(lines):
                 cv.text(bx + 24, ry + head_h + i * size * 1.22, ln, size, "regular", anchor="lt")
-        ry += rowh + 14
+        ry += rowh + rgap
 
 
 def spc_info(data, cfg):

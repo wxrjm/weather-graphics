@@ -1085,12 +1085,14 @@ def weather_aware(pkg, cfg):
         need = sum(len(cv.wrap(d, size, "regular", dw - 110)) * size * 1.28 + 22 for d in items)
         if need <= avail:
             break
+    need = sum(len(cv.wrap(d, size, "regular", dw - 110)) * size * 1.28 + 22 for d in items)
+    gap = 22 + max(0, min(44, (avail - need) / max(1, len(items))))  # spread bullets into leftover space
     for d in items:
         lines = cv.wrap(d, size, "regular", dw - 110)
         cv.rect(dx + 34, cy + size * 0.35, 14, 14, (*col, 255), r=7)
         for i, ln in enumerate(lines):
             cv.text(dx + 66, cy + i * size * 1.28, ln, size, "regular", anchor="lt")
-        cy += len(lines) * size * 1.28 + 22
+        cy += len(lines) * size * 1.28 + gap
     if act:
         ay = dy + dh - 140 - (60 if also else 0)
         cv.rect(dx + 24, ay, dw - 48, 116, (*col, 45), r=14)

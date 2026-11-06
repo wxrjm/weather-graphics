@@ -210,8 +210,8 @@ def _panel(cv, box, label, cards, meaning, legend):
     cv.text(x + 26, y + (18 if compact else 26), label, 20 if compact else 22, "bold", C["muted"], anchor="lt")
     cy = y + (50 if compact else 70)
     leg_h = 74 if compact else 96
-    mean_h = 96 if compact else 170
-    ch = min(190, (y + h - cy - leg_h - mean_h - 30) / max(1, len(cards)) - 12)
+    mean_h = (0 if cv.minimal else 96) if compact else (0 if cv.minimal else 170)
+    ch = min(250 if cv.minimal else 190, (y + h - cy - leg_h - mean_h - 30) / max(1, len(cards)) - 12)
     tagw = 112 if compact else 138
     for card in cards:
         cv.rect(x + 20, cy, w - 40, ch, (255, 255, 255, 14), r=14)
@@ -232,7 +232,7 @@ def _panel(cv, box, label, cards, meaning, legend):
         cv.text(x + 26, cy + 14, "WHAT IT MEANS", 19 if compact else 21, "bold", C["muted"], anchor="lt")
     cv.paragraph(x + 26, cy + (40 if compact else 46), "" if cv.minimal else meaning, 21 if compact else 25, "regular", w - 52,
                  max_lines=3 if compact else 5, lh=1.28)
-    legend(cv, x + 26, y + h - leg_h + 6, w - 52)
+    legend(cv, x + 26, min(y + h - leg_h + 6, cy + 34) if cv.minimal else y + h - leg_h + 6, w - 52)
 
 
 def _legend_chips(cv, x, y, w, items):
