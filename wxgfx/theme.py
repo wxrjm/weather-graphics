@@ -81,8 +81,9 @@ class Canvas:
         self.d = ImageDraw.Draw(self.img, "RGBA")
 
     # ---- primitives (design coordinates) ----
-    def rect(self, x, y, w, h, fill, r=0):
-        self.d.rounded_rectangle([z(x), z(y), z(x + w), z(y + h)], radius=z(r), fill=fill)
+    def rect(self, x, y, w, h, fill, r=0, outline=None, ow=3):
+        self.d.rounded_rectangle([z(x), z(y), z(x + w), z(y + h)], radius=z(r), fill=fill,
+                                 outline=outline, width=max(1, z(ow)) if outline else 0)
 
     def line(self, pts, fill, width):
         self.d.line([(z(a), z(b)) for a, b in pts], fill=fill, width=z(width), joint="curve")
@@ -230,3 +231,19 @@ class Canvas:
 
     def save(self, path):
         self.img.resize((self.W, self.H), Image.LANCZOS).save(path, optimize=True)
+
+
+def group_rows(rows, cfg=None):
+    """Merge (name, color, value) rows that share a value, so cities in the same risk zone read as one group.
+    Order follows each group's first appearance. Off with group_rows: false."""
+    if cfg is not None and not cfg.get("group_rows", True):
+        return rows
+    order, grp = [], {}
+    for name, col, val in rows:
+        k = (val, tuple(col) if col else None)
+        if k not in grp:
+            grp[k] = [name, col, val]
+            order.append(k)
+        else:
+            grp[k][0] += ", " + name
+    return [tuple(grp[k]) for k in order]

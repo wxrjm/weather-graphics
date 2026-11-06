@@ -732,7 +732,7 @@ def _trop_map(cv, box, tr, cfg):
         for p in c["polys"]:
             d.polygon([P(a, b) for a, b in p[0]], fill=(38, 55, 84, 255), outline=(98, 120, 152, 255))
     for ln in data.get("state_lines", []):
-        d.line([P(a, b) for a, b in ln], fill=(98, 120, 152, 160), width=max(1, z(0.8)))
+        d.line([P(a, b) for a, b in ln], fill=(150, 170, 200, 210), width=max(2, z(0.8 * cfg.get("state_line_scale", 2.2))))
     ov = Image.new("RGBA", (W_, H_), (0, 0, 0, 0))
     od = ImageDraw.Draw(ov)
     for a in tr.get("areas", []):

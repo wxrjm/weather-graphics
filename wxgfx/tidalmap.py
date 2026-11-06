@@ -152,7 +152,7 @@ def draw_tidal_map(ev, pw, ph, cfg, view=None, radius=None):
             pts_ = [proj(x, y) for x, y in p[0]]
             d.line(pts_ + [pts_[0]], fill=(*STENCIL_EDGE[:3], 150), width=lw)
     for ln in alertinfo.state_lines():
-        d.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 230), width=max(2, z(1.8)), joint="curve")
+        d.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 230), width=max(3, z(1.8 * cfg.get("state_line_scale", 2.2))), joint="curve")
     draw_cities(d, proj, W_, H_, cfg, bottom_pad=80)
     return lay
 

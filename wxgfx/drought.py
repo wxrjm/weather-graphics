@@ -228,7 +228,7 @@ def drought_stencil_graphic(pkg, cfg):
             per[k["st"]][0] += 1
     cities = [(*c, None) for c in statemaps.CITIES]
     lay = statemaps.stencil_map(mw, mh, cfg, layers, cities=cities, alpha=0.92, bg=(0, 0, 0, 0), shade_lines=True,
-                                view=cfg.get("state_clean_view") or (-84.12, -74.98, 33.585, 39.765))
+                                view=cfg.get("state_clean_view") or (-84.75, -75.61, 33.585, 39.765))
     base = cv.img.convert("RGBA")
     base.alpha_composite(lay, (z(mx), z(my)))
     cv.img = base.convert("RGB")

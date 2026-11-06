@@ -847,7 +847,7 @@ def aurora_graphic(pkg, cfg):
     lay.alpha_composite(glow)
     d = ImageDraw.Draw(lay, "RGBA")
     for ln in alertinfo.state_lines():
-        d.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 150), width=max(1, z(1.2)))
+        d.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 200), width=max(2, z(1.2 * cfg.get("state_line_scale", 2.2))))
     lx, ly = proj(loc["lon"], loc["lat"])
     r = z(9)
     d.ellipse([lx - r, ly - r, lx + r, ly + r], fill=(255, 255, 255, 255), outline=(13, 21, 38, 255), width=z(2))

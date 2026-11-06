@@ -131,7 +131,7 @@ def draw_map(layers, pw, ph, cfg, outline=True, painter=None, view=None, dma=Non
                 pts = [proj(x, y) for x, y, *_ in p[0]]
                 d.line(pts + [pts[0]], fill=(*dark, 255), width=z(2.2), joint="curve")
     for ln in alertinfo.state_lines():  # state borders
-        d.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 230), width=max(2, z(1.8)), joint="curve")
+        d.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 230), width=max(3, z(1.8 * cfg.get("state_line_scale", 2.2))), joint="curve")
     if dma:  # outline the DMA's counties
         for c in cs:
             if c["fips"] in dma:
@@ -220,6 +220,8 @@ def _side(cv, x, y, w, h, head_col, head_label, head_value, meaning, rows, row_t
     cv.text(x + 26, ry, row_title, 19 if compact else 22, "bold", C["muted"], anchor="lt")
     ry += 30 if compact else 40 if h > 600 else 34
     ncol = 2 if w > 900 else 1  # wide, short panel under a stacked map: two columns
+    from .theme import group_rows
+    rows = group_rows(list(rows), cv.cfg)
     min_rh = 30  # never shrink rows below a readable size; drop the extra rows instead
     per_max = max(1, int((y + h - 10 - ry) // min_rh))
     rows = rows[:per_max * ncol]
@@ -227,14 +229,20 @@ def _side(cv, x, y, w, h, head_col, head_label, head_value, meaning, rows, row_t
     rh = min(62 if cv.minimal else 46, (y + h - 10 - ry) / per)
     fs = min(30 if cv.minimal else 26, rh * 0.66)
     cw = (w - 52 - (40 if ncol == 2 else 0)) / ncol
+    cum = [ry] * ncol
     for k, (name, col, val) in enumerate(rows):
-        c, r = divmod(k, per)
-        cx, yy = x + 26 + c * (cw + 40), ry + r * rh
-        if yy + rh > y + h - 6:
+        c = min(ncol - 1, k // per)
+        cx = x + 26 + c * (cw + 40)
+        ln = cv.wrap(name, fs, "medium", cw * 0.6)[:3]
+        h_i = max(rh, len(ln) * fs * 1.2 + 14)
+        yy = cum[c]
+        if yy + h_i > y + h - 6:
             continue
-        cv.rect(cx, yy + rh * 0.16, 20, rh * 0.68, (*col, 255) if col else (70, 86, 112, 255), r=4)
-        cv.text(cx + 32, yy + rh / 2, name, fs, "medium", anchor="lm", maxw=cw * 0.55)
-        cv.text(cx + cw, yy + rh / 2, val, fs, "bold", anchor="rm", maxw=cw * 0.42)
+        cum[c] += h_i
+        cv.rect(cx, yy + h_i * 0.5 - rh * 0.34, 20, rh * 0.68, (*col, 255) if col else (70, 86, 112, 255), r=4)
+        for i, t in enumerate(ln):
+            cv.text(cx + 32, yy + h_i / 2 + (i - (len(ln) - 1) / 2) * fs * 1.2, t, fs, "medium", anchor="lm")
+        cv.text(cx + cw, yy + h_i / 2, val, fs, "bold", anchor="rm", maxw=cw * 0.36)
 
 
 def _hazard_side(cv, x, y, w, h, head_col, head_label, head_value, meaning, hazards, title):

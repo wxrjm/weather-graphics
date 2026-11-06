@@ -121,7 +121,7 @@ def stencil_map(w, h, cfg, layers=None, painter=None, cities=None, tags=True, al
                 dd.line(pts + [pts[0]], fill=(20, 28, 46, 200), width=max(1, z(1.3)))
         dk.putalpha(ImageChops.multiply(dk.getchannel("A"), a.point(lambda v: 255 if v > 8 else 0)))
         lay.alpha_composite(dk)
-    kk = 2 * max(1, z(1.1)) + 1  # state outlines: edge of each state's mask
+    kk = 2 * max(2, z(1.1 * cfg.get("state_line_scale", 2.2))) + 1  # state outlines: edge of each state's mask
     for m in masks.values():
         edge = ImageChops.subtract(m.filter(ImageFilter.MaxFilter(kk)), m.filter(ImageFilter.MinFilter(kk)))
         lay.paste(Image.new("RGBA", (W_, H_), (232, 240, 252, 255)), (0, 0), edge.point(lambda v: int(v * 0.92)))
@@ -419,7 +419,7 @@ def _spc48_graphic(spc48, pkg, cfg):
                 if any(outlooks.contains(f["polys"], k["lon"], k["lat"]) for f in feats):
                     touched[k["st"]] += 1
             where = " & ".join(st for st, n in touched.items() if n) or "NEAR VA / NC"
-            txt, col = (f"{'30%' if top_lv == 2 else '15%'} RISK · {where}"), _rgb(next(f["color"] for f in feats if f["level"] == top_lv))
+            txt, col = (f"{'SEVERE STORMS LIKELY' if top_lv == 2 else 'SEVERE STORMS POSSIBLE'} · {where}"), _rgb(next(f["color"] for f in feats if f["level"] == top_lv))
         else:
             txt, col = "NO SEVERE AREA OUTLINED", C["muted"]
         cv.text(x + 22, y + ch - 24, txt, 22, "bold", col, anchor="lm", maxw=cw - 44)
@@ -431,8 +431,8 @@ def _spc48_graphic(spc48, pkg, cfg):
     for j, (pct, (lab, colh)) in enumerate(sorted(outlooks.SPC48.items())):
         yy = y + 78 + j * 66
         cv.rect(x + 22, yy, 40, 40, (*_rgb(colh), 255), r=8)
-        cv.text(x + 78, yy + 20, f"{lab} CHANCE OF SEVERE WEATHER", 22, "bold", anchor="lm", maxw=cw - 100)
-    cv.paragraph(x + 22, y + 78 + 2 * 66 + 6, "Chance of severe storms within 25 miles of any point. No shading means predictability is too low or "
+        cv.text(x + 78, yy + 20, {15: "SEVERE STORMS POSSIBLE", 30: "SEVERE STORMS LIKELY"}.get(pct, f"{lab} CHANCE"), 22, "bold", anchor="lm", maxw=cw - 100)
+    cv.paragraph(x + 22, y + 78 + 2 * 66 + 6, "" if cv.minimal else "Severe storms within 25 miles of any point. No shading means predictability is too low or "
                  "severe weather is not expected.", 19, "regular", cw - 44, max_lines=5, lh=1.3, fill=C["muted"])
     cv.footer(pkg, source=_src(pkg, "NOAA Storm Prediction Center"))
     return cv

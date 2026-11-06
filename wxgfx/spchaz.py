@@ -242,15 +242,16 @@ def _three_panel(day, data, pkg, cfg):
         else:
             nm = FOUR[lvl][0]
             big = nm + " RISK"
-            small = _where(frac, off) if frac < 0.8 else "ENTIRE AREA"
+            small = _where(frac, off) if frac < 0.8 else ""
             if any(outlooks.contains(polys, loc["lon"], loc["lat"]) for polys in (d.get("sig") or [])):
                 small += "  ·  SIGNIFICANT POSSIBLE"
         words = RISK_TEXT[key][lvl] if lvl >= 0 else ""
-        cv.text(rx + rw / 2 + 4, by + bh * (0.16 if words else 0.4), big, 34 if not cv.tall else 30, "bold", (13, 21, 38), anchor="mm", maxw=rw - 40)
+        cv.text(rx + rw / 2 + 4, by + bh * (0.2 if words else 0.4), big, 34 if not cv.tall else 30, "bold", (13, 21, 38), anchor="mm", maxw=rw - 40)
         if words:
-            cv.paragraph(rx + 26, by + bh * 0.30, words, 22 if not cv.tall else 20, "bold", rw - 44, max_lines=3,
-                         fill=(30, 42, 66), valign="middle", box_h=bh * 0.52, lh=1.2)
-        cv.text(rx + rw / 2 + 4, by + bh * (0.9 if words else 0.76), small, 19 if not cv.tall else 17, "bold", (70, 84, 110), anchor="mm", maxw=rw - 40)
+            cv.paragraph(rx + rw / 2 + 4, by + bh * (0.36 if small else 0.34), words, 22 if not cv.tall else 20, "bold", rw - 60, max_lines=3,
+                         fill=(30, 42, 66), anchor="ma", valign="middle", box_h=bh * (0.46 if small else 0.52), lh=1.2)
+        if small:
+          cv.text(rx + rw / 2 + 4, by + bh * (0.9 if words else 0.76), small, 19 if not cv.tall else 17, "bold", (70, 84, 110), anchor="mm", maxw=rw - 40)
     # date bar
     cv.rect(M, bot + 14, cv.W - 2 * M, 52, (255, 255, 255, 24), r=12)
     cv.text(cv.W / 2, bot + 40, f"{dt:%A}   ·   {dt:%B} {dt.day}, {dt.year}", 34, "bold", anchor="mm")

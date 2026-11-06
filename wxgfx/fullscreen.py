@@ -95,7 +95,7 @@ def _place_legend(cv, overlay, subtitle):
     probe = Canvas(cv.cfg)
     probe.img = Image.new("RGB", cv.img.size, (0, 0, 0))
     probe.d = ImageDraw.Draw(probe.img, "RGBA")
-    full_w = cv.W - 2 * cv.M
+    full_w = cv.W - 2 * cv.M - (SIDE_W + 24 if not cv.tall else 0)  # keep clear of the info column
     overlay(probe, 0, 100, full_w)
     bb = probe.img.getbbox()
     if not bb:
@@ -151,9 +151,11 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
     if overlay:
         _place_legend(cv, overlay, subtitle)
     M, W = cv.M, cv.W - 2 * cv.M
+    from .theme import group_rows
+    rows = group_rows(list(rows), cfg)
     bottom = cv.H - 75
     if side:
-        hx, hy, hw, hh = sx, 215, SIDE_W, 196
+        hx, hy, hw, hh = sx, 215, SIDE_W, (128 if cv.minimal else 196)
         gx, gy, gw = sx, hy + hh + 6, SIDE_W
         gh = bottom - gy
         ncol, nrow = 1, 8
@@ -168,14 +170,14 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
     merged = side or cv.tall
     if cv.tall:  # one panel for the whole info area
         nr_t = -(-min(len(rows), ncol * nrow) // ncol)
-        rh_t = min(80, (gh - 4) / max(1, nr_t)) if nr_t else 0
-        cv.rect(hx, hy, hw, min(bottom - hy, hh + 18 + nr_t * rh_t + 12), (20, 31, 54, 235), r=16)
+        rh_t = min(max([len(cv.wrap(n.upper(), 16, "bold", hw / max(1, ncol) - 56)) * 20 + 54 for n, _, _ in rows] + [80]), 150, (gh - 4) / max(1, nr_t)) if nr_t else 0
+        cv.rect(hx, hy, hw, min(bottom - hy, hh + 18 + nr_t * rh_t + 12), (20, 31, 54, 235), r=16, outline=(255, 255, 255, 235), ow=3)
     elif side:  # one panel holds the headline and every value row
         nrows = min(len(rows), 8)
-        rh0 = min(80, (gh - 4) / max(1, nrows)) if nrows else 0
-        cv.rect(hx, hy, hw, min(bottom - hy, hh + 4 + nrows * rh0 + 12), (20, 31, 54, 235), r=16)
+        rh0 = min(max([len(cv.wrap(n.upper(), 16, "bold", SIDE_W - 56)) * 20 + 54 for n, _, _ in rows[:8]] + [80]), 150, (gh - 4) / max(1, nrows)) if nrows else 0
+        cv.rect(hx, hy, hw, min(bottom - hy, hh + 4 + nrows * rh0 + 12), (20, 31, 54, 235), r=16, outline=(255, 255, 255, 235), ow=3)
     else:
-        cv.rect(hx, hy, hw, hh, (20, 31, 54, 235), r=16)
+        cv.rect(hx, hy, hw, hh, (20, 31, 54, 235), r=16, outline=(255, 255, 255, 235), ow=3)
     cv.rect(hx, hy, 10, hh, (*head_col, 255), r=5)
     cv.text(hx + 30, hy + 18, head_label, 19, "bold", C["muted"], anchor="lt", maxw=hw - 50)
     pw = min(hw - 60, cv.width(head_value, 34, "bold") + 44)
@@ -189,7 +191,8 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
         gap = 0 if merged else 12
         cw = (gw - gap * (ncol - 1)) / ncol
         nr = -(-len(rows) // ncol)
-        rh = min(80, (gh - gap * (nr - 1)) / max(1, nr))
+        need_h = max([len(cv.wrap(n.upper(), 16, "bold", cw - 56)) * 20 + 38 + 16 for n, _, _ in rows] + [80])
+        rh = min(min(need_h, 150), (gh - gap * (nr - 1)) / max(1, nr))
         if merged:
             gy += 4
             cv.line([(gx + 24, gy - 6), (gx + gw - 24, gy - 6)], (255, 255, 255, 50), 2)
@@ -197,14 +200,21 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
             r, c = divmod(k, ncol)
             x, y = gx + c * (cw + gap), gy + r * (rh + gap)
             if not merged:
-                cv.rect(x, y, cw, rh, (20, 31, 54, 235), r=12)
+                cv.rect(x, y, cw, rh, (20, 31, 54, 235), r=12, outline=(255, 255, 255, 235), ow=3)
             else:
                 if r:
                     cv.line([(x + 24, y), (x + cw - 24, y)], (255, 255, 255, 28), 1)
                 if c:
                     cv.line([(x, y + 12), (x, y + rh - 12)], (255, 255, 255, 28), 1)
             cv.rect(x + 14, y + rh * 0.22, 14, rh * 0.56, (*col, 255) if col else (70, 86, 112, 255), r=4)
-            if rh >= 60:  # two lines: small label over a big value
+            lab_ln = cv.wrap(name.upper(), 16, "bold", cw - 56) if rh >= 60 else []
+            if rh >= 60 and len(lab_ln) > 1:  # grouped cities: wrapped label over the value
+                tot = len(lab_ln) * 20 + 38
+                ty = y + (rh - tot) / 2
+                for i, ln in enumerate(lab_ln[:3]):
+                    cv.text(x + 40, ty + 10 + i * 20, ln, 16, "bold", C["muted"], anchor="lm")
+                cv.text(x + 40, ty + len(lab_ln[:3]) * 20 + 20, val, 30, "bold", anchor="lm", maxw=cw - 56)
+            elif rh >= 60:  # two lines: small label over a big value
                 cv.text(x + 40, y + rh * 0.3, name.upper(), min(17, rh * 0.22), "bold", C["muted"], anchor="lm",
                         maxw=cw - 56)
                 cv.text(x + 40, y + rh * 0.68, val, min(30, rh * 0.4), "bold", anchor="lm", maxw=cw - 56)

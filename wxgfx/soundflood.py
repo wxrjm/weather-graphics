@@ -241,7 +241,7 @@ def sound_map(pw, ph, cfg, view, level, wind_deg, mph):
                 pts = [proj(x, y) for x, y in p[0]]
                 ld.line(pts + [pts[0]], fill=(*STENCIL_EDGE[:3], 120), width=max(1, z(1)))
     for ln in alertinfo.state_lines():
-        ld.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 200), width=max(2, z(1.8)))
+        ld.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 200), width=max(3, z(1.8 * cfg.get("state_line_scale", 2.2))))
     lines.putalpha(ImageChops.multiply(lines.getchannel("A"), land))
     lay.alpha_composite(lines)
     # shoreline
