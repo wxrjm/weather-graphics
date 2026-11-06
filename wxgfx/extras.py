@@ -537,7 +537,6 @@ def first_freeze(pkg, cfg):
         hcol = (120, 190, 240)
     big_h = h * (0.42 if not cv.tall else 0.34)
     cv.rect(x, y, w, big_h, C["panel"], r=18)
-    cv.rect(x, y, 10, big_h, (*hcol, 255), r=4)
     cv.text(x + w / 2, y + big_h * 0.3, head, 30, "bold", C["muted"], anchor="mm")
     cv.text(x + w / 2, y + big_h * 0.62, sub, min(96, w * 0.08), "bold", anchor="mm", maxw=w - 80)
     if coldest:

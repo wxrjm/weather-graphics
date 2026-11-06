@@ -178,7 +178,6 @@ def render(pkg, cfg, title, subtitle, map_fn, box, head_label, head_value, head_
         cv.rect(hx, hy, hw, min(bottom - hy, hh + 4 + nrows * rh0 + 12), (20, 31, 54, 235), r=16, outline=(255, 255, 255, 235), ow=3)
     else:
         cv.rect(hx, hy, hw, hh, (20, 31, 54, 235), r=16, outline=(255, 255, 255, 235), ow=3)
-    cv.rect(hx, hy, 10, hh, (*head_col, 255), r=5)
     cv.text(hx + 30, hy + 18, head_label, 19, "bold", C["muted"], anchor="lt", maxw=hw - 50)
     pw = min(hw - 60, cv.width(head_value, 34, "bold") + 44)
     cv.rect(hx + 30, hy + 48, pw, 52, (*head_col, 255), r=12)
