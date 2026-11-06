@@ -25,6 +25,14 @@ PROB_COLORS = {  # SPC's official probability colors
     "hail": [(5, (139, 71, 38)), (15, (255, 200, 0)), (30, (255, 0, 0)), (45, (255, 0, 255)), (60, (145, 44, 238))],
 }
 FOUR = [("LOW", (255, 214, 0)), ("ELEVATED", (255, 140, 0)), ("MEDIUM", (235, 40, 40)), ("HIGH", (255, 40, 255))]
+RISK_TEXT = {  # hazard -> wording per level index (LOW, ELEVATED, MEDIUM, HIGH)
+    "torn": ["An isolated tornado is possible.", "An isolated tornado is possible.",
+             "There is a threat of tornadoes.", "There is a significant tornado risk."],
+    "wind": ["Some storms may contain damaging winds.", "Some storms may contain damaging winds.",
+             "Strong, damaging winds (60+ mph) are a potential threat.", "Strong, damaging winds (60+ mph) are a potential threat."],
+    "hail": ["Some storms may contain large hail.", "Some storms may contain large hail.",
+             "Large hail (1 inch or bigger) is a potential threat.", "Large hail (1 inch or bigger) is a potential threat."],
+}
 FOUR_AT = {"torn": [2, 5, 10, 15], "wind": [5, 15, 30, 45], "hail": [5, 15, 30, 45]}  # % that starts each of the four levels
 HR_VIEW = (-77.1, -75.5, 36.45, 37.45)
 
@@ -237,8 +245,12 @@ def _three_panel(day, data, pkg, cfg):
             small = _where(frac, off) if frac < 0.8 else "ENTIRE AREA"
             if any(outlooks.contains(polys, loc["lon"], loc["lat"]) for polys in (d.get("sig") or [])):
                 small += "  ·  SIGNIFICANT POSSIBLE"
-        cv.text(rx + rw / 2 + 4, by + bh * 0.4, big, 36 if not cv.tall else 30, "bold", (13, 21, 38), anchor="mm", maxw=rw - 40)
-        cv.text(rx + rw / 2 + 4, by + bh * 0.76, small, 19 if not cv.tall else 17, "bold", (70, 84, 110), anchor="mm", maxw=rw - 40)
+        words = RISK_TEXT[key][lvl] if lvl >= 0 else ""
+        cv.text(rx + rw / 2 + 4, by + bh * (0.16 if words else 0.4), big, 34 if not cv.tall else 30, "bold", (13, 21, 38), anchor="mm", maxw=rw - 40)
+        if words:
+            cv.paragraph(rx + 26, by + bh * 0.30, words, 22 if not cv.tall else 20, "bold", rw - 44, max_lines=3,
+                         fill=(30, 42, 66), valign="middle", box_h=bh * 0.52, lh=1.2)
+        cv.text(rx + rw / 2 + 4, by + bh * (0.9 if words else 0.76), small, 19 if not cv.tall else 17, "bold", (70, 84, 110), anchor="mm", maxw=rw - 40)
     # date bar
     cv.rect(M, bot + 14, cv.W - 2 * M, 52, (255, 255, 255, 24), r=12)
     cv.text(cv.W / 2, bot + 40, f"{dt:%A}   ·   {dt:%B} {dt.day}, {dt.year}", 34, "bold", anchor="mm")
