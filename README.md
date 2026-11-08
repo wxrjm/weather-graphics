@@ -426,6 +426,14 @@ wordmark is drawn. Colors can be overridden in `config.json` → `"colors"` (key
 - `--only 7day,daily` renders a subset.
 
 
+### Hazard Outlooks (`hazout`, folder "Hazard Outlooks")
+Built from the NWS **Graphical Hazardous Weather Outlook** for one forecast office (`ghwo_wfo`, default `akq`; keyless JSON at
+`weather.gov/source/<wfo>/ghwo/chicklet.json` and `legend.json`). Makes `7 Day Hazard Outlook` (every hazard x 7 days, levels 0-4)
+and a VA/NC stencil map `<Hazard> Outlook Day N` for each hazard-day with a risk (up to `ghwo_max_maps`, default 12, highest levels first).
+The office only publishes the maps as pictures, so they are read back by colour using the calibration in `wxgfx/ghwo.py` (`CALIB`;
+only AKQ is calibrated, other offices get the 7-day grid only). Treat the map shapes as approximate; the grid and level wording are exact.
+`ghwo_hide_empty` (default true) drops hazards with no risk all week; `ghwo_hidden` lists rows to skip (default Thunderstorm Wind and Hail, like the NWS page).
+
 ### VA/NC wind chill map (`state_windchill`)
 State-outline map of the **lowest wind chill** over the next `state_windchill_hours` (default 24) with the **coldest time**
 shown in the subtitle and on each state's card. Data: NDFD `windchill` (falls back to temperature + wind speed with the NWS

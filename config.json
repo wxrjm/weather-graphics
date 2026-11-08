@@ -65,6 +65,7 @@
     "state_outlooks",
     "state_temps",
     "state_windchill",
+    "hazout",
     "obs_rain",
     "city_table",
     "rain_timing",

@@ -12,6 +12,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
     ("Model Data", lambda n: n.startswith(("model_", "rrfs_"))),
     ("Forecast", lambda n: n in ("daily", "what_to_know", "7day", "hourly", "current", "commute", "weekend",
                                     "holiday_countdown", "rain_timing", "sunset_quality", "precip_timeline", "today_vs_tomorrow", "what_to_expect") or n.startswith(("fronts_", "city_table"))),
+    ("Hazard Outlooks", lambda n: n.startswith("hazout")),
     ("Safety Graphics", lambda n: n.startswith("safety_")),
     ("SPC Outlooks", lambda n: n.startswith(("spc_", "state_spc"))),
     ("Severe & Alerts", lambda n: n.startswith(("nadocast", "alert", "weather_aware", "warning_count"))),
@@ -82,6 +83,11 @@ def pretty(name):
     m = re.fullmatch(r"wpc_qpf_d(\d+)_(\d+)(_.+)?", name)
     if m:
         name = f"day_{m.group(1)}-{m.group(2)}_rainfall_potential{m.group(3) or ''}"
+    m = re.fullmatch(r"hazout_(.+)_day(\d+)", name)  # Hazard Outlooks: "Frost Freeze Outlook Day 2"
+    if m:
+        name = f"{m.group(1)}_outlook_day{m.group(2)}"
+    elif name == "hazout_week":
+        name = "7_day_hazard_outlook"
     out = []
     head = ""
     for k in sorted(TITLES, key=len, reverse=True):  # longest prefix wins: "obs_rain_24hr" -> "Observed Rainfall" + rest

@@ -352,6 +352,14 @@ def main():
         else:
             print("Fetching NDFD wind chill for the VA/NC state map...")
             pkg["_statewindchill"] = statemaps.fetch_windchill(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if "hazout" in (cfg.get("graphics") or []) and (only_set is None or "hazout" in only_set):
+        from wxgfx import ghwo
+        utc_now = now.astimezone(timezone.utc)
+        if args.sample:
+            pkg["_ghwo"] = ghwo.sample(utc_now, tz)
+        else:
+            print("Fetching the NWS Graphical Hazardous Weather Outlook...")
+            pkg["_ghwo"] = ghwo.fetch(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
     if "obs_rain" in (cfg.get("graphics") or []) and (only_set is None or "obs_rain" in only_set):
         from wxgfx import newgfx
         utc_now = now.astimezone(timezone.utc)
