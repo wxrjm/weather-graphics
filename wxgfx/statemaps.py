@@ -624,3 +624,195 @@ def temp_graphics(pkg, cfg):
             if cfg.get("state_temp_clean", True):
                 out.append((f"state_{kind}_day{i}_map", _temp_graphic(td, kind, i, d, pkg, cfg, clean=True)))
     return out or None
+
+
+# ------------------------------------------------------------------ wind chill (coldest time in the period)
+CHILL_STOPS = [(-20, (225, 200, 255)), (-10, (180, 140, 245)), (0, (140, 110, 235)), (10, (95, 105, 235)),
+               (20, (70, 140, 242)), (30, (70, 185, 245)), (40, (80, 212, 215)), (50, (110, 215, 150)),
+               (60, (200, 225, 80))]
+
+
+def chill_color(f):
+    if f <= CHILL_STOPS[0][0]:
+        return CHILL_STOPS[0][1]
+    for (t0, c0), (t1, c1) in zip(CHILL_STOPS, CHILL_STOPS[1:]):
+        if f <= t1:
+            u = (f - t0) / (t1 - t0)
+            return tuple(int(c0[i] + (c1[i] - c0[i]) * u) for i in range(3))
+    return CHILL_STOPS[-1][1]
+
+
+def _wc_formula(t_f, v_mph):
+    import numpy as np
+    v = np.maximum(v_mph, 0.0) ** 0.16
+    wc = 35.74 + 0.6215 * t_f - 35.75 * v + 0.4275 * t_f * v
+    return np.where((t_f <= 50) & (v_mph > 3), np.minimum(wc, t_f), t_f)
+
+
+def fetch_windchill(cfg, cache_dir, now_utc, debug=False):
+    """-> {"lat","lon","times":[utc...],"grids":[deg F grids],"errors"}: NDFD wind chill hourly over the next N hours.
+    Uses the NDFD windchill grid; if that file is missing, computes it from temperature + wind speed."""
+    from . import ndfdmap
+    out = {"errors": []}
+    try:
+        import eccodes  # noqa: F401
+        import numpy as np
+    except Exception:
+        out["errors"].append("state wind chill map needs ecCodes + numpy")
+        print("  ! " + out["errors"][-1])
+        return out
+    box = (-90.0, -70.0, 30.0, 43.0)
+    cache = Path(cache_dir)
+    cache.mkdir(parents=True, exist_ok=True)
+    hours = cfg.get("state_windchill_hours", 24)
+    t0, t1 = now_utc - timedelta(hours=1), now_utc + timedelta(hours=hours)
+    last = None
+    for sector in cfg.get("ndfd_sectors", ["midatlan", "conus"]):
+        def series(elem):
+            res, la_, lo_ = {}, None, None
+            for vp in ("001-003",):
+                path = ndfdmap._download(ndfdmap.TGFTP.format(sector=sector, vp=vp, elem=elem),
+                                         cache / f"ndfd_{sector}_{vp}_{elem}.bin", cfg["user_agent"])
+                for valid, la, lo, v in ndfdmap._messages(path, box):
+                    la_, lo_ = la, lo
+                    if t0 <= valid <= t1:
+                        res[valid] = v
+            return res, la_, lo_
+        try:
+            try:
+                s, lat, lon = series("windchill")
+                grids = {k: (v - 273.15) * 9 / 5 + 32 for k, v in s.items()}
+                if not grids:
+                    raise RuntimeError("no windchill times")
+            except Exception:
+                tt, lat, lon = series("temp")
+                ww, _, _ = series("wspd")
+                grids = {}
+                for k, v in tt.items():
+                    near = min(ww, key=lambda q: abs((q - k).total_seconds()), default=None)
+                    if near is not None and abs((near - k).total_seconds()) <= 3 * 3600:
+                        grids[k] = _wc_formula((v - 273.15) * 9 / 5 + 32, ww[near] * 2.23694)
+            if lat is None or not ndfdmap._covers(lat, lon, VIEW):
+                raise RuntimeError(f"{sector} sector doesn't cover VA + NC")
+            if not grids:
+                raise RuntimeError("no wind chill times in range")
+            ks = sorted(grids)
+            if debug:
+                print(f"   [state wind chill] {sector}: {len(ks)} times")
+            return {"lat": lat, "lon": lon, "times": ks, "grids": [grids[k] for k in ks], "errors": []}
+        except Exception as ex:
+            last = ex
+            if debug:
+                print(f"   [state wind chill] {sector} failed: {ex}")
+    out["errors"].append(f"NDFD wind chill: {last}")
+    print(f"  ! state wind chill map unavailable: {last}")
+    return out
+
+
+def sample_windchill(now_utc, tz):
+    import numpy as np
+    lat = np.linspace(30.0, 43.0, 300)[:, None] * np.ones((1, 330))
+    lon = np.ones((300, 1)) * np.linspace(-90.0, -70.0, 330)[None, :]
+    elev = np.clip((-78.5 - lon) / 4.0, 0, 1) * 9 + np.clip((lat - 35) / 4, 0, 1) * 3
+    coast = np.clip((lon + 77.5) / 2.5, 0, 1)
+    base = now_utc.replace(minute=0, second=0, microsecond=0)
+    times, grids = [], []
+    for h in range(0, 25):
+        t = base + timedelta(hours=h)
+        lh = t.astimezone(tz).hour + t.astimezone(tz).minute / 60
+        diurnal = -9 * np.cos((lh - 7.0) / 24 * 2 * np.pi)  # coldest ~7 AM
+        times.append(t)
+        grids.append(26 + diurnal - 1.6 * elev + 3 * coast + 1.2 * np.sin(lon * 1.3) * np.cos(lat * 1.7))
+    return {"lat": lat, "lon": lon, "times": times, "grids": grids, "errors": []}
+
+
+def _nearest_idx(lat, lon, la, lo):
+    import numpy as np
+    d = (lat - la) ** 2 + ((lon - lo) * math.cos(math.radians(la))) ** 2
+    return np.unravel_index(np.nanargmin(d), d.shape)
+
+
+def _t_lbl(t, tz):
+    lt = t.astimezone(tz)
+    return f"{lt.strftime('%a').upper()} {lt.strftime('%I %p').lstrip('0')}"
+
+
+def _chill_graphic(wd, pkg, cfg, clean=False):
+    import numpy as np
+    from .ndfdmap import _cell_painter
+    tz = ZoneInfo(cfg["timezone"])
+    lat, lon, _ = _crop(wd, wd["grids"][0])
+    stack = np.stack([_crop(wd, g)[2] for g in wd["grids"]])
+    low = np.nanmin(stack, axis=0)
+    bins = [(t - 0.01, chill_color(t + 1)) for t in range(-30, 61, 2)]
+    bins[0] = (-999, bins[0][1])
+    paint = _cell_painter({"lat": lat, "lon": lon, "val": low}, bins, alpha=255, smooth=1)
+    per = {"VA": [], "NC": []}
+    for k in _counties():
+        j, i = _nearest_idx(lat, lon, k["lat"], k["lon"])
+        ts = stack[:, j, i]
+        if ts[0] == ts[0]:
+            per[k["st"]].append((float(np.nanmin(ts)), k, ts))
+    cities = []
+    for name, la, lo, tier in CITIES:
+        j, i = _nearest_idx(lat, lon, la, lo)
+        v = np.nanmin(stack[:, j, i])
+        if v == v:
+            cities.append((name, la, lo, tier, f"{round(float(v))}°"))
+    cards, cold_t = [], {}
+    for st in ("VA", "NC"):
+        pts = per[st]
+        if not pts:
+            continue
+        mean_ts = np.nanmean(np.stack([p[2] for p in pts]), axis=0)  # statewide average through time
+        cold_t[st] = wd["times"][int(np.nanargmin(mean_ts))]
+        bot, top = min(pts, key=lambda p: p[0]), max(pts, key=lambda p: p[0])
+        a, b = round(bot[0]), round(top[0])
+        cards.append({"st": st, "value": f"{a}° – {b}°" if a != b else f"{a}°",
+                      "col": chill_color(bot[0]),
+                      "detail": f"COLDEST AROUND {_t_lbl(cold_t[st], tz)}  ·  LOWEST {bot[1]['c']['name'].upper()} {a}°"})
+    allv = [p[0] for s in per.values() for p in s]
+    mn, mxv = round(min(allv)), round(max(allv))
+    all_t = wd["times"][int(np.nanargmin(np.nanmean(stack, axis=(1, 2))))]
+    hrs = cfg.get("state_windchill_hours", 24)
+    meaning = (f"Lowest wind chills over the next {hrs} hours range from {mn}° to {mxv}°, coldest around {_t_lbl(all_t, tz)}. "
+               "Wind chill is how cold it feels on exposed skin; the mountains and higher terrain run coldest.")
+    cv = Canvas(cfg)
+    cv.header("WIND CHILL FORECAST", f"VA & NC  ·  COLDEST AROUND {_t_lbl(all_t, tz)}")
+    lo_, hi_ = 10 * math.floor((mn - 3) / 10), 10 * math.ceil((mxv + 3) / 10)
+    ticks = list(range(lo_, hi_ + 1, 10))
+    if clean:
+        mx, my, mw, mh = cv.M, 150, cv.W - 2 * cv.M, cv.H - 150 - 28
+        lay = stencil_map(mw, mh, cfg, painter=paint, cities=cities, alpha=0.96, bg=(0, 0, 0, 0),
+                          view=cfg.get("state_clean_view") or (-84.75, -75.61, 33.585, 39.765))
+        base = cv.img.convert("RGBA")
+        base.alpha_composite(lay, (z(mx), z(my)))
+        cv.img = base.convert("RGB")
+        cv.d = ImageDraw.Draw(cv.img, "RGBA")
+        lw = 520 if not cv.tall else min(cv.W - 2 * cv.M, 560)
+        cv.rect(cv.W - cv.M - lw - 14, cv.H - 130, lw + 28, 96, (13, 21, 38, 215), r=12)
+        _bar(cv, cv.W - cv.M - lw, cv.H - 126, lw, chill_color, lo_, hi_, "°F", ticks)
+        cv.footer(pkg, source=_src(pkg, "NWS NDFD"))
+        return cv
+    (mx, my, mw, mh), pbox = cv.split()
+    _paste_rounded(cv, stencil_map(mw, mh, cfg, painter=paint, cities=cities, alpha=0.96), mx, my)
+    cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
+    legend = lambda c, x, y, w: _bar(c, x, y, w, chill_color, lo_, hi_, "°F", ticks)
+    _panel(cv, pbox, "LOWEST WIND CHILL BY STATE", cards, meaning, legend)
+    cv.footer(pkg, source=_src(pkg, "NWS NDFD"))
+    return cv
+
+
+def windchill_graphics(pkg, cfg):
+    wd = pkg.get("_statewindchill") or {}
+    if not wd.get("grids"):
+        return None
+    import numpy as np
+    mn = min(float(np.nanmin(g)) for g in wd["grids"])
+    if mn > cfg.get("state_windchill_max_f", 45) and not cfg.get("state_windchill_always"):
+        print(f"  - state_windchill: coldest wind chill {mn:.0f}°F is above {cfg.get('state_windchill_max_f', 45)}°F, skipped")
+        return None
+    out = [("state_windchill", _chill_graphic(wd, pkg, cfg))]
+    if cfg.get("state_temp_clean", True):
+        out.append(("state_windchill_map", _chill_graphic(wd, pkg, cfg, clean=True)))
+    return out

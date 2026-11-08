@@ -64,6 +64,7 @@
     "temp_drop_highs",
     "state_outlooks",
     "state_temps",
+    "state_windchill",
     "obs_rain",
     "city_table",
     "rain_timing",

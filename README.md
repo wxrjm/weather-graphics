@@ -424,3 +424,9 @@ wordmark is drawn. Colors can be overridden in `config.json` → `"colors"` (key
   `cache/` so a flaky API call still produces graphics.
 - "Above/below normal" uses a cosine fit to ORF 1991–2020 normals (±2°).
 - `--only 7day,daily` renders a subset.
+
+
+### VA/NC wind chill map (`state_windchill`)
+State-outline map of the **lowest wind chill** over the next `state_windchill_hours` (default 24) with the **coldest time**
+shown in the subtitle and on each state's card. Data: NDFD `windchill` (falls back to temperature + wind speed with the NWS
+formula). Skipped when the coldest wind chill is above `state_windchill_max_f` (default 45) unless `state_windchill_always` is true.

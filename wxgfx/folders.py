@@ -16,7 +16,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
     ("SPC Outlooks", lambda n: n.startswith(("spc_", "state_spc"))),
     ("Severe & Alerts", lambda n: n.startswith(("nadocast", "alert", "weather_aware", "warning_count"))),
     ("Temperature", lambda n: n.startswith(("feels_like", "wind_chill", "dewpoints", "above_average", "below_average", "record_watch",
-                                               "first_freeze", "frost_", "freeze_", "temp_drop", "state_highs", "state_lows", "state_dew", "state_frost", "hr_highs", "hr_lows", "degree_days", "temp_vs_normal"))),
+                                               "first_freeze", "frost_", "freeze_", "temp_drop", "state_highs", "state_lows", "state_windchill", "state_dew", "state_frost", "hr_highs", "hr_lows", "degree_days", "temp_vs_normal"))),
     ("Rain & Flooding", lambda n: n.startswith(("rain_totals", "wpc_qpf", "ero_", "state_qpf", "state_ero", "obs_rain", "state_pop", "ffg_", "rain_reports",
                                                    "storm_rain_reports", "river"))),
     ("Snow & Ice", lambda n: n.startswith(("snow", "state_snow", "ice_", "wssi", "storm_snow_reports"))),

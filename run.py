@@ -344,6 +344,14 @@ def main():
         else:
             print("Fetching NDFD highs and lows for the VA/NC state maps...")
             pkg["_statetemps"] = statemaps.fetch_temps(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if "state_windchill" in (cfg.get("graphics") or []) and (only_set is None or "state_windchill" in only_set):
+        from wxgfx import statemaps
+        utc_now = now.astimezone(timezone.utc)
+        if args.sample:
+            pkg["_statewindchill"] = statemaps.sample_windchill(utc_now, tz)
+        else:
+            print("Fetching NDFD wind chill for the VA/NC state map...")
+            pkg["_statewindchill"] = statemaps.fetch_windchill(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
     if "obs_rain" in (cfg.get("graphics") or []) and (only_set is None or "obs_rain" in only_set):
         from wxgfx import newgfx
         utc_now = now.astimezone(timezone.utc)
