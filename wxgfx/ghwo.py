@@ -39,6 +39,7 @@ HIDDEN = ("Thunderstorm Wind Risk", "Hail Risk")  # the NWS page hides these two
 CALIB = {
     "akq": {"size": (1024, 768), "ax": 177.85, "bx": 14204.33, "ay": -206.27, "by": 8095.72, "map_box": (0, 70, 1024, 700)},
 }
+VIEWS = {"akq": (-79.9, -74.1, 35.94, 39.0)}  # the area the office's own GHWO map shows (west, east, south, north)
 GRID = (33.6, 39.7, -84.2, -75.0)  # lat0, lat1, lon0, lon1 of the level grid
 STEP = 0.04
 
@@ -305,7 +306,8 @@ def map_graphic(gd, hz, per, grid, pkg, cfg):
     bins = [(0.5, _rgb(LEVEL_COL[1])), (1.5, _rgb(LEVEL_COL[2])), (2.5, _rgb(LEVEL_COL[3])), (3.5, _rgb(LEVEL_COL[4]))]
     from .ndfdmap import _cell_painter
     paint = _cell_painter({"lat": lat, "lon": lon, "val": np.where(val > 0, val, np.nan)}, bins, alpha=255, smooth=0)
-    _paste_rounded(cv, stencil_map(mw, mh, cfg, painter=paint, alpha=0.96), mx, my)
+    _paste_rounded(cv, stencil_map(mw, mh, cfg, painter=paint, alpha=0.96,
+                                       view=cfg.get("ghwo_view") or VIEWS.get(gd["wfo"])), mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
     chips = [(_rgb(LEVEL_COL[i]), f"LEVEL {i}") for i in (1, 2, 3, 4)]
     _panel(cv, pbox, "HIGHEST RISK IN EACH STATE", cards, meaning, lambda c, x, y, w: _legend_chips(c, x, y, w, chips))
