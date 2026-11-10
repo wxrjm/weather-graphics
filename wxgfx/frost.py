@@ -433,9 +433,9 @@ def _frost_tables_and_maps(pkg, cfg):
         out.append(("frost_risk_table", _table_graphic(labels, rows, src, pkg, cfg)))
     else:
         print("  - frost_risk table: no frost in the forecast, skipped")
-    # the regional frost risk maps: only in the frost seasons (Sep-Nov, Mar-May), on nights with a low below 36 anywhere in the region
+    # the regional frost risk maps: only in the frost seasons (Sep-Nov, Mar-May), on nights with a low below 38 anywhere in the region
     months = cfg.get("frost_map_months") or [3, 4, 5, 9, 10, 11]
-    below = cfg.get("frost_map_below", 36)
+    below = cfg.get("frost_map_below", 38)
     box = tuple(cfg.get("frost_map_region") or (-78.5, -75.0, 35.5, 38.5))
     for i, night in enumerate((pkg.get("_frost") or {}).get("nights") or []):
         if datetime.fromisoformat(night["evening"]).month not in months and not force:
