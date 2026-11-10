@@ -426,6 +426,11 @@ wordmark is drawn. Colors can be overridden in `config.json` → `"colors"` (key
 - `--only 7day,daily` renders a subset.
 
 
+### Recorded lows and highs (`asos_temps`, Temperature folder)
+Lowest and highest hourly ASOS reading since midnight at ~26 Hampton Roads / VA / NC stations (`api.weather.gov` observations, keyless). Makes `Recorded Lows So Far Today Map/Table` and `Recorded Highs So Far Today Map/Table`.
+`asos_temps_mode`: `auto` (default; low appears once KORF is 2+ hours past its low and warming, or from 10 AM; high once KORF is 1+ hour past its peak after 1 PM, or from 5 PM), `both`, `low`, `high`.
+`asos_stations` replaces the station list ([id, name, lat, lon]); `asos_label_scale` (default 0.8) sets the map label size.
+
 ### Hazard Outlooks (`hazout`, folder "Hazard Outlooks")
 Built from the NWS **Graphical Hazardous Weather Outlook** for one forecast office (`ghwo_wfo`, default `akq`; keyless JSON at
 `weather.gov/source/<wfo>/ghwo/chicklet.json` and `legend.json`). Makes `7 Day Hazard Outlook` (every hazard x 7 days, levels 0-4)

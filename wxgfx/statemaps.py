@@ -76,7 +76,7 @@ def _counties():
 
 
 # ------------------------------------------------------------------ map
-def stencil_map(w, h, cfg, layers=None, painter=None, cities=None, tags=True, alpha=0.93, bg=(13, 21, 38, 255), view=None, shade_lines=False):
+def stencil_map(w, h, cfg, layers=None, painter=None, cities=None, tags=True, alpha=0.93, bg=(13, 21, 38, 255), view=None, shade_lines=False, label_scale=1.0):
     """RGBA map (supersampled) of the VA + NC stencil.  layers: [(rgb, polys)] drawn bottom -> top;
     painter(draw, proj): gridded fill (NDFD); cities: [(name, lat, lon, tier, text|None)]."""
     W_, H_ = z(w), z(h)
@@ -159,15 +159,15 @@ def stencil_map(w, h, cfg, layers=None, painter=None, cities=None, tags=True, al
                 td.text(best, st, font=ft, fill=(*TAG_COL, TAG_ALPHA), anchor="mm")
         lay.alpha_composite(tl)
         d = ImageDraw.Draw(lay, "RGBA")
-    _cities(d, proj, W_, H_, cl)
+    _cities(d, proj, W_, H_, cl, scale=label_scale)
     return lay
 
 
-def _cities(d, proj, W_, H_, cities, draw=True):
+def _cities(d, proj, W_, H_, cities, draw=True, scale=1.0):
     placed = []
     gap = z(9)
     cap = max(5, int((W_ / 2) * (H_ / 2) / 40000)) if not any(c[4] for c in cities) else 999  # value maps keep every city
-    f1, f2, fv = font("bold", 16), font("medium", 13), font("bold", 25)
+    f1, f2, fv = font("bold", 16 * scale), font("medium", 13 * scale), font("bold", 25 * scale)
     for name, la, lo, tier, val in cities:
         x, y = proj(lo, la)
         if not (z(14) < x < W_ - z(14) and z(14) < y < H_ - z(14)):
@@ -175,7 +175,7 @@ def _cities(d, proj, W_, H_, cities, draw=True):
         fn = f1 if tier == 1 else f2
         nm = name.upper()
         tw = max(d.textlength(nm, font=fn), d.textlength(val, font=fv) if val else 0)
-        th = z(17 if tier == 1 else 14) + (z(26) if val else 0)
+        th = z((17 if tier == 1 else 14) * scale) + (z(26 * scale) if val else 0)
         box = (x - tw / 2 - z(4), y - th / 2 - z(3), x + tw / 2 + z(4), y + th / 2 + z(3))
         if len(placed) >= cap or any(box[0] - gap < b[2] and box[2] + gap > b[0] and box[1] - gap < b[3] and box[3] + gap > b[1] for b in placed):
             continue

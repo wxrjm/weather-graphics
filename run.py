@@ -352,6 +352,14 @@ def main():
         else:
             print("Fetching NDFD wind chill for the VA/NC state map...")
             pkg["_statewindchill"] = statemaps.fetch_windchill(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if "asos_temps" in (cfg.get("graphics") or []) and (only_set is None or "asos_temps" in only_set):
+        from wxgfx import asostemps
+        utc_now = now.astimezone(timezone.utc)
+        if args.sample:
+            pkg["_asos"] = asostemps.sample(utc_now, tz, cfg)
+        else:
+            print("Fetching hourly ASOS observations...")
+            pkg["_asos"] = asostemps.fetch(cfg, ROOT / "cache", utc_now)
     if "hazout" in (cfg.get("graphics") or []) and (only_set is None or "hazout" in only_set):
         from wxgfx import ghwo
         utc_now = now.astimezone(timezone.utc)

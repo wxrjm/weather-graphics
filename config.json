@@ -66,6 +66,7 @@
     "state_temps",
     "state_windchill",
     "hazout",
+    "asos_temps",
     "obs_rain",
     "city_table",
     "rain_timing",

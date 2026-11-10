@@ -415,11 +415,11 @@ def _bar_legend(cv, bins, unit, title):
     ndfdmap._color_bar(cv, x, y, bins, unit, bw)
 
 
-def _clean_map(cv, cfg, paint, cities, view=None, tags=True, alpha=0.96, region=None):
+def _clean_map(cv, cfg, paint, cities, view=None, tags=True, alpha=0.96, region=None, label_scale=1.0):
     region = region(cv) if callable(region) else region
     mx, my, mw, mh = region or (cv.M, 150, cv.W - 2 * cv.M, cv.H - 150 - 28)
     lay = statemaps.stencil_map(mw, mh, cfg, painter=paint, cities=cities, alpha=alpha,
-                                bg=(13, 21, 38, 255) if region else (0, 0, 0, 0), tags=tags,
+                                bg=(13, 21, 38, 255) if region else (0, 0, 0, 0), tags=tags, label_scale=label_scale,
                                 view=view or cfg.get("state_clean_view") or (-84.12, -74.98, 33.585, 39.765))
     base = cv.img.convert("RGBA")
     base.alpha_composite(lay, (z(mx), z(my)))
