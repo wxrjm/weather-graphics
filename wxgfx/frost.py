@@ -413,17 +413,34 @@ def frost_graphics(pkg, cfg):
     return ([("frost_trend", tr)] if tr else []) + (out or []) or None
 
 
+def _regional_min(night, box):
+    """Coldest forecast low (°F) anywhere in the region box (west, east, south, north)."""
+    import numpy as np
+    w, e, s_, n = box
+    la, lo, low = night["lat"], night["lon"], night["low"]
+    m = (la >= s_) & (la <= n) & (lo >= w) & (lo <= e) & ~np.isnan(low)
+    return float(np.round(low[m]).min()) if m.any() else None
+
+
 def _frost_tables_and_maps(pkg, cfg):
     labels, rows, src = table_data(pkg, cfg)
     if not rows:
         return None
+    force = cfg.get("frost_always")
     worst = max((k or 0) for _, cells in rows for _, k in cells)
-    if worst < cfg.get("frost_min_level", 1) and not cfg.get("frost_always"):
-        print("  - frost_risk: no frost in the forecast, skipped")
-        return None
-    out = [("frost_risk_table", _table_graphic(labels, rows, src, pkg, cfg))]
+    out = []
+    if worst >= cfg.get("frost_min_level", 1) or force:
+        out.append(("frost_risk_table", _table_graphic(labels, rows, src, pkg, cfg)))
+    else:
+        print("  - frost_risk table: no frost in the forecast, skipped")
+    # the regional frost risk maps: only in the frost seasons (Sep-Nov, Mar-May), on nights with a low below 36 anywhere in the region
+    months = cfg.get("frost_map_months") or [3, 4, 5, 9, 10, 11]
+    below = cfg.get("frost_map_below", 36)
+    box = tuple(cfg.get("frost_map_region") or (-78.5, -75.0, 35.5, 38.5))
     for i, night in enumerate((pkg.get("_frost") or {}).get("nights") or []):
-        nworst = max((cells[i][1] or 0) for _, cells in rows)
-        if nworst >= cfg.get("frost_min_level", 1) or cfg.get("frost_always"):
+        if datetime.fromisoformat(night["evening"]).month not in months and not force:
+            continue
+        mn = _regional_min(night, box)
+        if force or (mn is not None and mn < below):
             out.append((f"frost_map_{i + 1}", _map_graphic(night, i, pkg, cfg)))
-    return out
+    return out or None

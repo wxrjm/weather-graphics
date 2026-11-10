@@ -426,6 +426,9 @@ wordmark is drawn. Colors can be overridden in `config.json` → `"colors"` (key
 - `--only 7day,daily` renders a subset.
 
 
+### Frost risk maps (season and temperature rule)
+The regional `Frost Map` graphics are only made Sep-Nov and Mar-May (`frost_map_months`), and only for nights when the forecast low is below 36 anywhere in the region (`frost_map_below`, `frost_map_region` = west, east, south, north; default VA/NC around Hampton Roads). `frost_always` forces them.
+
 ### Recorded lows and highs (`asos_temps`, Temperature folder)
 Lowest and highest hourly ASOS reading since midnight at ~26 Hampton Roads / VA / NC stations (`api.weather.gov` observations, keyless). Makes `Recorded Lows So Far Today Map/Table` and `Recorded Highs So Far Today Map/Table`.
 `asos_temps_mode`: `auto` (default; low appears once KORF is 2+ hours past its low and warming, or from 10 AM; high once KORF is 1+ hour past its peak after 1 PM, or from 5 PM), `both`, `low`, `high`.
