@@ -416,6 +416,7 @@ def _bar_legend(cv, bins, unit, title):
 
 
 def _clean_map(cv, cfg, paint, cities, view=None, tags=True, alpha=0.96, region=None):
+    region = region(cv) if callable(region) else region
     mx, my, mw, mh = region or (cv.M, 150, cv.W - 2 * cv.M, cv.H - 150 - 28)
     lay = statemaps.stencil_map(mw, mh, cfg, painter=paint, cities=cities, alpha=alpha,
                                 bg=(13, 21, 38, 255) if region else (0, 0, 0, 0), tags=tags,
@@ -588,11 +589,17 @@ def hr_temp_graphics(pkg, cfg):
     return out or None
 
 
-HR_REGION = (70, 196, 840, 826)
+def HR_REGION(cv):
+    """Wide: map on the left with the town list on the right. Tall / square: the map takes the full width above the legend."""
+    if cv.W >= 1500:
+        return (70, 196, 840, 826)
+    return (cv.M, 196, cv.W - 2 * cv.M, cv.H - 196 - 170)
 
 
 def _hr_panel(cv, cities, word):
     """Right-hand city list for the Hampton Roads close-up: every labelled town, ranked."""
+    if cv.W < 1500:  # narrow canvases have no room for the side list; the towns are labelled on the map
+        return
     px, py, pw_, ph_ = 940, 196, cv.W - cv.M - 940, 730
     cv.rect(px, py, pw_, ph_, C["panel"], r=18)
     cv.text(px + 26, py + 22, f"{word}S BY TOWN", 21, "bold", C["muted"], anchor="lt")

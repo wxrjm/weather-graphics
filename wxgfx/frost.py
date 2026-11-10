@@ -71,11 +71,13 @@ def _levels_np(low, wind, sky):
 
 # ------------------------------------------------------------------ data
 def _night_label(evening, today):
-    if evening == today:
-        return "TONIGHT"
-    if evening == today + timedelta(days=1):
-        return "TOMORROW NIGHT"
-    return evening.strftime("%a").upper() + " NIGHT"
+    """The low comes in the morning after the evening it starts, so label it by that morning's date."""
+    m = evening + timedelta(days=1)
+    if m == today:
+        return "THIS MORNING"
+    if m == today + timedelta(days=1):
+        return "TOMORROW MORNING · " + f"{m.strftime('%a').upper()} {m.month}/{m.day}"
+    return f"{m.strftime('%a').upper()} {m.month}/{m.day} MORNING"
 
 
 def fetch(cfg, cache_dir, now_utc, debug=False):
@@ -236,7 +238,7 @@ def _map_graphic(night, idx, pkg, cfg):
     field = _crop_field(field, tuple(cfg.get("outlook_view") or outlookmap.VIEW_BOX))
     cv = Canvas(cfg)
     title = "FROST & FREEZE RISK"
-    subtitle = f"{night['label']}  ·  NWS FORECAST LOWS, WIND & CLOUD COVER"
+    subtitle = f"{night['label']}  ·  NWS MORNING LOWS, WIND & CLOUD COVER"
     cv.header(title, subtitle)
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
     paint = _cell_painter(field, BINS)
@@ -250,7 +252,7 @@ def _map_graphic(night, idx, pkg, cfg):
     hk = hk or 0
     lv = LEVELS[hk]
     head = lv[1] + (f"  ·  {round(hl)}°" if hl is not None else "")
-    meaning = (f"Forecast low near {round(hl)}° in Norfolk {night['label'].lower()}. " if hl is not None else "") + lv[4]
+    meaning = (f"Morning low near {round(hl)}° in Norfolk for {night['label'].title()}. " if hl is not None else "") + lv[4]
     rows = []
     for name, la, lo in _points(cfg):
         low = _at(night, night["low"], lo, la)
@@ -274,7 +276,7 @@ def z_(v):
 
 def _table_graphic(labels, rows, src, pkg, cfg):
     cv = Canvas(cfg)
-    cv.header("FROST & FREEZE RISK", f"NEXT {len(labels)} NIGHTS  ·  FORECAST LOWS BY LOCATION")
+    cv.header("FROST & FREEZE RISK", f"NEXT {len(labels)} MORNINGS  ·  FORECAST LOWS BY LOCATION")
     x, y, w, h = cv.M, cv.top, cv.W - 2 * cv.M, cv.bottom - cv.top
     # legend strip
     leg_h = 50
