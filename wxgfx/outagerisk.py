@@ -107,11 +107,14 @@ def outage_risk_graphic(pkg, cfg):
         tc = (20, 28, 46) if lum > 140 else (255, 255, 255)
         cv.text(x + cw / 2, by + 16, "OUTAGE RISK", 14, "bold", tc, anchor="mt")
         cv.text(x + cw / 2, by + 36, name, 26, "bold", tc, anchor="mt", maxw=cw - 30)
-        cv.paragraph(x + cw / 2, by + 78, desc + (" (wet soil)" if wet else ""), 18, "regular", cw - 40, max_lines=4, lh=1.22,
+        cv.paragraph(x + cw / 2, by + 78, desc + (" (wet soil)" if wet else ""), 18, "regular", cw - 28, max_lines=6, lh=1.22,
                      fill=tc, anchor="ma")
     # legend
     lw = (cv.W - 2 * cv.M - 10 * 4) / 5
-    ly, lh = 870, 122
+    ly = 870
+    fs = 16
+    nl = max(len(cv.wrap(d, fs, "bold", lw - 28)) for _, _, d, _ in LEVELS)
+    lh = max(122, 80 + nl * fs * 1.22 + 16)  # grow the boxes so every description line fits
     for i, (name, col, desc, _) in enumerate(LEVELS):
         x = cv.M + i * (lw + 10)
         cv.rect(x, ly, lw, lh, (*col, 255), r=12)
@@ -119,7 +122,7 @@ def outage_risk_graphic(pkg, cfg):
         tc = (20, 28, 46) if lum > 140 else (255, 255, 255)
         cv.text(x + lw / 2, ly + 14, name, 26, "bold", tc, anchor="mt")
         cv.text(x + lw / 2, ly + 46, RANGES[i], 21, "bold", tc, anchor="mt")
-        cv.paragraph(x + lw / 2, ly + 78, desc, 15, "bold", lw - 24, max_lines=2, lh=1.15, fill=tc, anchor="ma")
+        cv.paragraph(x + lw / 2, ly + 78, desc, fs, "bold", lw - 28, max_lines=nl, lh=1.22, fill=tc, anchor="ma")
     src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "NWS POINT FORECAST GUSTS"
     cv.footer(pkg, source=f"{src} · ONE LEVEL HIGHER WITH {wet_g}+ MPH GUSTS AND {wet_q}\" OR MORE OF RAIN (WET SOIL). ADVISORY GUIDANCE, NOT A UTILITY FORECAST")
     return cv
