@@ -325,7 +325,95 @@ def _table_graphic(labels, rows, src, pkg, cfg):
     return cv
 
 
+# ------------------------------------------------------------------ Norfolk 7-morning trend
+TREND_BANDS = [  # name, colour, warmest / coldest temperature the band stretches over
+    ("FROST UNLIKELY", (62, 170, 186), 47, 39),
+    ("FROST POSSIBLE", (60, 158, 238), 39, 37),
+    ("FROST LIKELY", (84, 104, 228), 37, 33),
+    ("LIGHT FREEZE", (142, 84, 216), 33, 29),
+    ("HARD FREEZE", (212, 72, 200), 29, 20),
+]
+
+
+def _trend_y(t, top, bh):
+    """Temperature -> y: each category is one equal band, and the temperature moves the dot within its band."""
+    t = max(20.0, min(47.0, t))
+    for i, (_, _, hi, lo) in enumerate(TREND_BANDS):
+        if t >= lo or i == len(TREND_BANDS) - 1:
+            f = (min(t, hi) - lo) / (hi - lo)
+            pad = bh * 0.2
+            return top + i * bh + pad + (1 - f) * (bh - 2 * pad)
+
+
+def _smooth(pts, n=14):
+    out = []
+    for i in range(len(pts) - 1):
+        p0, p1, p2, p3 = pts[max(0, i - 1)], pts[i], pts[i + 1], pts[min(len(pts) - 1, i + 2)]
+        for k in range(n):
+            t = k / n
+            out.append(tuple(0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t * t
+                                    + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t ** 3) for j in (0, 1)))
+    out.append(pts[-1])
+    return out
+
+
+def trend_graphic(pkg, cfg):
+    from datetime import date
+    from .theme import z
+    tz = ZoneInfo(cfg["timezone"])
+    days = [d for d in pkg.get("days", [])[: cfg.get("frost_trend_days", 7)] if d.get("low") is not None]
+    if len(days) < 3:
+        return None
+    if min(d["low"] for d in days) > cfg.get("frost_trend_max", 42) and not cfg.get("frost_always"):
+        print("  - frost_trend: lows stay well above frost, skipped")
+        return None
+    mornings = [date.fromisoformat(d["date"]) + timedelta(days=1) for d in days]  # the low is reached the morning after
+    cv = Canvas(cfg)
+    cv.header("FROST & FREEZE FORECAST", f"{pkg['location'].get('name', 'NORFOLK').upper()}  ·  FORECAST MORNING LOWS")
+    tall = cv.H > cv.W
+    x0, y0 = cv.M, 200
+    W = cv.W - 2 * cv.M
+    lw = 250 if tall else 380
+    dayh = 96
+    bh = min(150 if not tall else 190, (cv.H - y0 - dayh - 110) / 5)
+    px0, pw = x0 + lw, W - lw
+    d = cv.d
+    for i, (name, col, _, _) in enumerate(TREND_BANDS):
+        y = y0 + i * bh
+        cv.rect(x0, y, lw, bh, (*[int(c * 0.9) for c in col], 255))
+        cv.rect(px0, y, pw, bh, (*col, 235))
+        cv.text(x0 + lw / 2, y + bh / 2, name, 22 if tall else 32, "bold", (255, 255, 255), anchor="mm", maxw=lw - 24)
+    cv.rect(px0 - 3, y0, 4, 5 * bh, (255, 255, 255, 255))
+    by = y0 + 5 * bh
+    cv.rect(x0, by, W, dayh, (20, 31, 54, 235))
+    n = len(days)
+    xs = [px0 + pw * (i + 0.5) / n for i in range(n)]
+    ys = [_trend_y(d_["low"], y0, bh) for d_ in days]
+    pts = _smooth(list(zip(xs, ys)))
+    zp = [(z(a), z(b)) for a, b in pts]
+    d.line(zp, fill=(13, 21, 38, 255), width=z(15), joint="curve")
+    d.line(zp, fill=(255, 255, 255, 255), width=z(6), joint="curve")
+    low_i = min(range(n), key=lambda i: days[i]["low"])
+    for i, (x, y) in enumerate(zip(xs, ys)):
+        r = 12
+        d.ellipse([z(x - r), z(y - r), z(x + r), z(y + r)], fill=(13, 21, 38, 255))
+        cv.text(x, y + 44 if y < y0 + 5 * bh - 60 else y - 44, f"{round(days[i]['low'])}°", 26 if not tall else 24, "bold", (255, 255, 255), anchor="mm")
+        wd = mornings[i].strftime("%a").upper()
+        cv.text(x, by + 34, wd, 28 if not tall else 24, "bold", anchor="mm")
+        cv.text(x, by + 68, f"{mornings[i].month}/{mornings[i].day}", 18, "medium", C["muted"], anchor="mm")
+    x, y = xs[low_i], ys[low_i]
+    d.ellipse([z(x - 40), z(y - 24), z(x + 40), z(y + 24)], outline=(255, 205, 60, 255), width=z(6))
+    cv.footer(pkg, source="NWS FORECAST LOWS · CATEGORIES ASSUME A CALM, CLEAR NIGHT")
+    return cv
+
+
 def frost_graphics(pkg, cfg):
+    tr = trend_graphic(pkg, cfg)
+    out = _frost_tables_and_maps(pkg, cfg)
+    return ([("frost_trend", tr)] if tr else []) + (out or []) or None
+
+
+def _frost_tables_and_maps(pkg, cfg):
     labels, rows, src = table_data(pkg, cfg)
     if not rows:
         return None
