@@ -35,6 +35,8 @@ jobs:
       TZ: America/New_York
       HAS_DRIVE: ${{ secrets.RCLONE_CONF != '' }}
       DRIVE_FOLDER: ${{ vars.DRIVE_FOLDER || 'Weather Graphics' }}
+      # "Weather Graphics from Script" on My Drive; set the repo variable DRIVE_FOLDER_ID to send them somewhere else
+      DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID || '1nRuVCaYYN4AEyGgKftsa-ITFG1B6589g' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -98,9 +100,18 @@ jobs:
           mkdir -p ~/.config/rclone
           printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
           REMOTE="$(rclone listremotes | head -n1)"
+          if [ -z "$REMOTE" ]; then
+            echo "::error::RCLONE_CONF has no remote in it (it must start with a [name] line, e.g. [gdrive], followed by type = drive and token = {...}). Nothing was copied to Google Drive."
+            exit 1
+          fi
+          echo "Using rclone remote: $REMOTE"
+          # point the remote straight at the Drive folder by its ID (the ID in the folder's web address)
+          if [ -n "$DRIVE_FOLDER_ID" ]; then DEST="${REMOTE%:},root_folder_id=${DRIVE_FOLDER_ID}:"; else DEST="${REMOTE}${DRIVE_FOLDER}"; fi
+          echo "Checking access to the Drive folder..."
+          rclone lsf "$DEST" --max-depth 1 --dirs-only | head -n 20 || { echo "::error::Can't open the Google Drive folder. Check the rclone token and that the folder ID is right."; exit 1; }
           # full runs mirror the folder (old alert maps are removed); partial runs only add/replace
           if [ -z "$(echo "$ONLY" | tr -d ' ')" ]; then MODE=sync; else MODE=copy; fi
-          rclone "$MODE" output/latest_rickywx "${REMOTE}${DRIVE_FOLDER}" --exclude "*.tmp" --transfers 8 --stats-one-line -v
+          rclone "$MODE" output/latest_rickywx "$DEST" --exclude "*.tmp" --transfers 8 --stats-one-line --stats 30s -v
 
   deploy:
     needs: build
