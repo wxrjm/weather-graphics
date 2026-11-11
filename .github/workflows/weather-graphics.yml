@@ -46,11 +46,13 @@ jobs:
           cache: pip
 
       - name: Install
-        timeout-minutes: 10  # a stalled Ubuntu mirror used to hang the whole run
+        timeout-minutes: 12
         run: |
-          sudo apt-get update -qq -o Acquire::Retries=3 -o Acquire::http::Timeout=30
-          sudo apt-get install -y -qq -o Acquire::Retries=3 -o Acquire::http::Timeout=30 libeccodes-dev > /dev/null
-          pip install -q -r requirements.txt eccodes numpy
+          # the Ubuntu library is only a fallback: pip's eccodes ships its own (eccodeslib), so a mirror outage can't stop the run
+          timeout 150 sudo apt-get update -qq -o Acquire::Retries=2 -o Acquire::http::Timeout=20 || echo "apt update unavailable - skipping"
+          timeout 150 sudo apt-get install -y -qq libeccodes-dev > /dev/null 2>&1 || echo "libeccodes-dev not installed - using the pip eccodes library"
+          pip install -q -r requirements.txt eccodes eccodeslib numpy
+          python -c "import eccodes; print('eccodes', eccodes.__version__)"
 
       - name: Restore last graphics and data cache
         uses: actions/cache/restore@v4
