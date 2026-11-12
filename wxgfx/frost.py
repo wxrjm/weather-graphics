@@ -265,8 +265,27 @@ def _map_graphic(night, idx, pkg, cfg):
     fullscreen.attach(cv, title=title, subtitle=subtitle,
                       map_fn=lambda pw, ph, view: outlookmap.draw_map([], pw, ph, cfg, outline=False, painter=paint, view=view),
                       box=tuple(cfg.get("outlook_view") or outlookmap.VIEW_BOX), head_label=area, head_value=head,
-                      head_col=lv[3], meaning=meaning, rows=rows, overlay=lambda c, x, y, w: _legend(c, x, y, w), source=src)
+                      head_col=lv[3], meaning=meaning, rows=rows, overlay=lambda c, x, y, w: _legend(c, x, y, w), source=src,
+                      legend_items=lambda ext: _levels_on_map(field, ext))
     return cv
+
+
+def _levels_on_map(field, ext):
+    """[(colour, name)] for each frost / freeze class actually painted inside the view, mildest first (same colours as the map)."""
+    import numpy as np
+    w, e, s_, n = ext
+    la, lo = np.broadcast_arrays(*np.meshgrid(field["lon"], field["lat"])[::-1]) if np.ndim(field["lat"]) == 1 else (field["lat"], field["lon"])
+    v = np.asarray(field["val"])
+    m = (la >= s_) & (la <= n) & (lo >= w) & (lo <= e) & ~np.isnan(v)
+    if not m.any():
+        return []
+    vals = v[m]
+    out = []
+    for k, (t, col) in enumerate(BINS):
+        hi = BINS[k + 1][0] if k + 1 < len(BINS) else 1e9
+        if ((vals >= t) & (vals < hi)).any():
+            out.append((col, LEVELS[k + 1][1]))
+    return out
 
 
 def z_(v):

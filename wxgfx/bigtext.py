@@ -103,7 +103,7 @@ def _pick_callouts(rows, coords, proj, area, n):
 
 
 def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value, head_col, meaning, rows,
-           overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None, credit_text=None, legend_fn=None, legend_bins=None, legend_unit=None):
+           overlay=None, source=None, callout_rows=None, big_caption=None, big_tagline=None, credit_text=None, legend_fn=None, legend_bins=None, legend_unit=None, legend_items=None):
     o = _opts(pkg, cfg, name)
     cv = Canvas(cfg)
     cv.social = False  # these layouts are already built for social / full-screen sizes
@@ -184,7 +184,10 @@ def render(pkg, cfg, name, title, subtitle, map_fn, box, head_label, head_value,
     # ---- legend bar (outside the map): value scale ("strip"), places with values ("cities"), or both
     def _legend_row(kind, ry, rh, fs0):
         plotted = legend_fn((vw, ve, vs, vn)) if (legend_fn and kind != "cities") else None
-        if plotted and legend_bins:  # only the colors that actually appear on the map
+        fixed = legend_items((vw, ve, vs, vn)) if callable(legend_items) else legend_items
+        if fixed and kind != "cities":  # the graphic says exactly which colour keys are on the map
+            items = [("", c, lab) for c, lab in fixed]
+        elif plotted and legend_bins:  # only the colors that actually appear on the map
             lo, hi = plotted
             un = str(legend_unit or "")
             if un.upper() in ("IN", '"'):  # rainfall: whole 0.5" steps, never below 0.5"
