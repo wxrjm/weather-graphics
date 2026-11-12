@@ -6,7 +6,7 @@ All of them read pkg["hourly_ext"] (hourly temp, rain chance, qpf and precip typ
 """
 import math
 import random
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageDraw, ImageFilter
@@ -177,7 +177,60 @@ def _sky_kind(icon, temp):
     return "sun"
 
 
+def _md(d):
+    return f"{d.strftime('%a').upper()} {d.month}/{d.day}"
+
+
+def _split(pkg, cfg, left, right):
+    """Big split-screen comparison. left / right = (label, sub-label or "", value, sky kind, condition)."""
+    cv = Canvas(cfg)
+    W, H = cv.W, cv.H
+    if cv.tall:
+        _panel(cv, 0, 0, W, H / 2, left[3], 3)
+        _panel(cv, 0, H / 2, W, H / 2, right[3], 8)
+        boxes = [(0, 0, W, H / 2), (0, H / 2, W, H / 2)]
+        cv.rect(0, H / 2 - 4, W, 8, (206, 74, 50, 255))
+    else:
+        _panel(cv, 0, 0, W / 2, H, left[3], 3)
+        _panel(cv, W / 2, 0, W / 2, H, right[3], 8)
+        boxes = [(0, 0, W / 2, H), (W / 2, 0, W / 2, H)]
+        cv.rect(W / 2 - 4, 0, 8, H, (206, 74, 50, 255))
+    delta = right[2] - left[2]
+    for (bx, by, bw, bh), (lab, sub, val, _, cond) in zip(boxes, (left, right)):
+        cx = bx + bw / 2
+        two = " " in lab and len(lab) > 9
+        words = lab.split(" ", 1) if two else [lab]
+        ls = min(112 if not cv.tall else min(96, bh * 0.14), bw / (max(len(w) for w in words) * 0.66))
+        if sub:
+            ls *= 0.86
+        ly = by + bh * (0.11 if not cv.tall else 0.07)
+        for i, wd in enumerate(words):
+            cv.text(cx, ly + i * ls * 1.04, wd, ls, "bold", anchor="mt", stroke=2, stroke_fill=(10, 16, 30, 120))
+        if sub:
+            cv.text(cx, ly + len(words) * ls * 1.04 + 6, sub, 40 if not cv.tall else 32, "bold", (255, 255, 255, 235), anchor="mt",
+                    stroke=2, stroke_fill=(10, 16, 30, 120))
+        ny = by + bh * (0.72 if not cv.tall else 0.75) if sub else by + bh * (0.70 if not cv.tall else 0.73)
+        ns = min(bh * (0.46 if not cv.tall else 0.38) if sub else bh * (0.5 if not cv.tall else 0.42), bw / 2.1)
+        cv.text(cx, ny, f"{val}°", ns, "bold", anchor="ms", stroke=3, stroke_fill=(10, 16, 30, 90))
+        if cond:
+            cv.text(cx, ny + bh * (0.1 if not cv.tall else 0.06), cond.upper(), 38 if not cv.tall else 32, "bold", (255, 255, 255, 235), anchor="mt", maxw=bw - 100, stroke=2, stroke_fill=(10, 16, 30, 120))
+    if abs(delta) >= 3:
+        word = f"{abs(delta)}° {'COLDER' if delta < 0 else 'WARMER'}"
+        pw_ = cv.width(word, 38) + 64
+        px_, py_ = W / 2 - pw_ / 2, (H / 2 - 30 if cv.tall else H - 150)
+        cv.rect(px_, py_, pw_, 62, (13, 21, 38, 230), r=31)
+        cv.text(W / 2, py_ + 31, word, 38, "bold", anchor="mm")
+    cv.logo(H - 16 if not cv.tall else H - 52)
+    cv.text(cv.M, H - 34, f"DATA: {pkg.get('source', 'NWS NDFD').upper()}  ·  GRAPHIC CREATED: {pkg['issued_label'].upper()}", 19, "medium", (255, 255, 255, 235), anchor="ls", stroke=2, stroke_fill=(10, 16, 30, 160))
+    return cv
+
+
+def _cold_kind(v):
+    return "frost" if v <= 32 else "cold" if v <= 45 else "night"
+
+
 def today_vs_tomorrow(pkg, cfg):
+    """Today's high vs tomorrow morning's low, plus today's high vs tomorrow afternoon's high."""
     rows, tz = _rows(pkg, cfg)
     days = pkg.get("days") or []
     if not days or len(rows) < 8:
@@ -197,47 +250,47 @@ def today_vs_tomorrow(pkg, cfg):
         d1 = days[1] if len(days) > 1 else days[0]
         right_val, right_cond = d1["low"], d1["night_cond"]
     right_lab = "THIS MORNING" if target == first.date() else "TOMORROW MORNING"
-    if left_val is None or right_val is None:
+    out = []
+    if left_val is not None and right_val is not None:
+        out.append(("today_vs_tomorrow", _split(pkg, cfg, (left_lab, "", left_val, _sky_kind(left_icon, left_val), left_cond),
+                                                (right_lab, "", right_val, _cold_kind(right_val), right_cond))))
+    # afternoon vs afternoon: today's high against tomorrow's high (apples to apples, even in the evening)
+    today_d = next((d for d in days if date.fromisoformat(d["date"]) == first.date()), None)
+    tom = next((d for d in days if date.fromisoformat(d["date"]) == first.date() + timedelta(days=1)), None)
+    t_hi, t_icon, t_cond = (today_d["high"], today_d["icon"], today_d["cond"]) if today_d and today_d.get("high") is not None else (None, None, None)
+    if t_hi is None:  # the daily list has already rolled to tomorrow: use the warmest hour left today, or the current temperature
+        today_rows = [r for r in rows if r["t"].date() == first.date() and r["temp"] is not None]
+        if today_rows:
+            best = max(today_rows, key=lambda r: r["temp"])
+            t_hi, t_icon, t_cond = best["temp"], best["icon"] or "partly", best["cond"]
+    if t_hi is not None and tom and tom.get("high") is not None:
+        out.append(("today_vs_tomorrow_pm", _split(pkg, cfg,
+                    ("TODAY", "AFTERNOON HIGH", t_hi, _sky_kind(t_icon, t_hi), t_cond),
+                    ("TOMORROW", "AFTERNOON HIGH", tom["high"], _sky_kind(tom["icon"], tom["high"]), tom["cond"]))))
+    return out or None
+
+
+def week_extremes(pkg, cfg):
+    """7-day extremes: warmest afternoon vs coldest morning, and warmest afternoon vs coldest afternoon."""
+    days = [d for d in (pkg.get("days") or [])[:7]]
+    hi = [d for d in days if d.get("high") is not None]
+    lo = [d for d in days if d.get("low") is not None]
+    if len(hi) < 3:
         return None
-    cv = Canvas(cfg)
-    W, H = cv.W, cv.H
-    lk = _sky_kind(left_icon, left_val)
-    rk = "frost" if right_val <= 32 else "cold" if right_val <= 45 else "night"
-    if cv.tall:
-        _panel(cv, 0, 0, W, H / 2, lk, 3)
-        _panel(cv, 0, H / 2, W, H / 2, rk, 8)
-        boxes = [(0, 0, W, H / 2), (0, H / 2, W, H / 2)]
-        cv.rect(0, H / 2 - 4, W, 8, (206, 74, 50, 255))
-    else:
-        _panel(cv, 0, 0, W / 2, H, lk, 3)
-        _panel(cv, W / 2, 0, W / 2, H, rk, 8)
-        boxes = [(0, 0, W / 2, H), (W / 2, 0, W / 2, H)]
-        cv.rect(W / 2 - 4, 0, 8, H, (206, 74, 50, 255))
-    delta = right_val - left_val
-    for (bx, by, bw, bh), lab, val, cond in zip(boxes, (left_lab, right_lab), (left_val, right_val), (left_cond, right_cond)):
-        cx = bx + bw / 2
-        two = " " in lab and len(lab) > 9
-        words = lab.split(" ", 1) if two else [lab]
-        ls = min(112 if not cv.tall else min(96, bh * 0.14), bw / (max(len(w) for w in words) * 0.66))
-        ly = by + bh * (0.13 if not cv.tall else 0.09)
-        for i, wd in enumerate(words):
-            cv.text(cx, ly + i * ls * 1.04, wd, ls, "bold", anchor="mt", stroke=2, stroke_fill=(10, 16, 30, 120))
-        ny = by + bh * (0.70 if not cv.tall else 0.73)
-        ns = min(bh * (0.5 if not cv.tall else 0.42), bw / 2.1)
-        cv.text(cx, ny, f"{val}°", ns, "bold", anchor="ms", stroke=3, stroke_fill=(10, 16, 30, 90))
-        if cond:
-            cv.text(cx, ny + bh * (0.1 if not cv.tall else 0.06), cond.upper(), 38 if not cv.tall else 32, "bold", (255, 255, 255, 235), anchor="mt", maxw=bw - 100, stroke=2, stroke_fill=(10, 16, 30, 120))
-    if abs(delta) >= 3:
-        word = f"{abs(delta)}° {'COLDER' if delta < 0 else 'WARMER'}"
-        pw_ = cv.width(word, 38) + 64
-        px_, py_ = W / 2 - pw_ / 2, (H / 2 - 30 if cv.tall else H - 150)
-        if cv.tall:
-            py_ = H / 2 - 30
-        cv.rect(px_, py_, pw_, 62, (13, 21, 38, 230), r=31)
-        cv.text(W / 2, py_ + 31, word, 38, "bold", anchor="mm")
-    cv.logo(H - 16 if not cv.tall else H - 52)
-    cv.text(cv.M, H - 34, f"DATA: {pkg.get('source', 'NWS NDFD').upper()}  ·  GRAPHIC CREATED: {pkg['issued_label'].upper()}", 19, "medium", (255, 255, 255, 235), anchor="ls", stroke=2, stroke_fill=(10, 16, 30, 160))
-    return cv
+    warm = max(hi, key=lambda d: d["high"])
+    wdate = date.fromisoformat(warm["date"])
+    left = ("WARMEST DAY", _md(wdate), warm["high"], _sky_kind(warm["icon"], warm["high"]), warm["cond"])
+    out = []
+    if lo:
+        cold = min(lo, key=lambda d: d["low"])
+        mdate = date.fromisoformat(cold["date"]) + timedelta(days=1)  # the low is reached the morning after
+        out.append(("week_warmest_vs_coldest_morning", _split(pkg, cfg, left,
+                    ("COLDEST MORNING", _md(mdate), cold["low"], _cold_kind(cold["low"]), cold.get("night_cond")))))
+    cool = min(hi, key=lambda d: d["high"])
+    if cool is not warm:
+        out.append(("week_warmest_vs_coldest_afternoon", _split(pkg, cfg, left,
+                    ("COLDEST AFTERNOON", _md(date.fromisoformat(cool["date"])), cool["high"], _sky_kind(cool["icon"], cool["high"]), cool["cond"]))))
+    return out or None
 
 
 # ------------------------------------------------------------------ WHAT TO EXPECT
