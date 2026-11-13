@@ -75,8 +75,6 @@ def _night_label(evening, today):
     m = evening + timedelta(days=1)
     if m == today:
         return "THIS MORNING"
-    if m == today + timedelta(days=1):
-        return "TOMORROW MORNING · " + f"{m.strftime('%a').upper()} {m.month}/{m.day}"
     return f"{m.strftime('%a').upper()} {m.month}/{m.day} MORNING"
 
 
