@@ -402,23 +402,29 @@ def yesterday(pkg, cfg):
 
 
 def _bar_pair(cv, box, title, obs, normal, dep):
+    """Observed vs normal as two vertical columns, with the surplus / deficit pill under them."""
     x, y, w, h = box
     cv.rect(x, y, w, h, C["panel"], r=16)
-    cv.text(x + 30, y + 30, title, 26, "bold", C["muted"], anchor="lt")
-    top = max(obs or 0, normal or 0) * 1.15 or 1
-    bx, bw = x + 200, w - 270
-    bh = 58
+    narrow = w < 700
+    cv.text(x + w / 2, y + 30, title, 30 if not narrow else 28, "bold", C["muted"], anchor="mt")
+    top = max(obs or 0, normal or 0) * 1.12 or 1
+    col_w = min(190, w * 0.3)
+    gap = min(90, w * 0.12)
+    base = y + h - 150  # bottom of the columns
+    ctop = y + 140  # tallest column reaches here (value label sits above it)
     for i, (lab, v, col) in enumerate((("OBSERVED", obs, (88, 170, 255)), ("NORMAL", normal, (176, 190, 212)))):
-        by = y + 84 + i * (bh + 18)
-        cv.text(x + 30, by + bh / 2, lab, 22, "bold", anchor="lm")
-        cv.rect(bx, by, bw, bh, (255, 255, 255, 20), r=10)
-        fw = max(12, bw * (v or 0) / top / 1.0)
-        cv.rect(bx, by, fw, bh, (*col, 255), r=10)
-        cv.text(bx + fw + 14, by + bh / 2, _in(v), 30, "bold", anchor="lm") if fw < bw - 130 else \
-            cv.text(bx + fw - 14, by + bh / 2, _in(v), 30, "bold", (20, 28, 46), anchor="rm")
+        cx = x + w / 2 + (i - 0.5) * (col_w + gap)
+        bx = cx - col_w / 2
+        cv.rect(bx, ctop - 20, col_w, base - ctop + 20, (255, 255, 255, 16), r=12)  # empty track
+        fh = max(10, (base - ctop) * (v or 0) / top)
+        cv.rect(bx, base - fh, col_w, fh, (*col, 255), r=12)
+        cv.text(cx, base - fh - 14, _in(v), 50 if not narrow else 40, "bold", anchor="ms")
+        cv.text(cx, base + 18, lab, 24 if not narrow else 22, "bold", anchor="mt")
     col = GOOD if (dep or 0) >= 0 else WARN
     txt = (f"{abs(dep):.2f}\" SURPLUS" if dep >= 0 else f"{abs(dep):.2f}\" DEFICIT") if dep is not None else "--"
-    pill(cv, x + 30, y + 84 + 2 * (bh + 18) + 8, txt, col, 26)
+    fs = 30 if not narrow else 26
+    pw = cv.width(txt, fs, "bold") + 28
+    pill(cv, x + w / 2 - pw / 2, base + 64, txt, col, fs)
 
 
 def month_rain(pkg, cfg):
@@ -431,13 +437,7 @@ def month_rain(pkg, cfg):
     cv.header("RAINFALL SO FAR", f"NORFOLK INTERNATIONAL AIRPORT  ·  THROUGH {d.strftime('%b').upper()} {d.day}{asof}" if d else "")
     x, y, w, h = area(cv)
     pm, py = cli["precip_month"], cli.get("precip_year") or {}
-    if not cv.tall:
-        hh = min(h, 340)
-        y, h = y, hh
-    else:
-        hh = min(h, 2 * 340 + 22)
-        y, h = y, hh
-    boxes = grid(x, y, w, h, 2, 1 if cv.tall else 2, 22)
+    boxes = grid(x, y, w, h, 2, 2, 22)  # side by side in every size: two tall column charts
     _bar_pair(cv, boxes[0], (d.strftime("%B").upper() if d else "THIS MONTH"), pm.get("obs"), pm.get("normal"), pm.get("departure"))
     _bar_pair(cv, boxes[1], f"{d.year if d else ''} SO FAR", py.get("obs"), py.get("normal"), py.get("departure"))
     footer(cv, pkg)
