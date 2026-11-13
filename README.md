@@ -429,6 +429,10 @@ wordmark is drawn. Colors can be overridden in `config.json` → `"colors"` (key
 ### Frost risk maps (season and temperature rule)
 The regional `Frost Map` graphics are only made Sep-Nov and Mar-May (`frost_map_months`), and only for nights when the forecast low is below 38 anywhere in the region (`frost_map_below` (default 38), `frost_map_region` = west, east, south, north; default VA/NC around Hampton Roads). `frost_always` forces them.
 
+### Pressure trend and Aches & Pains (`pressure`, Forecast folder)
+Hourly sea-level pressure for Norfolk from Open-Meteo (keyless; NDFD has no pressure). `7 Day Pressure Trend` draws the line in inHg (mb on the right), orange where it falls 6+ mb in 24 hours and teal where it rises that fast (`pressure_fast_mb`), with the week's high and low marked.
+`Aches and Pains Forecast` rates each day by the biggest 24-hour pressure change that day, up or down: under 5 mb Low, 5-8 Moderate, 8-12 High, 12+ Very High (`aches_thresholds_mb`); a day whose high is 15°F+ different from the day before goes up one level (`aches_temp_swing`).
+
 ### Recorded lows and highs (`asos_temps`, Temperature folder)
 Lowest and highest hourly ASOS reading since midnight at ~26 Hampton Roads / VA / NC stations (`api.weather.gov` observations, keyless). Makes `Recorded Lows So Far Today Map/Table` and `Recorded Highs So Far Today Map/Table`.
 `asos_temps_mode`: `auto` (default; low appears once KORF is 2+ hours past its low and warming, or from 10 AM; high once KORF is 1+ hour past its peak after 1 PM, or from 5 PM), `both`, `low`, `high`.

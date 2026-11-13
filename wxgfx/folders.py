@@ -11,7 +11,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
     ("Holidays", lambda n: n == "holiday_countdown" or n.endswith("_forecast")),
     ("Model Data", lambda n: n.startswith(("model_", "rrfs_"))),
     ("Forecast", lambda n: n in ("daily", "what_to_know", "7day", "hourly", "current", "commute", "weekend",
-                                    "holiday_countdown", "rain_timing", "sunset_quality", "precip_timeline", "today_vs_tomorrow", "today_vs_tomorrow_pm", "week_warmest_vs_coldest_morning", "week_warmest_vs_coldest_afternoon", "what_to_expect") or n.startswith(("fronts_", "city_table"))),
+                                    "holiday_countdown", "rain_timing", "sunset_quality", "precip_timeline", "pressure_trend", "aches_pains", "today_vs_tomorrow", "today_vs_tomorrow_pm", "week_warmest_vs_coldest_morning", "week_warmest_vs_coldest_afternoon", "what_to_expect") or n.startswith(("fronts_", "city_table"))),
     ("Hazard Outlooks", lambda n: n.startswith("hazout")),
     ("Safety Graphics", lambda n: n.startswith("safety_")),
     ("SPC Outlooks", lambda n: n.startswith(("spc_", "state_spc"))),
@@ -57,7 +57,7 @@ TITLES = {
     "obs_rain": "Observed Rainfall", "gust_bars_48": "48 Hour Gust Bars", "gust_bars_48_dir": "48 Hour Gust Bars With Wind Direction", "gust_table_48": "48 Hour Gust Table",
     "gust_peaks": "Peak Gusts", "cpc_8_14": "CPC 8-14 Day", "cpc_3_7": "CPC 3-7 Day", "sound_flood": "Sound Side Flooding",
     "what_to_know": "What to Know", "weather_aware": "Be Weather Aware", "feels_like": "Heat Index", "month_rain": "Rainfall So Far",
-    "yesterday": "Climate Report", "frost_trend": "Frost & Freeze Forecast", "state_spc_day4_8": "SPC Day 4-8 Severe Outlook", "drought_stencil": "Drought Monitor VA NC Stencil", "drought": "Drought Monitor", "temp_drop": "Temperature Drop", "wpc_qpf": "Rainfall Potential",
+    "yesterday": "Climate Report", "aches_pains": "Aches and Pains Forecast", "pressure_trend": "7 Day Pressure Trend", "frost_trend": "Frost & Freeze Forecast", "state_spc_day4_8": "SPC Day 4-8 Severe Outlook", "drought_stencil": "Drought Monitor VA NC Stencil", "drought": "Drought Monitor", "temp_drop": "Temperature Drop", "wpc_qpf": "Rainfall Potential",
 }
 
 
