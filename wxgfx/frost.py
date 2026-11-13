@@ -266,7 +266,8 @@ def _map_graphic(night, idx, pkg, cfg):
                       map_fn=lambda pw, ph, view: outlookmap.draw_map([], pw, ph, cfg, outline=False, painter=paint, view=view),
                       box=tuple(cfg.get("outlook_view") or outlookmap.VIEW_BOX), head_label=area, head_value=head,
                       head_col=lv[3], meaning=meaning, rows=rows, overlay=lambda c, x, y, w: _legend(c, x, y, w), source=src,
-                      legend_items=lambda ext: _levels_on_map(field, ext))
+                      legend_items=lambda ext: _levels_on_map(field, ext),
+                      big_tagline=(f"{loc.get('short', 'Norfolk')}: {round(hl)}°  ·  {lv[1]}" if hl is not None else None))
     return cv
 
 
