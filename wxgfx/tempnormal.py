@@ -15,6 +15,12 @@ def _s(v):
     return f"+{v}°" if v > 0 else f"-{abs(v)}°" if v < 0 else "0°"
 
 
+def _r(x):
+    """Round halves away from zero (-0.5 -> -1, 6.5 -> 7); Python's round() sends halves to the even number (-0.5 -> 0)."""
+    import math
+    return int(math.copysign(math.floor(abs(x) + 0.5), x))
+
+
 def temp_vs_normal_graphic(pkg, cfg):
     days = [d for d in (pkg.get("days") or [])[:7] if d.get("high") is not None and d.get("low") is not None]
     if len(days) < 3:
@@ -25,7 +31,7 @@ def temp_vs_normal_graphic(pkg, cfg):
         nh, nl = normal_temps(_date.fromisoformat(d["date"]))
         nh, nl = round(nh), round(nl)
         val, norm = {"high": (d["high"], nh), "low": (d["low"], nl)}.get(metric, ((d["high"] + d["low"]) / 2, (nh + nl) / 2))
-        rows.append({"d": d, "dep": round(val - norm), "norm": norm, "val": val, "nh": nh, "nl": nl})
+        rows.append({"d": d, "dep": _r(val - norm), "norm": norm, "val": val, "nh": nh, "nl": nl})
     avg = sum(r["dep"] for r in rows) / len(rows)
     word = {"high": "HIGH TEMPERATURES", "low": "LOW TEMPERATURES"}.get(metric, "AVERAGE TEMPERATURE")
     cv = Canvas(cfg)

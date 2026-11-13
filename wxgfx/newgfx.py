@@ -408,8 +408,12 @@ def _chips(cv, x_right, y, items, title=None):
 
 
 def _bar_legend(cv, bins, unit, title):
-    bw = min(900, 64 * len(bins) + 40)
-    x, y = cv.W - cv.M - bw, cv.H - 118
+    if cv.W > cv.H:  # wide: bottom-left, the empty corner west of the NC mountains (bottom-right is the NC coast)
+        bw = min(720, 50 * len(bins) + 30)
+        x, y = cv.M + 10, cv.H - 150
+    else:
+        bw = min(900, 64 * len(bins) + 40)
+        x, y = cv.W - cv.M - bw, cv.H - 118
     cv.rect(x - 10, y - 30, bw + 20, 100, (13, 21, 38, 215), r=12)
     cv.text(x + 4, y - 22, title, 17, "bold", C["muted"], anchor="lt")
     ndfdmap._color_bar(cv, x, y, bins, unit, bw)

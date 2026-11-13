@@ -1262,7 +1262,7 @@ def warm_days(pkg, cfg, mode="warm"):
         n = (ac["normals"].get(d["date"][5:]) or {}).get("hi")
         if n is None or d.get("high") is None:
             continue
-        allrows.append({"d": d, "normal": round(n), "dep": round(d["high"] - n)})
+        allrows.append({"d": d, "normal": round(n), "dep": int(__import__("math").copysign(__import__("math").floor(abs(d["high"] - n) + 0.5), d["high"] - n))})
     if mode == "cool":
         need = cfg.get("cool_departure_min", 5)
         return [r for r in allrows if r["dep"] <= -need], allrows
