@@ -931,12 +931,37 @@ def fetch_warning_counts(http, cfg, now):
 
 
 # ====================================================================== TROPICS
+# Atlantic vs Pacific: the dividing line runs down the middle of Mexico and Central America (lat, lon), so the
+# Gulf of Mexico and the Caribbean count as Atlantic and everything west of the line (East / Central Pacific) is dropped.
+_DIVIDE = [(0, -77.5), (8.0, -77.5), (9.5, -80.5), (11.0, -84.5), (13.5, -87.5), (15.5, -91.5), (18.0, -94.5),
+           (22.0, -101.0), (30.0, -106.0), (90.0, -106.0)]
+
+
+def is_atlantic(lon, lat):
+    if lon is None or lat is None or lon > 0 or lat < 0:
+        return False
+    for (la0, lo0), (la1, lo1) in zip(_DIVIDE, _DIVIDE[1:]):
+        if la0 <= lat <= la1:
+            edge = lo0 + (lo1 - lo0) * (lat - la0) / ((la1 - la0) or 1)
+            return lon > edge
+    return False
+
+
+def _centroid(polys):
+    pts = [pt for poly in polys[:1] for pt in poly[0]] if polys else []
+    if not pts:
+        return None, None
+    return sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts)
+
+
 def fetch_tropics(http, cfg):
     storms = []
     try:
         d = http.get(NHC_STORMS)
         for s in d.get("activeStorms", []):
             if not str(s.get("id", "")).lower().startswith(("al",) if cfg.get("tropics_basin", "al") == "al" else ("",)):
+                continue
+            if cfg.get("tropics_basin", "al") == "al" and not is_atlantic(_num(s.get("longitudeNumeric")), _num(s.get("latitudeNumeric"))):
                 continue
             storms.append({"name": s.get("name"), "class": s.get("classification"), "wind_kt": _intf(s.get("intensity")),
                            "pressure": _intf(s.get("pressure")), "lat": s.get("latitudeNumeric"), "lon": s.get("longitudeNumeric"),
@@ -993,6 +1018,10 @@ def fetch_tropics(http, cfg):
                     print(f"   [tropics] layer {lid} ({kind}): ok")
     except Exception as e:
         http.log(f"NHC map layers: {e}")
+    if cfg.get("tropics_basin", "al") == "al":  # the NHC map service mixes Atlantic, East and Central Pacific shapes
+        areas = [a for a in areas if is_atlantic(*_centroid(a["polys"]))]
+        cones = [c for c in cones if is_atlantic(*_centroid(c["polys"]))]
+        tracks = [t for t in tracks if t and is_atlantic(*t[0])]
     return {"storms": storms, "areas": areas, "cones": cones, "tracks": tracks}
 
 
