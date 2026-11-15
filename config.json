@@ -69,6 +69,7 @@
     "hazout",
     "asos_temps",
     "pressure",
+    "nbm_temps",
     "obs_rain",
     "city_table",
     "rain_timing",

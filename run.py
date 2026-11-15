@@ -352,6 +352,13 @@ def main():
         else:
             print("Fetching NDFD wind chill for the VA/NC state map...")
             pkg["_statewindchill"] = statemaps.fetch_windchill(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if "nbm_temps" in (cfg.get("graphics") or []) and (only_set is None or "nbm_temps" in only_set):
+        from wxgfx import nbmtemps
+        if args.sample:
+            pkg["_nbm_temps"] = nbmtemps.sample(now, tz)
+        else:
+            print("Fetching NBM 10-day highs and lows...")
+            pkg["_nbm_temps"] = nbmtemps.fetch(cfg["location"]["lat"], cfg["location"]["lon"], cfg)
     if "pressure" in (cfg.get("graphics") or []) and (only_set is None or "pressure" in only_set):
         from wxgfx import pressure
         if args.sample:

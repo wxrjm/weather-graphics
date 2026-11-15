@@ -17,7 +17,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
     ("SPC Outlooks", lambda n: n.startswith(("spc_", "state_spc"))),
     ("Severe & Alerts", lambda n: n.startswith(("nadocast", "alert", "weather_aware", "warning_count"))),
     ("Temperature", lambda n: n.startswith(("feels_like", "wind_chill", "dewpoints", "above_average", "below_average", "record_watch",
-                                               "first_freeze", "asos_", "frost_", "freeze_", "temp_drop", "state_highs", "state_lows", "state_windchill", "state_dew", "state_frost", "hr_highs", "hr_lows", "degree_days", "temp_vs_normal"))),
+                                               "first_freeze", "asos_", "nbm_", "frost_", "freeze_", "temp_drop", "state_highs", "state_lows", "state_windchill", "state_dew", "state_frost", "hr_highs", "hr_lows", "degree_days", "temp_vs_normal"))),
     ("Rain & Flooding", lambda n: n.startswith(("rain_totals", "wpc_qpf", "ero_", "state_qpf", "state_ero", "obs_rain", "state_pop", "ffg_", "rain_reports",
                                                    "storm_rain_reports", "river"))),
     ("Snow & Ice", lambda n: n.startswith(("snow", "state_snow", "ice_", "wssi", "storm_snow_reports"))),
@@ -57,7 +57,7 @@ TITLES = {
     "obs_rain": "Observed Rainfall", "gust_bars_48": "48 Hour Gust Bars", "gust_bars_48_dir": "48 Hour Gust Bars With Wind Direction", "gust_table_48": "48 Hour Gust Table",
     "gust_peaks": "Peak Gusts", "cpc_8_14": "CPC 8-14 Day", "cpc_3_7": "CPC 3-7 Day", "sound_flood": "Sound Side Flooding",
     "what_to_know": "What to Know", "weather_aware": "Be Weather Aware", "feels_like": "Heat Index", "month_rain": "Rainfall So Far",
-    "yesterday": "Climate Report", "aches_pains": "Aches and Pains Forecast", "pressure_trend": "7 Day Pressure Trend", "frost_trend": "Frost & Freeze Forecast", "state_spc_day4_8": "SPC Day 4-8 Severe Outlook", "drought_stencil": "Drought Monitor VA NC Stencil", "drought": "Drought Monitor", "temp_drop": "Temperature Drop", "wpc_qpf": "Rainfall Potential",
+    "yesterday": "Climate Report", "aches_pains": "Aches and Pains Forecast", "nbm_10day": "NBM 10 Day Highs and Lows", "pressure_trend": "7 Day Pressure Trend", "frost_trend": "Frost & Freeze Forecast", "state_spc_day4_8": "SPC Day 4-8 Severe Outlook", "drought_stencil": "Drought Monitor VA NC Stencil", "drought": "Drought Monitor", "temp_drop": "Temperature Drop", "wpc_qpf": "Rainfall Potential",
 }
 
 
