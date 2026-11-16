@@ -49,16 +49,24 @@ def fetch(cfg, today):
                    "elems": [{"name": "maxt"}, {"name": "maxt", "normal": "1"}, {"name": "pcpn"}, {"name": "pcpn", "normal": "1"}]}, ua)
         days = [{"date": r[0], "hi": _num(r[1]), "hi_n": _num(r[2]), "rain": _num(r[3]), "trace": str(r[3]).upper().startswith("T"),
                  "rain_n": _num(r[4])} for r in d.get("data", [])]
-        # full-month normals (for the rain "normal to date" and the month rows)
-        nd = (end - start).days + 1  # the same dates every year: the nd days ending on this month-day
-        y = _post({"sid": sid, "sdate": "por", "edate": end.isoformat(),
-                   "elems": [{"name": "maxt", "interval": [1, 0, 0], "duration": nd, "reduce": {"reduce": "mean", "add": "mcnt"}},
-                             {"name": "pcpn", "interval": [1, 0, 0], "duration": nd, "reduce": {"reduce": "sum", "add": "mcnt"}}]}, ua)
-        years = []
+        # every year's same dates (the 1st through this day of the month), worked out from the full daily record
+        y = _post({"sid": sid, "sdate": "por", "edate": end.isoformat(), "elems": [{"name": "maxt"}, {"name": "pcpn"}]}, ua, timeout=150)
+        nd = end.day
+        acc = {}
         for r in y.get("data", []):
-            hi, pc = r[1], r[2]
-            ok = lambda m: str(m) in ("0", "1")  # allow at most one missing day
-            years.append({"year": int(r[0][:4]), "hi": _num(hi[0]) if ok(hi[1]) else None, "rain": _num(pc[0]) if ok(pc[1]) else None})
+            dt = date.fromisoformat(r[0])
+            if dt.month != start.month or dt.day > nd:
+                continue
+            a = acc.setdefault(dt.year, {"hi": [], "rain": []})
+            hv, pv = _num(r[1]), _num(r[2])
+            if hv is not None:
+                a["hi"].append(hv)
+            if pv is not None:
+                a["rain"].append(pv)
+        years = []
+        for yr, a in sorted(acc.items()):
+            years.append({"year": yr, "hi": sum(a["hi"]) / len(a["hi"]) if len(a["hi"]) >= nd - 1 else None,  # at most one day missing
+                          "rain": sum(a["rain"]) if len(a["rain"]) >= nd - 1 else None})
         print(f"  ACIS: {len(years)} years; this year {years[-1] if years else None}")
     except Exception as e:
         print(f"  ! month calendar (ACIS) unavailable: {e}")
