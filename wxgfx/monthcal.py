@@ -50,15 +50,16 @@ def fetch(cfg, today):
         days = [{"date": r[0], "hi": _num(r[1]), "hi_n": _num(r[2]), "rain": _num(r[3]), "trace": str(r[3]).upper().startswith("T"),
                  "rain_n": _num(r[4])} for r in d.get("data", [])]
         # full-month normals (for the rain "normal to date" and the month rows)
-        ss = f"{start.month:02d}-01"
+        nd = (end - start).days + 1  # the same dates every year: the nd days ending on this month-day
         y = _post({"sid": sid, "sdate": "por", "edate": end.isoformat(),
-                   "elems": [{"name": "maxt", "interval": [1, 0, 0], "duration": "std", "season_start": ss, "reduce": {"reduce": "mean", "add": "mcnt"}},
-                             {"name": "pcpn", "interval": [1, 0, 0], "duration": "std", "season_start": ss, "reduce": {"reduce": "sum", "add": "mcnt"}}]}, ua)
+                   "elems": [{"name": "maxt", "interval": [1, 0, 0], "duration": nd, "reduce": {"reduce": "mean", "add": "mcnt"}},
+                             {"name": "pcpn", "interval": [1, 0, 0], "duration": nd, "reduce": {"reduce": "sum", "add": "mcnt"}}]}, ua)
         years = []
         for r in y.get("data", []):
             hi, pc = r[1], r[2]
-            years.append({"year": int(r[0][:4]), "hi": _num(hi[0]) if (hi[1] in (0, "0", 1, "1")) else None,
-                          "rain": _num(pc[0]) if (pc[1] in (0, "0", 1, "1")) else None})
+            ok = lambda m: str(m) in ("0", "1")  # allow at most one missing day
+            years.append({"year": int(r[0][:4]), "hi": _num(hi[0]) if ok(hi[1]) else None, "rain": _num(pc[0]) if ok(pc[1]) else None})
+        print(f"  ACIS: {len(years)} years; this year {years[-1] if years else None}")
     except Exception as e:
         print(f"  ! month calendar (ACIS) unavailable: {e}")
         return None
@@ -214,7 +215,7 @@ def highs_graphic(pkg, cfg):
         blocks.append((("WARMEST" if dep >= 0 else "COOLEST") + " ON RECORD", _ord(rank), f"{start.strftime('%b')} 1–{end.day} since {first}"))
     _info(cv, info, blocks)
     _calendar(cv, calbox, start, cells, today)
-    _legend(cv, leg, [((*ABOVE, 255), f"ABOVE · {nabove} DAYS"), ((*AVG, 255), f"AVERAGE · {navg} DAYS"), ((*BELOW, 255), f"BELOW · {nbelow} DAYS")])
+    _legend(cv, leg, [((*ABOVE, 255), f"ABOVE · {nabove} DAY{'S' if nabove != 1 else ''}"), ((*AVG, 255), f"AVERAGE · {navg} DAY{'S' if navg != 1 else ''}"), ((*BELOW, 255), f"BELOW · {nbelow} DAY{'S' if nbelow != 1 else ''}")])
     cv.footer(pkg, source="NOAA RCC-ACIS · NWS")
     return cv
 
@@ -253,7 +254,7 @@ def rain_graphic(pkg, cfg):
         blocks.append((("WETTEST" if dep >= 0 else "DRIEST") + " ON RECORD", _ord(rank), f"{start.strftime('%b')} 1–{end.day} since {first}"))
     _info(cv, info, blocks)
     _calendar(cv, calbox, start, cells, today)
-    _legend(cv, leg, [((*RAIN, 255), f"RAIN · {wet} DAYS"), ((255, 255, 255, 60), f"DRY · {dry} DAYS" + (f" ({trace} TRACE)" if trace else ""))])
+    _legend(cv, leg, [((*RAIN, 255), f"RAIN · {wet} DAY{'S' if wet != 1 else ''}"), ((255, 255, 255, 60), f"DRY · {dry} DAY{'S' if dry != 1 else ''}" + (f" ({trace} TRACE)" if trace else ""))])
     cv.footer(pkg, source="NOAA RCC-ACIS · NWS")
     return cv
 
