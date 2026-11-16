@@ -352,6 +352,14 @@ def main():
         else:
             print("Fetching NDFD wind chill for the VA/NC state map...")
             pkg["_statewindchill"] = statemaps.fetch_windchill(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
+    if "month_calendars" in (cfg.get("graphics") or []) and (only_set is None or "month_calendars" in only_set):
+        from wxgfx import monthcal
+        _today = now.astimezone(tz).date()
+        if args.sample:
+            pkg["_monthcal"] = monthcal.sample(_today)
+        else:
+            print("Fetching this month's daily highs and rainfall (ACIS)...")
+            pkg["_monthcal"] = monthcal.fetch(cfg, _today)
     if "nbm_temps" in (cfg.get("graphics") or []) and (only_set is None or "nbm_temps" in only_set):
         from wxgfx import nbmtemps
         if args.sample:

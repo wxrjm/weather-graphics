@@ -70,6 +70,7 @@
     "asos_temps",
     "pressure",
     "nbm_temps",
+    "month_calendars",
     "obs_rain",
     "city_table",
     "rain_timing",

@@ -429,6 +429,9 @@ wordmark is drawn. Colors can be overridden in `config.json` → `"colors"` (key
 ### Frost risk maps (season and temperature rule)
 The regional `Frost Map` graphics are only made Sep-Nov and Mar-May (`frost_map_months`), and only for nights when the forecast low is below 38 anywhere in the region (`frost_map_below` (default 38), `frost_map_region` = west, east, south, north; default VA/NC around Hampton Roads). `frost_always` forces them.
 
+### Month highs and rainfall calendars (`month_calendars`, Climate & Drought folder)
+Month-so-far calendars for Norfolk (ACIS, threaded record `acis_station`, default ORFthr), through yesterday: `Month Highs Calendar` (each day's high and departure from the 1991-2020 normal, red above / grey average / blue below, the month's average high and its warmest/coolest rank for the same dates since records began) and `Month Rainfall Calendar` (each day's rain, T for trace, the month total vs normal and its wettest/driest rank). Today's cell shows KORF's warmest ASOS reading so far when `asos_temps` is on.
+
 ### NBM 10-day highs and lows (`nbm_temps`, Temperature folder)
 National Blend of Models daily high/low for Norfolk from Open-Meteo (model `ncep_nbm_conus`, keyless; falls back to Open-Meteo's blend). One low-to-high bar per day, coloured by temperature. `nbm_days` (default 10).
 

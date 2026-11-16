@@ -25,7 +25,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
     ("Tides & Coast", lambda n: n.startswith(("tides", "tide_error", "high_tides", "tidal_flood", "beach", "sound_flood"))),
     ("Tropical", lambda n: n.startswith(("tropics", "Tropical/"))),
     ("Long Range", lambda n: n.startswith("cpc_")),
-    ("Climate & Drought", lambda n: n in ("yesterday", "month_rain", "drought", "drought_stencil")),
+    ("Climate & Drought", lambda n: n in ("yesterday", "month_rain", "month_highs_cal", "month_rain_cal", "drought", "drought_stencil")),
     ("Air Quality & Sun", lambda n: n in ("air_quality", "sun_uv", "aurora")),
     ("Aviation", lambda n: n == "aviation"),
     ("More", lambda n: True),
@@ -57,7 +57,7 @@ TITLES = {
     "obs_rain": "Observed Rainfall", "gust_bars_48": "48 Hour Gust Bars", "gust_bars_48_dir": "48 Hour Gust Bars With Wind Direction", "gust_table_48": "48 Hour Gust Table",
     "gust_peaks": "Peak Gusts", "cpc_8_14": "CPC 8-14 Day", "cpc_3_7": "CPC 3-7 Day", "sound_flood": "Sound Side Flooding",
     "what_to_know": "What to Know", "weather_aware": "Be Weather Aware", "feels_like": "Heat Index", "month_rain": "Rainfall So Far",
-    "yesterday": "Climate Report", "aches_pains": "Aches and Pains Forecast", "nbm_10day": "NBM 10 Day Highs and Lows", "pressure_trend": "7 Day Pressure Trend", "frost_trend": "Frost & Freeze Forecast", "state_spc_day4_8": "SPC Day 4-8 Severe Outlook", "drought_stencil": "Drought Monitor VA NC Stencil", "drought": "Drought Monitor", "temp_drop": "Temperature Drop", "wpc_qpf": "Rainfall Potential",
+    "yesterday": "Climate Report", "aches_pains": "Aches and Pains Forecast", "nbm_10day": "NBM 10 Day Highs and Lows", "month_highs_cal": "Month Highs Calendar", "month_rain_cal": "Month Rainfall Calendar", "pressure_trend": "7 Day Pressure Trend", "frost_trend": "Frost & Freeze Forecast", "state_spc_day4_8": "SPC Day 4-8 Severe Outlook", "drought_stencil": "Drought Monitor VA NC Stencil", "drought": "Drought Monitor", "temp_drop": "Temperature Drop", "wpc_qpf": "Rainfall Potential",
 }
 
 
