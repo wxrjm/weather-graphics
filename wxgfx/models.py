@@ -628,10 +628,10 @@ def _compare(kind, now_utc, pkg, cfg, tz, hours=None, models=None, title_overrid
     panels = []
     for key in models or cfg.get("model_compare") or DEFAULT_COMPARE:
         if key == "rrfs":
-            f = rrfs.get("rain" if kind == "rain" else "gust")
+            f = rrfs.get(kind)
             sub = f"{rrfs['cycle']:%HZ} RUN" if f and rrfs.get("cycle") else ""
         elif key in om:
-            f = om_field(om[key], "rain" if kind == "rain" else "gust", now_utc, hours)
+            f = om_field(om[key], kind, now_utc, hours)
             sub = f"{om[key]['run']:%HZ} RUN" if om[key].get("run") else ""
         else:
             continue
@@ -658,7 +658,7 @@ def _compare(kind, now_utc, pkg, cfg, tz, hours=None, models=None, title_overrid
             summ = f"AROUND {st}:  WETTEST {hi[0]} {rr(*hi)}   ·   DRIEST {lo_[0]} {rr(*lo_)}"
     else:
         title, bins, unit, pill = ("5 DAY MAX WIND GUST COMPARISON" if five else "MODEL WIND GUST COMPARISON"), GUST_BINS, "MPH", lambda v: f"{_gust_round(v)} MPH" if v is not None else "N/A"
-        sub = f"PEAK GUSTS  ·  {when}  ·  " + "  ·  ".join(p[0] for p in panels)
+        sub = (f"PEAK GUSTS  ·  " if kind == "gust" else "PEAK SUSTAINED WINDS  ·  ") + f"{when}  ·  " + "  ·  ".join(p[0] for p in panels)
         summ = None
         if len(vals) >= 2:
             hi, lo_ = max(vals, key=lambda x: x[1]), min(vals, key=lambda x: x[1])
@@ -710,10 +710,11 @@ def model_graphics(pkg, cfg):
             print(f"  - model_compare_{kind}_5day: fewer than 2 models reach {h5} hours, skipped")
     # traditional vs AI: GFS next to NOAA's AIGFS, ECMWF next to its AIFS (AIGFS has no gusts, so the gust map is 3 panels)
     ai = cfg.get("model_compare_ai") or AI_COMPARE
-    for kind, title in (("rain", "GFS & EURO VS AI MODELS · RAINFALL"), ("gust", "GFS & EURO VS AI MODELS · MAX GUSTS")):
-        cv = _compare(kind, now, pkg, cfg, tz, hours=h5, models=[k for k in ai if not (kind == "gust" and k == "aigfs")], title_override=title)
+    # the AI models don't forecast gusts, so the wind version compares max sustained (10 m) wind
+    for kind, title in (("rain", "GFS & EURO VS AI MODELS · RAINFALL"), ("wind", "GFS & EURO VS AI MODELS · MAX WINDS")):
+        cv = _compare(kind, now, pkg, cfg, tz, hours=h5, models=ai, title_override=title)
         if cv:
-            out.append((f"model_compare_ai_{kind}", cv))
+            out.append((f"model_compare_ai_{'wind' if kind == 'wind' else kind}", cv))
         else:
             print(f"  - model_compare_ai_{kind}: not enough models, skipped")
     return out or None
