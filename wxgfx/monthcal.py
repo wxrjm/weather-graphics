@@ -16,7 +16,8 @@ from .theme import C, Canvas
 
 ACIS = "https://data.rcc-acis.org/StnData"
 ABOVE, AVG, BELOW = (232, 96, 88), (150, 162, 180), (58, 110, 205)
-RAIN = (88, 170, 255)
+RAIN = (76, 190, 110)  # green
+SNOW = (88, 160, 255)  # blue
 
 
 def _post(body, ua, timeout=90):
@@ -46,9 +47,10 @@ def fetch(cfg, today):
     ua = cfg["user_agent"]
     try:
         d = _post({"sid": sid, "sdate": start.isoformat(), "edate": end.isoformat(),
-                   "elems": [{"name": "maxt"}, {"name": "maxt", "normal": "1"}, {"name": "pcpn"}, {"name": "pcpn", "normal": "1"}]}, ua)
+                   "elems": [{"name": "maxt"}, {"name": "maxt", "normal": "1"}, {"name": "pcpn"}, {"name": "pcpn", "normal": "1"}, {"name": "snow"}]}, ua)
         days = [{"date": r[0], "hi": _num(r[1]), "hi_n": _num(r[2]), "rain": _num(r[3]), "trace": str(r[3]).upper().startswith("T"),
-                 "rain_n": _num(r[4])} for r in d.get("data", [])]
+                 "rain_n": _num(r[4]), "snow": _num(r[5]) if len(r) > 5 else None,
+                 "snow_t": len(r) > 5 and str(r[5]).upper().startswith("T")} for r in d.get("data", [])]
         # every year's same dates (the 1st through this day of the month), worked out from the full daily record
         y = _post({"sid": sid, "sdate": "por", "edate": end.isoformat(), "elems": [{"name": "maxt"}, {"name": "pcpn"}]}, ua, timeout=150)
         nd = end.day
@@ -85,7 +87,8 @@ def sample(today):
         n = 66 - i * 0.25
         hi = round(n + (7 if i < 12 else -7) + rnd.uniform(-4, 4))
         rain = [0, 0, 0, 0.26, 0.14, 0.47, 0, 0, 0, 0, 0, 0, 0, 0, 0][i % 15]
-        days.append({"date": dd.isoformat(), "hi": hi, "hi_n": round(n, 1), "rain": rain, "trace": i in (0, 10, 11, 12) and not rain, "rain_n": 0.11})
+        days.append({"date": dd.isoformat(), "hi": hi, "hi_n": round(n, 1), "rain": rain, "trace": i in (0, 10, 11, 12) and not rain, "rain_n": 0.11,
+                     "snow": 1.4 if i == 5 else 0, "snow_t": False})
     years = [{"year": y, "hi": 66 + rnd.uniform(-5, 5), "rain": rnd.uniform(0.2, 3.5)} for y in range(1874, end.year)]
     years.append({"year": end.year, "hi": sum(d["hi"] for d in days) / len(days), "rain": sum(d["rain"] for d in days)})
     return {"start": start.isoformat(), "end": end.isoformat(), "days": days, "years": years}
@@ -237,10 +240,16 @@ def rain_graphic(pkg, cfg):
     obs = [d for d in md["days"] if d["rain"] is not None]
     if not obs:
         return None
-    cells, wet, dry, trace = {}, 0, 0, 0
+    cells, wet, dry, trace, snowdays, snowtot = {}, 0, 0, 0, 0, 0.0
     for d in obs:
         dn = date.fromisoformat(d["date"]).day
-        if d["rain"] and d["rain"] >= 0.01:
+        sn = d.get("snow") or 0
+        if sn >= 0.1 or d.get("snow_t"):  # snow day: blue, melted total big, snowfall underneath
+            snowdays += 1
+            snowtot += sn
+            cells[dn] = ((*SNOW, 255), f"{(d['rain'] or 0):.2f}\"" if (d["rain"] or 0) >= 0.01 else ("T" if d["trace"] else "0.00\""),
+                         f"{sn:.1f}\" SNOW" if sn >= 0.1 else "TRACE SNOW", (13, 21, 38))
+        elif d["rain"] and d["rain"] >= 0.01:
             wet += 1
             cells[dn] = ((*RAIN, 255), f"{d['rain']:.2f}\"", "", (13, 21, 38))
         else:
@@ -262,7 +271,7 @@ def rain_graphic(pkg, cfg):
         blocks.append((("WETTEST" if dep >= 0 else "DRIEST") + " ON RECORD", _ord(rank), f"{start.strftime('%b')} 1–{end.day} since {first}"))
     _info(cv, info, blocks)
     _calendar(cv, calbox, start, cells, today)
-    _legend(cv, leg, [((*RAIN, 255), f"RAIN · {wet} DAY{'S' if wet != 1 else ''}"), ((255, 255, 255, 60), f"DRY · {dry} DAY{'S' if dry != 1 else ''}" + (f" ({trace} TRACE)" if trace else ""))])
+    _legend(cv, leg, [((*RAIN, 255), f"RAIN · {wet} DAY{'S' if wet != 1 else ''}")] + ([((*SNOW, 255), f"SNOW · {snowdays} DAY{'S' if snowdays != 1 else ''} ({snowtot:.1f}\")")] if snowdays else []) + [((255, 255, 255, 60), f"DRY · {dry} DAY{'S' if dry != 1 else ''}" + (f" ({trace} TRACE)" if trace else ""))])
     cv.footer(pkg, source="NOAA RCC-ACIS · NWS")
     return cv
 
