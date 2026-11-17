@@ -74,6 +74,11 @@ GUST_BINS = [  # mph
     (35, (220, 220, 70)), (40, (248, 190, 50)), (45, (246, 140, 40)), (50, (232, 84, 40)),
     (58, (206, 40, 60)), (65, (170, 30, 130)), (75, (200, 90, 220)),
 ]
+WIND_BINS = [  # mph, sustained wind: starts lower than gusts
+    (5, (200, 232, 242)), (10, (170, 222, 236)), (15, (110, 196, 214)), (20, (70, 170, 170)), (25, (120, 200, 90)),
+    (30, (220, 220, 70)), (35, (248, 190, 50)), (40, (246, 140, 40)), (45, (232, 84, 40)), (50, (206, 40, 60)),
+    (60, (170, 30, 130)), (75, (200, 90, 220)),
+]
 RADAR_BINS = [  # dBZ
     (10, (110, 205, 230)), (15, (60, 150, 230)), (20, (40, 100, 220)), (25, (70, 200, 80)), (30, (30, 160, 50)),
     (35, (20, 120, 40)), (40, (250, 230, 60)), (45, (250, 170, 40)), (50, (240, 90, 40)), (55, (220, 30, 40)),
@@ -657,7 +662,7 @@ def _compare(kind, now_utc, pkg, cfg, tz, hours=None, models=None, title_overrid
             rr = lambda lab, v: _range_txt(fl[lab], "rain", cfg) or _rain_txt(v)
             summ = f"AROUND {st}:  WETTEST {hi[0]} {rr(*hi)}   ·   DRIEST {lo_[0]} {rr(*lo_)}"
     else:
-        title, bins, unit, pill = ("5 DAY MAX WIND GUST COMPARISON" if five else "MODEL WIND GUST COMPARISON"), GUST_BINS, "MPH", lambda v: f"{_gust_round(v)} MPH" if v is not None else "N/A"
+        title, bins, unit, pill = ("5 DAY MAX WIND GUST COMPARISON" if five else "MODEL WIND GUST COMPARISON"), (GUST_BINS if kind == "gust" else WIND_BINS), "MPH", lambda v: f"{_gust_round(v)} MPH" if v is not None else "N/A"
         sub = (f"PEAK GUSTS  ·  " if kind == "gust" else "PEAK SUSTAINED WINDS  ·  ") + f"{when}  ·  " + "  ·  ".join(p[0] for p in panels)
         summ = None
         if len(vals) >= 2:
