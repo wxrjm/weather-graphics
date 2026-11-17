@@ -39,7 +39,7 @@ OM_MODELS = {  # our key -> (Open-Meteo model id, label)
 OM_META = {"gfs": "ncep_gfs025", "ecmwf": "ecmwf_ifs025", "icon": "dwd_icon", "gem": "cmc_gem_gdps", "hrrr": "ncep_hrrr_conus",
            "nbm": "ncep_nbm_conus"}  # Open-Meteo /data/<id>/static/meta.json -> last_run_initialisation_time
 OM_CYCLE = {"gfs": (6, 5), "ecmwf": (6, 7), "icon": (6, 4), "gem": (12, 5), "hrrr": (1, 2), "nbm": (1, 1.5)}  # (hours between runs, hours until available)
-DEFAULT_MODELS = ["gfs", "ecmwf", "icon", "hrrr"]
+DEFAULT_MODELS = ["gfs", "ecmwf", "icon", "gem", "hrrr"]
 DEFAULT_COMPARE = ["ecmwf", "gfs", "icon", "rrfs"]
 LABELS = {**{k: v[1] for k, v in OM_MODELS.items()}, "rrfs": "RRFS"}
 
@@ -217,7 +217,7 @@ def fetch_om(cfg, cache_dir, now_utc, debug=False):
                 part = pts[c0:c0 + chunk]
                 q = {"latitude": ",".join(f"{p[0]:.3f}" for p in part), "longitude": ",".join(f"{p[1]:.3f}" for p in part),
                      "hourly": "precipitation,wind_gusts_10m,wind_speed_10m", "models": mid,
-                     "forecast_days": int(cfg.get("model_days", 4)), "precipitation_unit": "inch", "wind_speed_unit": "mph",
+                     "forecast_days": int(cfg.get("model_days", 6)), "precipitation_unit": "inch", "wind_speed_unit": "mph",
                      "timezone": "GMT"}
                 if key_api:
                     q["apikey"] = key_api
@@ -602,13 +602,20 @@ def _panels(cfg, pkg, title, subtitle, panels, bins, unit, pill_fn, summary=None
     return cv
 
 
-def _compare(kind, now_utc, pkg, cfg, tz):
-    """Rain / gust comparison across models (Open-Meteo models + RRFS when it's available)."""
+DEFAULT_COMPARE_5DAY = ["ecmwf", "gfs", "icon", "gem"]
+
+
+def _compare(kind, now_utc, pkg, cfg, tz, hours=None, models=None):
+    """Rain / gust comparison across models (Open-Meteo models + RRFS when it's available).
+    hours / models override the window and model list (the 5-day versions use 120 h and the global models)."""
     data = pkg.get("_models") or {}
     om, rrfs = data.get("om") or {}, data.get("rrfs") or {}
-    hours = int(cfg.get("model_compare_hours", 48)) if kind == "rain" else int(cfg.get("model_gust_hours", 24))
+    if hours is None:
+        hours = int(cfg.get("model_compare_hours", 48)) if kind == "rain" else int(cfg.get("model_gust_hours", 24))
+    five = hours >= 96
+    when = f"NEXT {hours // 24} DAYS" if hours % 24 == 0 and hours >= 72 else f"NEXT {hours} HOURS"
     panels = []
-    for key in cfg.get("model_compare") or DEFAULT_COMPARE:
+    for key in models or cfg.get("model_compare") or DEFAULT_COMPARE:
         if key == "rrfs":
             f = rrfs.get("rain" if kind == "rain" else "gust")
             sub = f"{rrfs['cycle']:%HZ} RUN" if f and rrfs.get("cycle") else ""
@@ -630,8 +637,8 @@ def _compare(kind, now_utc, pkg, cfg, tz):
     vals = [(a, b) for a, b in vals if b is not None]
     st = (loc.get("short") or "Norfolk").upper()
     if kind == "rain":
-        title, bins, unit, pill = "MODEL RAINFALL COMPARISON", _rain_bins(cfg), "IN", _rain_txt
-        sub = f"NEXT {hours} HOURS  ·  " + "  ·  ".join(p[0] for p in panels)
+        title, bins, unit, pill = ("5 DAY " if five else "") + "MODEL RAINFALL COMPARISON", _rain_bins(cfg), "IN", _rain_txt
+        sub = f"{when}  ·  " + "  ·  ".join(p[0] for p in panels)
         summ = None
         if len(vals) >= 2:
             hi, lo_ = max(vals, key=lambda x: x[1]), min(vals, key=lambda x: x[1])
@@ -639,8 +646,8 @@ def _compare(kind, now_utc, pkg, cfg, tz):
             rr = lambda lab, v: _range_txt(fl[lab], "rain", cfg) or _rain_txt(v)
             summ = f"AROUND {st}:  WETTEST {hi[0]} {rr(*hi)}   ·   DRIEST {lo_[0]} {rr(*lo_)}"
     else:
-        title, bins, unit, pill = "MODEL WIND GUST COMPARISON", GUST_BINS, "MPH", lambda v: f"{_gust_round(v)} MPH" if v is not None else "N/A"
-        sub = f"PEAK GUSTS  ·  NEXT {hours} HOURS  ·  " + "  ·  ".join(p[0] for p in panels)
+        title, bins, unit, pill = ("5 DAY MAX WIND GUST COMPARISON" if five else "MODEL WIND GUST COMPARISON"), GUST_BINS, "MPH", lambda v: f"{_gust_round(v)} MPH" if v is not None else "N/A"
+        sub = f"PEAK GUSTS  ·  {when}  ·  " + "  ·  ".join(p[0] for p in panels)
         summ = None
         if len(vals) >= 2:
             hi, lo_ = max(vals, key=lambda x: x[1]), min(vals, key=lambda x: x[1])
@@ -679,6 +686,15 @@ def model_graphics(pkg, cfg):
             out.append((f"model_compare_{kind}", cv))
         else:
             print(f"  - model_compare_{kind}: fewer than 2 models cover the full window, skipped")
+    # 5-day versions with the global models (HRRR / RRFS don't reach 5 days)
+    h5 = int(cfg.get("model_compare_5day_hours", 120))
+    m5 = cfg.get("model_compare_5day") or DEFAULT_COMPARE_5DAY
+    for kind in ("rain", "gust"):
+        cv = _compare(kind, now, pkg, cfg, tz, hours=h5, models=m5)
+        if cv:
+            out.append((f"model_compare_{kind}_5day", cv))
+        else:
+            print(f"  - model_compare_{kind}_5day: fewer than 2 models reach {h5} hours, skipped")
     return out or None
 
 
@@ -715,7 +731,7 @@ def sample(now_utc, cfg):
     """Synthetic model output on the same structures the fetchers return."""
     np = _np()
     lats, lons = _om_points(cfg)
-    nt = 96
+    nt = 132
     times = [now_utc.replace(minute=0, second=0, microsecond=0) + timedelta(hours=i + 1) for i in range(nt)]
     LON, LAT = np.meshgrid(lons, lats)
 

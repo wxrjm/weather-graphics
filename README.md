@@ -365,6 +365,8 @@ as east / south of the line, since the feed does not say). Config: `fronts_days`
 
 ## Model data maps (graphic keys: `model_maps`, `rrfs_maps`) → `Model Data/`
 `model_maps` uses the Open-Meteo API (ECMWF, GFS, ICON, HRRR) for rainfall and gust maps and side-by-side comparison panels with the KORF value on each. `rrfs_maps` reads NOAA RRFS GRIB2 directly (rain, gusts, 10 m wind, simulated future radar).
+5-day versions (`5 Day Model Rainfall Comparison`, `5 Day Model Max Wind Gust Comparison`) put the global models side by side for 120 hours (`model_compare_5day`, default ECMWF, GFS, ICON, GEM; `model_compare_5day_hours`). Models are fetched for 6 days (`model_days`).
+
 Config keys: `model_list`, `model_compare`, `model_rain_hours`, `model_compare_hours`, `model_gust_hours`, `model_grid_step`, `model_view`, `model_panel_view`, `open_meteo_apikey`, `rrfs_hours`, `rrfs_stride`, `rrfs_bases`, `rrfs_radar_frames`, `rrfs_radar_step`, `model_maps_always`.
 Headline values are ranges from the colors within `model_range_radius_mi` (default 35) miles of Norfolk (rain in 0.5" steps, wind in 5 mph steps). Note: Open-Meteo's free tier is non-commercial. For monetized use set `open_meteo_apikey` (customer API). Results are cached 150 minutes. Check live runs once: the Open-Meteo model ids and RRFS field names could not be tested from the build sandbox.
 
