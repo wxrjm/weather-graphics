@@ -35,11 +35,14 @@ OM_URL_PAID = "https://customer-api.open-meteo.com/v1/forecast"
 OM_MODELS = {  # our key -> (Open-Meteo model id, label)
     "gfs": ("gfs_seamless", "GFS"), "ecmwf": ("ecmwf_ifs025", "ECMWF"), "icon": ("icon_seamless", "ICON"),
     "gem": ("gem_seamless", "GEM"), "hrrr": ("gfs_hrrr", "HRRR"), "nbm": ("ncep_nbm_conus", "NBM"),
+    # AI models: ECMWF AIFS and NOAA AIGFS (no gusts from AIGFS)
+    "aifs": (["ecmwf_aifs025_single", "ecmwf_aifs025"], "AIFS"), "aigfs": (["ncep_aigfs025", "gfs_aigfs025", "aigfs025"], "AIGFS"),
 }
 OM_META = {"gfs": "ncep_gfs025", "ecmwf": "ecmwf_ifs025", "icon": "dwd_icon", "gem": "cmc_gem_gdps", "hrrr": "ncep_hrrr_conus",
-           "nbm": "ncep_nbm_conus"}  # Open-Meteo /data/<id>/static/meta.json -> last_run_initialisation_time
-OM_CYCLE = {"gfs": (6, 5), "ecmwf": (6, 7), "icon": (6, 4), "gem": (12, 5), "hrrr": (1, 2), "nbm": (1, 1.5)}  # (hours between runs, hours until available)
-DEFAULT_MODELS = ["gfs", "ecmwf", "icon", "gem", "hrrr"]
+           "nbm": "ncep_nbm_conus", "aifs": "ecmwf_aifs025_single", "aigfs": "ncep_aigfs025"}  # Open-Meteo /data/<id>/static/meta.json -> last_run_initialisation_time
+OM_CYCLE = {"gfs": (6, 5), "ecmwf": (6, 7), "icon": (6, 4), "gem": (12, 5), "hrrr": (1, 2), "nbm": (1, 1.5), "aifs": (6, 7), "aigfs": (6, 6)}  # (hours between runs, hours until available)
+DEFAULT_MODELS = ["gfs", "ecmwf", "icon", "gem", "hrrr", "aifs", "aigfs"]
+AI_COMPARE = ["gfs", "aigfs", "ecmwf", "aifs"]  # traditional vs AI, each next to its AI version
 DEFAULT_COMPARE = ["ecmwf", "gfs", "icon", "rrfs"]
 LABELS = {**{k: v[1] for k, v in OM_MODELS.items()}, "rrfs": "RRFS"}
 
@@ -208,45 +211,53 @@ def fetch_om(cfg, cache_dir, now_utc, debug=False):
     for key in cfg.get("model_list") or DEFAULT_MODELS:
         if key not in OM_MODELS:
             continue
-        mid, label = OM_MODELS[key]
-        try:
-            rain = np.full((0, len(lats) * len(lons)), np.nan)
-            times = None
-            cols = {"precipitation": [], "wind_gusts_10m": [], "wind_speed_10m": []}
-            for c0 in range(0, len(pts), chunk):
-                part = pts[c0:c0 + chunk]
-                q = {"latitude": ",".join(f"{p[0]:.3f}" for p in part), "longitude": ",".join(f"{p[1]:.3f}" for p in part),
-                     "hourly": "precipitation,wind_gusts_10m,wind_speed_10m", "models": mid,
-                     "forecast_days": int(cfg.get("model_days", 6)), "precipitation_unit": "inch", "wind_speed_unit": "mph",
-                     "timezone": "GMT"}
-                if key_api:
-                    q["apikey"] = key_api
-                url = base + "?" + urllib.parse.urlencode(q, safe=",")
-                cf = cache / f"om_{hashlib.md5(url.encode()).hexdigest()[:16]}.json"
-                data = _http_json(url, ua, cf, max_age)
-                if isinstance(data, dict):
-                    if data.get("error"):
-                        raise RuntimeError(data.get("reason") or "API error")
-                    data = [data]
-                for item in data:
-                    h = item["hourly"]
-                    if times is None:
-                        times = [datetime.strptime(t, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc) for t in h["time"]]
-                    for var in cols:
-                        arr = _pick(h, var)
-                        cols[var].append(np.array([np.nan if x is None else x for x in arr], dtype=float)
-                                         if arr is not None else np.full(len(times), np.nan))
-                time.sleep(float(cfg.get("model_pause_s", 0.4)))
-            shape = (len(times), len(lats), len(lons))
-            stacks = {v: np.stack(a, axis=1).reshape(shape) for v, a in cols.items()}  # (t, point) -> (t, lat, lon)
-            if np.isnan(stacks["precipitation"]).all():
-                raise RuntimeError("no precipitation data returned for this model")
-            out["om"][key] = {"label": label, "lat": lats, "lon": lons, "times": times, "rain": stacks["precipitation"],
-                              "gust": stacks["wind_gusts_10m"], "wind": stacks["wind_speed_10m"],
-                              "run": _om_run(key, cfg, cache, now_utc)}
-            if debug:
-                print(f"   [models] {label}: {len(pts)} points, {len(times)} hours")
-        except Exception as ex:
+        mids, label = OM_MODELS[key]
+        mids = list(mids) if isinstance(mids, (list, tuple)) else [mids]  # some models have had more than one Open-Meteo id
+        last = None
+        for mid in mids:
+            try:
+                rain = np.full((0, len(lats) * len(lons)), np.nan)
+                times = None
+                cols = {"precipitation": [], "wind_gusts_10m": [], "wind_speed_10m": []}
+                for c0 in range(0, len(pts), chunk):
+                    part = pts[c0:c0 + chunk]
+                    q = {"latitude": ",".join(f"{p[0]:.3f}" for p in part), "longitude": ",".join(f"{p[1]:.3f}" for p in part),
+                         "hourly": "precipitation,wind_gusts_10m,wind_speed_10m", "models": mid,
+                         "forecast_days": int(cfg.get("model_days", 6)), "precipitation_unit": "inch", "wind_speed_unit": "mph",
+                         "timezone": "GMT"}
+                    if key_api:
+                        q["apikey"] = key_api
+                    url = base + "?" + urllib.parse.urlencode(q, safe=",")
+                    cf = cache / f"om_{hashlib.md5(url.encode()).hexdigest()[:16]}.json"
+                    data = _http_json(url, ua, cf, max_age)
+                    if isinstance(data, dict):
+                        if data.get("error"):
+                            raise RuntimeError(data.get("reason") or "API error")
+                        data = [data]
+                    for item in data:
+                        h = item["hourly"]
+                        if times is None:
+                            times = [datetime.strptime(t, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc) for t in h["time"]]
+                        for var in cols:
+                            arr = _pick(h, var)
+                            cols[var].append(np.array([np.nan if x is None else x for x in arr], dtype=float)
+                                             if arr is not None else np.full(len(times), np.nan))
+                    time.sleep(float(cfg.get("model_pause_s", 0.4)))
+                shape = (len(times), len(lats), len(lons))
+                stacks = {v: np.stack(a, axis=1).reshape(shape) for v, a in cols.items()}  # (t, point) -> (t, lat, lon)
+                if np.isnan(stacks["precipitation"]).all():
+                    raise RuntimeError("no precipitation data returned for this model")
+                out["om"][key] = {"label": label, "lat": lats, "lon": lons, "times": times, "rain": stacks["precipitation"],
+                                  "gust": stacks["wind_gusts_10m"], "wind": stacks["wind_speed_10m"],
+                                  "run": _om_run(key, cfg, cache, now_utc)}
+                if debug:
+                    print(f"   [models] {label}: {len(pts)} points, {len(times)} hours")
+                last = None
+                break
+            except Exception as ex:
+                last = ex
+        if last is not None:
+            ex = last
             out["errors"].append(f"{label}: {ex}")
             print(f"  ! {label} (Open-Meteo) unavailable: {ex}")
     return out
@@ -605,7 +616,7 @@ def _panels(cfg, pkg, title, subtitle, panels, bins, unit, pill_fn, summary=None
 DEFAULT_COMPARE_5DAY = ["ecmwf", "gfs", "icon", "gem"]
 
 
-def _compare(kind, now_utc, pkg, cfg, tz, hours=None, models=None):
+def _compare(kind, now_utc, pkg, cfg, tz, hours=None, models=None, title_override=None):
     """Rain / gust comparison across models (Open-Meteo models + RRFS when it's available).
     hours / models override the window and model list (the 5-day versions use 120 h and the global models)."""
     data = pkg.get("_models") or {}
@@ -654,6 +665,8 @@ def _compare(kind, now_utc, pkg, cfg, tz, hours=None, models=None):
             fl = {a: f for a, _s, f in panels}
             rg = lambda lab, v: _range_txt(fl[lab], "gust", cfg) or f"{_gust_round(v)} MPH"
             summ = f"AROUND {st}:  STRONGEST {hi[0]} {rg(*hi)}   ·   LIGHTEST {lo_[0]} {rg(*lo_)}"
+    if title_override:
+        title = title_override
     cv = _panels(cfg, pkg, title, sub, panels, bins, unit, pill, summ, range_kind=kind)
     srcs = ["Open-Meteo"] + (["NOAA RRFS"] if any(p[0] == "RRFS" for p in panels) else [])
     cv.footer(pkg, source=_src(pkg, " + ".join(srcs)))
@@ -676,7 +689,7 @@ def model_graphics(pkg, cfg):
         if f is not None and (np.nanmax(f["val"]) >= 0.01 or cfg.get("model_maps_always")):
             f["hours"] = max(1, int(round((f["end"] - now).total_seconds() / 3600)))
             out.append((f"model_rain_{key}", _single(f, "rain", label, otag, pkg, cfg, tz)))
-        g = om_field(m, "gust", now, gust_h)
+        g = om_field(m, "gust", now, gust_h) if not np.isnan(m["gust"]).all() else None
         if g is not None:
             g["hours"] = max(1, int(round((g["end"] - now).total_seconds() / 3600)))
             out.append((f"model_gust_{key}", _single(g, "gust", label, otag, pkg, cfg, tz)))
@@ -695,6 +708,14 @@ def model_graphics(pkg, cfg):
             out.append((f"model_compare_{kind}_5day", cv))
         else:
             print(f"  - model_compare_{kind}_5day: fewer than 2 models reach {h5} hours, skipped")
+    # traditional vs AI: GFS next to NOAA's AIGFS, ECMWF next to its AIFS (AIGFS has no gusts, so the gust map is 3 panels)
+    ai = cfg.get("model_compare_ai") or AI_COMPARE
+    for kind, title in (("rain", "GFS & EURO VS AI MODELS · RAINFALL"), ("gust", "GFS & EURO VS AI MODELS · MAX GUSTS")):
+        cv = _compare(kind, now, pkg, cfg, tz, hours=h5, models=[k for k in ai if not (kind == "gust" and k == "aigfs")], title_override=title)
+        if cv:
+            out.append((f"model_compare_ai_{kind}", cv))
+        else:
+            print(f"  - model_compare_ai_{kind}: not enough models, skipped")
     return out or None
 
 
@@ -750,8 +771,10 @@ def sample(now_utc, cfg):
 
     out = {"om": {}, "errors": [], "now": now_utc}
     for key, (shift, amp, hz) in {"gfs": (0, 1.0, nt), "ecmwf": (3, 1.35, nt), "icon": (-3, 0.8, nt), "hrrr": (1, 1.1, 48),
-                                  "gem": (5, 1.2, nt), "nbm": (0, 0.95, nt)}.items():
+                                  "gem": (5, 1.2, nt), "nbm": (0, 0.95, nt), "aifs": (2, 1.15, nt), "aigfs": (-1, 0.9, nt)}.items():
         rain, gust, wind = storm(shift, amp, hz)
+        if key == "aigfs":
+            gust = np.full_like(gust, np.nan)
         out["om"][key] = {"label": LABELS[key], "lat": lats, "lon": lons, "times": times, "rain": rain, "gust": gust, "wind": wind,
                           "run": _est_run(key, now_utc)}
     # RRFS-like 3 km grid

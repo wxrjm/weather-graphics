@@ -45,7 +45,7 @@ RAW_PREFIX = ("alert_", "river_")  # kept lower-case with their number so OBS ca
 
 TITLES = {
     "spc_tornado_day1": "SPC Day 1 Tornado Outlook", "spc_wind_day1": "SPC Day 1 Damaging Wind Outlook", "spc_hail_day1": "SPC Day 1 Large Hail Outlook", "spc_tornado_day2": "SPC Day 2 Tornado Outlook", "spc_wind_day2": "SPC Day 2 Damaging Wind Outlook", "spc_hail_day2": "SPC Day 2 Large Hail Outlook", "spc_3panel_day1": "SPC Day 1 Severe Risks Hampton Roads 3 Panel", "spc_3panel_day2": "SPC Day 2 Severe Risks Hampton Roads 3 Panel", 
-    "model_compare_rain": "Model Rainfall Comparison", "model_compare_gust": "Model Wind Gust Comparison", "model_compare_rain_5day": "5 Day Model Rainfall Comparison", "model_compare_gust_5day": "5 Day Model Max Wind Gust Comparison",
+    "model_compare_rain": "Model Rainfall Comparison", "model_compare_gust": "Model Wind Gust Comparison", "model_compare_rain_5day": "5 Day Model Rainfall Comparison", "model_compare_ai_rain": "GFS and Euro vs AI Models Rainfall", "model_compare_ai_gust": "GFS and Euro vs AI Models Max Gusts", "model_compare_gust_5day": "5 Day Model Max Wind Gust Comparison",
     "rrfs_rain": "RRFS Rainfall Forecast", "rrfs_gust": "RRFS Peak Gusts", "rrfs_wind": "RRFS Sustained Winds", "rrfs_radar": "RRFS Future Radar",
     "precip_timeline": "Precipitation Timeline", "today_vs_tomorrow": "Today vs Tomorrow Morning", "today_vs_tomorrow_pm": "Today vs Tomorrow Afternoon", "week_warmest_vs_coldest_morning": "Warmest Day vs Coldest Morning", "week_warmest_vs_coldest_afternoon": "Warmest Day vs Coldest Afternoon", "what_to_expect": "What To Expect",
     "safety_hurricane_hunters": "Hurricane Hunters Plane Comparison", "safety_urban_flooding": "Urban Area Flooding",
@@ -61,7 +61,7 @@ TITLES = {
 }
 
 
-for _k, _l in {"gfs": "GFS", "ecmwf": "ECMWF", "icon": "ICON", "gem": "GEM", "hrrr": "HRRR", "nbm": "NBM"}.items():
+for _k, _l in {"gfs": "GFS", "ecmwf": "ECMWF", "icon": "ICON", "gem": "GEM", "hrrr": "HRRR", "nbm": "NBM", "aifs": "AIFS", "aigfs": "AIGFS"}.items():
     TITLES[f"model_rain_{_k}"] = f"{_l} Rainfall Forecast"
     TITLES[f"model_gust_{_k}"] = f"{_l} Peak Gusts"
 
