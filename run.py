@@ -461,7 +461,7 @@ def main():
         else:
             pkg["_models"] = {"now": utc_now, "om": {}, "rrfs": {}, "errors": []}
             if want_("model_maps"):
-                print("Fetching Open-Meteo model grids (GFS, ECMWF, ICON, HRRR)...")
+                print("Fetching Open-Meteo model grids (GFS, ECMWF, ICON, GEM, HRRR)...")
                 pkg["_models"].update(models.fetch_om(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug))
             if want_("rrfs_maps") or want_("model_maps"):
                 print("Fetching NOAA RRFS (rain, wind, simulated radar)...")
