@@ -20,6 +20,7 @@ from .alertmap import _paste_rounded, draw_cities
 from .extras import BAD, GOOD, NEUTRAL, OK_, SEVERE, WARN, _ink, area, grid, pill, tile
 from .outlookmap import _legend_chips, _view, draw_map
 from .theme import C, Canvas, font, z
+from .timefmt import sft
 
 CAT_COL = {0: (90, 170, 255), 1: (255, 220, 60), 2: (255, 160, 40), 3: (240, 80, 40), 4: (220, 30, 60), 5: (200, 70, 210)}
 TS_COL = (110, 210, 140)
@@ -57,7 +58,7 @@ def pt_time(p, base, tz):
 
 
 def _when(dt):
-    return dt.strftime("%a %-I %p").upper() if dt else "--"
+    return sft(dt, "%a %-I %p").upper() if dt else "--"
 
 
 def _storm_title(t):
@@ -369,14 +370,14 @@ def g_advisories(t, pkg, cfg):
         hero = (x, y, w, 180)
         cv.rect(*hero, C["panel"], r=18)
         cv.text(x + 36, y + 30, "NEXT UPDATE", 22, "bold", C["muted"], anchor="lt")
-        cv.text(x + 36, y + 140, nxt.astimezone(tz).strftime("%-I:%M %p %a").upper(), 80, "bold", anchor="ls")
+        cv.text(x + 36, y + 140, sft(nxt.astimezone(tz), "%-I:%M %p %a").upper(), 80, "bold", anchor="ls")
         cv.text(x + w - 36, y + 120, f"IN {mins // 60}H {mins % 60:02d}M", 44, "bold", (250, 205, 90), anchor="rs")
     rows_y = y + 200
     rh = min(110, (y + h - rows_y) / max(1, len(ev)) - 10)
     for i, (tt, lab, sub, col) in enumerate(ev):
         ry = rows_y + i * (rh + 10)
         cv.accent_row(x, ry, w, rh, bar=col)
-        cv.text(x + 34, ry + rh / 2, tt.astimezone(tz).strftime("%a %-I:%M %p").upper(), min(30, rh * 0.36), "bold", anchor="lm")
+        cv.text(x + 34, ry + rh / 2, sft(tt.astimezone(tz), "%a %-I:%M %p").upper(), min(30, rh * 0.36), "bold", anchor="lm")
         cv.text(x + w * (0.34 if not cv.tall else 0.42), ry + rh * 0.38, lab, min(22, rh * 0.26), "bold", col, anchor="lm")
         cv.text(x + w * (0.34 if not cv.tall else 0.42), ry + rh * 0.7, sub, min(18, rh * 0.2), "medium", C["muted"], anchor="lm",
                 maxw=w * (0.62 if not cv.tall else 0.55))
@@ -804,7 +805,7 @@ def g_timeline(t, pkg, cfg):
     for i, d in enumerate(days):
         xx = X(datetime.combine(d, datetime.min.time(), tz))
         cv.line([(xx, top - 10), (xx, y + h - 20)], (255, 255, 255, 40), 1)
-        cv.text(xx + (gx1 - gx0) / 10, y + 40, d.strftime("%a %-d").upper(), 22, "bold", anchor="ms")
+        cv.text(xx + (gx1 - gx0) / 10, y + 40, sft(d, "%a %-d").upper(), 22, "bold", anchor="ms")
     nx = X(now)
     cv.line([(nx, top - 10), (nx, y + h - 20)], (255, 255, 255, 160), 2)
     n = len(lanes) + (1 if ca else 0)

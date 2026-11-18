@@ -24,6 +24,7 @@ from datetime import datetime, timedelta, timezone
 from PIL import Image
 
 from . import outlooks
+from .timefmt import sft
 
 NHC_STORMS = "https://www.nhc.noaa.gov/CurrentStorms.json"
 NHC = "https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather/MapServer"
@@ -462,7 +463,7 @@ def sample(now, cfg):
     for tau, la, lo, kt in track:
         t = (base + timedelta(hours=tau)).astimezone(tz)
         pts.append({"lat": la, "lon": lo, "tau": tau, "wind_kt": kt, "gust_kt": kt + 20, "mslp": 1010 - kt * 0.9,
-                    "label": t.strftime("%a %-I %p"), "full": "", "valid": t.isoformat(), "type": "H" if kt >= 64 else "S",
+                    "label": sft(t, "%a %-I %p"), "full": "", "valid": t.isoformat(), "type": "H" if kt >= 64 else "S",
                     "adv": "18", "advdate": ""})
     past = [{"lat": 30.2 - 0.8 * i, "lon": -76.8 - 0.5 * i, "tau": -6 * i, "wind_kt": max(35, 105 - 8 * i), "label": "",
              "gust_kt": None, "mslp": None, "full": "", "valid": "", "type": "", "adv": "", "advdate": ""} for i in range(1, 9)][::-1]
@@ -484,7 +485,7 @@ def sample(now, cfg):
              64: [{"pct": p, "polys": [ellipse(-75.6, 35.8, 0.9 - i * 0.3, 1.5 - i * 0.45, 1.2)]}
                   for i, p in enumerate([5, 10, 20])]}
     iso = lambda h, w: [{"coords": [[-80.5 + i * 0.6, 34.0 + h * 0.055 + 0.1 * math.sin(i)] for i in range(12)],
-                         "props": {"arrival_time": ((base + timedelta(hours=h)).astimezone(tz)).strftime("%a %-I %p")}}
+                         "props": {"arrival_time": sft(((base + timedelta(hours=h)).astimezone(tz)), "%a %-I %p")}}
                         for h in w]
     ww = [{"coords": [[-76.7, 34.6], [-76.0, 35.2], [-75.5, 35.7], [-75.7, 36.5]], "props": {"tcww": "HWR"}},
           {"coords": [[-75.7, 36.5], [-75.95, 36.9], [-75.6, 37.6], [-75.2, 38.4]], "props": {"tcww": "HWA"}},
@@ -537,7 +538,7 @@ def sample(now, cfg):
                            "plan": "Emergency plans should include the potential for a few tornadoes.",
                            "act": "Listen for tornado watches and warnings."}}}
     hls = {"headline": "HURRICANE WARNING IN EFFECT FOR NORFOLK, PORTSMOUTH, VIRGINIA BEACH AND CHESAPEAKE",
-           "issued": now.strftime("%-I%M %p EDT %a %b %-d %Y").upper(),
+           "issued": sft(now, "%-I%M %p EDT %a %b %-d %Y").upper(),
            "summary": "About 420 miles south of Norfolk VA, 30.2N 76.8W. Storm intensity 120 mph. Movement north or 5 degrees at 14 mph.",
            "situation": "Hurricane SAMPLE is forecast to move north, passing just east of the Outer Banks Thursday and near the "
                         "mouth of the Chesapeake Bay Thursday night. Life-threatening storm surge, damaging hurricane-force winds and "

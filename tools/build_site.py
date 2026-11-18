@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 
 from PIL import Image
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root, for wxgfx
+from wxgfx.timefmt import sft  # noqa: E402
 
 FORMATS = [("wide", "Wide", "16:9 · TV / YouTube", ""), ("vertical", "Vertical", "9:16 · Stories / Reels", "vertical"),
            ("post", "Post", "4:5 · FB / IG feed", "post"), ("square", "Square", "1:1 · FB / IG", "square")]
@@ -126,7 +128,7 @@ def build(src, dst, repo=None):
             im.save(dst / "thumb" / key / (tgt.stem + ".jpg"), quality=78, optimize=True)
             groups.setdefault(sect, []).append(tgt)
         tabs.append((key, label, hint, dict(sorted(groups.items(), key=lambda kv: ORDER.get(kv[0], 99)))))
-    stamp = issued or datetime.now().strftime("%-I:%M %p %a %b %-d")
+    stamp = issued or sft(datetime.now(), "%-I:%M %p %a %b %-d")
     run_url = f"https://github.com/{repo}/actions/workflows/weather-graphics.yml" if repo else None
     parts = []
     for i, (key, label, hint, groups) in enumerate(tabs):

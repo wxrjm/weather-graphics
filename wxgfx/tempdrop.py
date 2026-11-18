@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw
 
 from . import fullscreen, outlookmap
 from .theme import C, Canvas, z
+from .timefmt import sft
 
 MIDATL_VIEW = (-83.6, -73.6, 34.9, 40.9)
 LOCAL_VIEW = (-77.9, -75.0, 35.85, 37.95)
@@ -226,9 +227,9 @@ def _core_days(dates):
 def _day_range(dates):
     a, b = min(dates), max(dates)
     if a == b:
-        return a.strftime("%a").upper(), a.strftime("%b %-d").upper()
-    return f"{a.strftime('%a').upper()}-{b.strftime('%a').upper()}", f"{a.strftime('%b %-d').upper()}-{b.strftime('%-d').upper()}" \
-        if a.month == b.month else f"{a.strftime('%b %-d').upper()}-{b.strftime('%b %-d').upper()}"
+        return a.strftime("%a").upper(), sft(a, "%b %-d").upper()
+    return f"{a.strftime('%a').upper()}-{b.strftime('%a').upper()}", f"{sft(a, '%b %-d').upper()}-{sft(b, '%-d').upper()}" \
+        if a.month == b.month else f"{sft(a, '%b %-d').upper()}-{sft(b, '%b %-d').upper()}"
 
 
 def _pick(rows, proj, area, n, boxsize, force_first="Norfolk", by_drop=True):

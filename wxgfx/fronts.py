@@ -23,6 +23,7 @@ from PIL import Image, ImageDraw
 
 from . import fullscreen, outlookmap
 from .theme import C, Canvas, z
+from .timefmt import sft
 
 BASE = "https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/natl_fcst_wx_chart/MapServer"
 LAYERS = {1: {"fronts": 2, "hl": 1}, 2: {"fronts": 14, "hl": 13}, 3: {"fronts": 26, "hl": 25}}
@@ -315,7 +316,7 @@ def _day_names(now, days):
     for d in days:
         dt = base + timedelta(days=d - 1)
         lab = "TODAY" if d == 1 else ("TOMORROW" if d == 2 else dt.strftime("%A").upper())
-        out[d] = (lab, dt.strftime("%a %b %-d").upper() if hasattr(dt, "strftime") else "")
+        out[d] = (lab, sft(dt, "%a %b %-d").upper() if hasattr(dt, "strftime") else "")
     return out
 
 
