@@ -1,0 +1,56 @@
+name: Website Graphics
+
+on:
+  schedule:
+    # UTC. About 5:30 AM, 11:30 AM, 4:30 PM, 9:30 PM Eastern (an hour later in summer)
+    - cron: "30 10,16,21 * * *"
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+    inputs:
+      sample:
+        description: "Test run with sample data"
+        type: boolean
+        default: false
+  push:
+    paths:
+      - website_graphics.json
+
+concurrency:
+  group: website-graphics
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          pip install Pillow tzdata numpy
+          pip install eccodes || echo "eccodes not available (only needed for snow/wind/Nadocast maps)"
+
+      - name: Make graphics
+        run: |
+          ONLY=$(python -c "import json;print(json.load(open('website_graphics.json')).get('only',''))")
+          ARGS=""
+          if [ -n "$ONLY" ]; then ARGS="--only $ONLY"; fi
+          if [ "${{ inputs.sample }}" = "true" ]; then ARGS="$ARGS --sample"; fi
+          python run.py $ARGS
+
+      - name: Pick the website graphics
+        run: python tools/website_graphics.py
+
+      - name: Publish to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@3 pages project create rickymatthewswx-graphics --production-branch main || true
+          npx --yes wrangler@3 pages deploy _web --project-name rickymatthewswx-graphics --branch main --commit-dirty=true
