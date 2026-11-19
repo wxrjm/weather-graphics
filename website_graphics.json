@@ -1,0 +1,10 @@
+{
+  "_help": "Pick the graphics for rickymatthewswx.com. One line per graphic, using the file name without .png (see output/latest_rickywx). Add \"featured\": true to show one on the home page. 'only' = which graphic groups to rebuild each run (blank = everything, slower).",
+  "only": "outlooks",
+  "format": "Wide",
+  "graphics": [
+    { "name": "spc_day1", "featured": true },
+    "spc_day2",
+    "spc_day3"
+  ]
+}
