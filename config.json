@@ -74,6 +74,7 @@
     "obs_rain",
     "city_table",
     "rain_timing",
+    "rain_big",
     "state_fields",
     "hr_temps",
     "aurora",

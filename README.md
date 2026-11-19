@@ -35,6 +35,7 @@ Each run also writes `forecast.json` (everything the graphics were drawn from) a
 | wind_chill.png | Blue bands starting at 30° and dropping 5° per band (extra bands added for colder values); bars grow taller as it gets colder; only when a wind chill is at or below ~35° |
 | dewpoints.png | Dewpoint comfort scale (your Awesome → Instant Sweat bands) |
 | rain_totals.png | Daily QPF + week total |
+| rain_totals_big.png | Big text: rain expected in the next 48 hours and 5 days (`rain_big_hours`, `rain_big_days`), daily bars |
 | wind.png | Peak gusts on a banded scale |
 | current.png | Latest KORF observation |
 | alerts.png | List of every active alert for your area |
