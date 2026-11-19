@@ -714,12 +714,104 @@ def _cat(kt):
     return ""
 
 
-def _trop_map(cv, box, tr, cfg):
+def _in_ring(lo, la, ring):
+    ins, j = False, len(ring) - 1
+    for i in range(len(ring)):
+        xi, yi, xj, yj = ring[i][0], ring[i][1], ring[j][0], ring[j][1]
+        if (yi > la) != (yj > la) and lo < (xj - xi) * (la - yi) / ((yj - yi) or 1e-9) + xi:
+            ins = not ins
+        j = i
+    return ins
+
+
+def _near_land(pts, deg):
+    """True when any of the (lon, lat) points is on land or within ~deg degrees of a coastline vertex."""
+    if not pts:
+        return False
+    step = max(1, len(pts) // 30)
+    pts = pts[::step]
+    cx = sum(p[0] for p in pts) / len(pts)
+    cy = sum(p[1] for p in pts) / len(pts)
+    pts = pts + [(cx, cy)]
+    k = math.cos(math.radians(cy))
+    d2 = deg * deg
+    for c in _atlantic()["countries"]:
+        for poly in c["polys"]:
+            ring = poly[0]
+            xs = [q[0] for q in ring]
+            ys = [q[1] for q in ring]
+            if min(xs) - deg > max(p[0] for p in pts) or max(xs) + deg < min(p[0] for p in pts) \
+                    or min(ys) - deg > max(p[1] for p in pts) or max(ys) + deg < min(p[1] for p in pts):
+                continue
+            if _in_ring(cx, cy, ring):
+                return True
+            for lo, la in pts:
+                for qx, qy in ring:
+                    if ((lo - qx) * k) ** 2 + (la - qy) ** 2 <= d2:
+                        return True
+    return False
+
+
+def _tropics_view(tr, cfg):
+    """(view, near_land): zoom box (west, east, south, north) framing every outlook area / storm cone close to land."""
+    if not cfg.get("tropics_zoom", True):
+        return None, False
+    deg = cfg.get("tropics_land_deg", 3.0)
+    shapes = [[pt[:2] for p in a["polys"] for pt in p[0]] for a in tr.get("areas", [])]
+    shapes += [[pt[:2] for p in c["polys"] for pt in p[0]] for c in tr.get("cones", [])]
+    shapes += [[(s["lon"], s["lat"])] for s in tr.get("storms", []) if s.get("lat") is not None]
+    near = [sh for sh in shapes if sh and _near_land(sh, deg)]
+    if not near:
+        return None, False
+    pts = [p for sh in near for p in sh]
+    w0, e0 = min(p[0] for p in pts), max(p[0] for p in pts)
+    s0, n0 = min(p[1] for p in pts), max(p[1] for p in pts)
+    loc = cfg["location"]
+    if w0 - 8 <= loc["lon"] <= e0 + 8 and s0 - 8 <= loc["lat"] <= n0 + 8:  # keep Norfolk in frame when it is close
+        w0, e0, s0, n0 = min(w0, loc["lon"]), max(e0, loc["lon"]), min(s0, loc["lat"]), max(n0, loc["lat"])
+    padx, pady = max(3.0, (e0 - w0) * 0.3), max(3.0, (n0 - s0) * 0.3)
+    w0, e0, s0, n0 = w0 - padx, e0 + padx, s0 - pady, n0 + pady
+    if n0 - s0 < 14:
+        mid = (n0 + s0) / 2
+        s0, n0 = mid - 7, mid + 7
+    if n0 - s0 > 45 or e0 - w0 > 70:  # areas far apart: the full basin is the better frame
+        return None, True
+    return (w0, e0, s0, n0), True
+
+
+def _outlook_text(cv, x, y, w, h, items, accent):
+    """NHC outlook paragraphs, as large as fits the box (down to 16px), cut with an ellipsis if still too long."""
+    for size in range(24, 15, -1):
+        lh = size * 1.3
+        blocks = []
+        for it in items:
+            lines = cv.wrap(it["text"], size, "regular", w)
+            blocks.append((it["head"], cv.wrap(it["head"], size, "bold", w) if it["head"] else [], lines))
+        tot = sum((len(hd) + len(ln)) * lh + 12 for _, hd, ln in blocks)
+        if tot <= h or size == 16:
+            break
+    cy, bottom = y, y + h
+    for _, hd, ln in blocks:
+        for l in hd:
+            if cy + lh > bottom:
+                return
+            cv.text(x, cy, l, size, "bold", accent, anchor="lt")
+            cy += lh
+        for i, l in enumerate(ln):
+            if cy + lh > bottom:
+                return
+            more = (i < len(ln) - 1) and cy + 2 * lh > bottom
+            cv.text(x, cy, l + ("..." if more else ""), size, "regular", anchor="lt")
+            cy += lh
+        cy += 12
+
+
+def _trop_map(cv, box, tr, cfg, view=None):
     x, y, w, h = box
     W_, H_ = z(w), z(h)
     lay = Image.new("RGBA", (W_, H_), (17, 27, 47, 255))
     d = ImageDraw.Draw(lay, "RGBA")
-    vw, ve, vs, vn = cfg.get("tropics_view") or (-100, -12, 6, 46)
+    vw, ve, vs, vn = view or cfg.get("tropics_view") or (-100, -12, 6, 46)
     cx, cy = (vw + ve) / 2, (vs + vn) / 2
     k = math.cos(math.radians(cy))
     span_y = max(vn - vs, (ve - vw) * k * h / w)
@@ -785,7 +877,8 @@ def tropics(pkg, cfg):
     cv = Canvas(cfg)
     cv.header("TROPICAL OUTLOOK", "ATLANTIC BASIN  ·  NEXT 7 DAYS")
     (mx, my, mw, mh), (px, py, pw, ph) = cv.split()
-    _trop_map(cv, (mx, my, mw, mh), tr, cfg)
+    view, near_land = _tropics_view(tr, cfg)
+    _trop_map(cv, (mx, my, mw, mh), tr, cfg, view)
     cv.rect(px, py, pw, ph, C["panel"], r=18)
     cy = py + 24
     storms, areas = tr.get("storms") or [], tr.get("areas") or []
@@ -821,6 +914,16 @@ def tropics(pkg, cfg):
                                        f"{a.get('chance7') if a.get('chance7') is not None else '--'}%",
                 22 if not small else 19, "bold", C["muted"], anchor="rm")
         cy += 50 if not small else 42
+    out = tr.get("outlook") or {}
+    mode = cfg.get("tropics_text", "near_land")
+    if out.get("items") and (mode == "always" or (mode == "near_land" and near_land)) and ph - (cy - py) > 150:
+        cv.line([(px + 26, cy + 4), (px + pw - 26, cy + 4)], (255, 255, 255, 60), 1.5)
+        cy += 22
+        cv.text(px + 26, cy, "NHC OUTLOOK", 20, "bold", C["muted"], anchor="lt")
+        if out.get("issued"):
+            cv.text(px + pw - 26, cy, out["issued"].upper(), 17, "medium", C["muted"], anchor="rt", maxw=pw * 0.6)
+        cy += 36
+        _outlook_text(cv, px + 26, cy, pw - 52, py + ph - 20 - cy, out["items"], (255, 255, 255, 255))
     footer(cv, pkg)
     return cv
 

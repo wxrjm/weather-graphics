@@ -954,6 +954,48 @@ def _centroid(polys):
     return sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts)
 
 
+def raw_first_line_is_head(raw):
+    """A TWO block opens with a one-line heading ("Off the Southeastern U.S. Coast (AL94):") then its paragraph."""
+    first = raw.strip().split("\n")[0].strip()
+    return first.endswith(":") and len(first) < 110 and "\n" in raw.strip()
+
+
+def parse_two(text):
+    """NHC Tropical Weather Outlook (Atlantic section) -> {"issued": str, "items": [{"head": str|None, "text": str}]}.
+    The "Formation chance ..." bullets are dropped (the graphic already shows them as numbers)."""
+    if not text:
+        return None
+    t = text.replace("\r", "")
+    m = re.search(r"For the North Atlantic[^\n]*:\s*\n", t, re.I)
+    if not m:
+        return None
+    iss = re.search(r"^\s*(\d{3,4} [AP]M [A-Z]{2,4} \w{3} \w{3} \d{1,2} \d{4})\s*$", t[:m.start()], re.M)
+    body = re.split(r"\n\s*(?:\$\$|&&)", t[m.end():])[0]
+    body = re.sub(r"(?im)^\s*\*\s*formation chance.*$", "", body)
+    items, head = [], None
+    for raw in re.split(r"\n\s*\n", body.strip()):
+        b = re.sub(r"\s*\n\s*", " ", raw).strip()
+        if not b or re.match(r"(?i)(public advisories|forecast/advisories|active systems|high seas|forecaster|tropical cyclone formation is not)", b):
+            continue
+        if b.endswith(":") and len(b) < 110:
+            head = b.rstrip(":").strip()
+            continue
+        if raw_first_line_is_head(raw):
+            first, _, rest = raw.strip().partition("\n")
+            head, b = first.strip().rstrip(":").strip(), re.sub(r"\s*\n\s*", " ", rest).strip()
+        items.append({"head": head, "text": b})
+        head = None
+    return {"issued": iss.group(1) if iss else "", "items": items}
+
+
+def fetch_two(http):
+    for txt in http.product_texts("TWO", "MIA", n=6):
+        o = parse_two(txt)
+        if o is not None:
+            return o
+    return None
+
+
 def fetch_tropics(http, cfg):
     storms = []
     try:
@@ -1022,7 +1064,13 @@ def fetch_tropics(http, cfg):
         areas = [a for a in areas if is_atlantic(*_centroid(a["polys"]))]
         cones = [c for c in cones if is_atlantic(*_centroid(c["polys"]))]
         tracks = [t for t in tracks if t and is_atlantic(*t[0])]
-    return {"storms": storms, "areas": areas, "cones": cones, "tracks": tracks}
+    outlook = None
+    if cfg.get("tropics_text", "near_land") != "never":
+        try:
+            outlook = fetch_two(http)
+        except Exception as e:
+            http.log(f"NHC outlook text: {e}")
+    return {"storms": storms, "areas": areas, "cones": cones, "tracks": tracks, "outlook": outlook}
 
 
 def _intf(x):

@@ -80,6 +80,37 @@ SNOWFALL (IN)
   TODAY            0.0           0.0  2025   0.0    0.0      0.0
 """
 
+TWO_TEXT = """
+ABNT20 KNHC 191800
+Tropical Weather Outlook
+NWS National Hurricane Center Miami FL
+100 PM EST Thu Nov 19 2026
+
+For the North Atlantic...Caribbean Sea and the Gulf of America:
+
+Off the Southeastern U.S. Coast (AL94):
+A broad area of low pressure located off the coast of the southeastern
+United States is producing disorganized showers and thunderstorms.
+Environmental conditions are conducive for gradual development, and a
+subtropical or tropical storm could form this weekend while the system
+moves northeastward, remaining near or just offshore of the coast of the
+Carolinas. Interests along the southeastern U.S. coast should monitor
+the progress of this system.
+* Formation chance through 48 hours...medium...30 percent.
+* Formation chance through 7 days...medium...60 percent.
+
+Central Subtropical Atlantic:
+A weak area of low pressure is expected to form by the weekend.
+* Formation chance through 48 hours...low...near 0 percent.
+* Formation chance through 7 days...low...20 percent.
+
+Public Advisories on Hurricane Kirk are issued under WMO header WTNT31 KNHC.
+
+$$
+Forecaster Test
+"""
+
+
 def _tidal_sample(cfg, now, base):
     """Storm surge building to moderate flooding around Norfolk, major on the bayside Eastern Shore."""
     out = []
@@ -260,12 +291,13 @@ def build(cfg, now, tz):
                      {"timeFrom": t0 + 21 * 3600, "timeTo": t0 + 31 * 3600, "fcstChange": "FM", "wdir": 240, "wspd": 10,
                       "visib": "6+", "clouds": [{"cover": "SCT", "base": 3000}]}]}
     ell = lambda cx, cy, rx, ry: [[[cx + rx * math.cos(a / 20 * math.pi), cy + ry * math.sin(a / 20 * math.pi)] for a in range(41)]]
-    tropics = {"storms": [{"name": "Kirk", "class": "HU", "wind_kt": 90, "pressure": 968, "lat": 24.8, "lon": -58.2,
+    tropics = {"storms": [{"name": "Kirk", "class": "HU", "wind_kt": 90, "pressure": 968, "lat": 24.8, "lon": -48.2,
                            "move": "NNW", "move_mph": 12, "id": "al112026"}],
                "areas": [{"polys": [ell(-38, 13, 6, 3)], "chance2": 20, "chance7": 60, "risk": "Medium"},
-                         {"polys": [ell(-80, 26.5, 3.5, 2)], "chance2": 0, "chance7": 20, "risk": "Low"}],
-               "cones": [{"name": "Kirk", "polys": [[[[-58.2, 24.8], [-60.5, 28], [-62, 32], [-60.5, 36.5], [-55, 38], [-52.5, 34],
-                                                       [-55.5, 30], [-57, 27], [-58.2, 24.8]]]]}]}
+                         {"polys": [ell(-76.5, 33.5, 4.5, 2.2)], "chance2": 30, "chance7": 60, "risk": "Medium"}],
+               "outlook": X.parse_two(TWO_TEXT),
+               "cones": [{"name": "Kirk", "polys": [[[[-48.2, 24.8], [-50.5, 28], [-52, 32], [-50.5, 36.5], [-45, 38], [-42.5, 34],
+                                                       [-45.5, 30], [-47, 27], [-48.2, 24.8]]]]}]}
     base = datetime.combine(now.date(), datetime.min.time(), tz)
     hts, hts2 = [], []
     for name, lag, amp, bump, st in (("Sewells Point", 0.0, 1.45, 0.9, (4.0, 4.5, 5.5, 6.5)),

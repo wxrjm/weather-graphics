@@ -344,7 +344,7 @@ show `N/A` instead of pretending it will be dry. Turn off with `"extended_rainfa
 | commute.png | Your next two drives (6-9 AM, 4-7 PM): rain, fog, gusts on bridges/tunnels, icy spots, sun glare | NDFD |
 | weekend.png | Sat/Sun morning/afternoon/evening with "good for" tags | NDFD |
 | sun_uv.png | Sunrise/sunset, golden hour, daylight change, hourly UV | calculated + EPA UV (ZIP 23510) |
-| tropics.png | Atlantic map: active storms, forecast cones, 7-day outlook areas + list (Jun 1-Nov 30, or anytime there's activity) | NHC |
+| tropics.png | Atlantic map: active storms, forecast cones, 7-day outlook areas + list (Jun 1-Nov 30, or anytime there's activity). When an area or storm is within `tropics_land_deg` (3°) of land the map zooms in on it and the NHC outlook text is added to the side panel (`tropics_zoom`, `tropics_text`: near_land / always / never) | NHC |
 | warning_count.png | Tornado / severe / flash flood / marine warnings issued today: Hampton Roads vs Virginia (only when > 0) | NWS alerts |
 | aviation.png | KORF flight category, decoded METAR, 24-h TAF timeline | aviationweather.gov |
 

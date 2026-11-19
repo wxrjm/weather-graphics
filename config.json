@@ -189,6 +189,9 @@
   ],
   "first_freeze_always": false,
   "tropics_always": false,
+  "tropics_zoom": true,
+  "tropics_land_deg": 3.0,
+  "tropics_text": "near_land",
   "warning_count_always": false,
   "_tide_sites": "High tide graphic sites. 'nwps' = NWS gauge ID (official forecast + flood stages); 'search' finds the gauge ID by name automatically (run --outlook-debug to see what it found, then pin it as nwps); 'coops' = NOAA tide station used as a backup (astronomical tide).",
   "tide_sites": [
