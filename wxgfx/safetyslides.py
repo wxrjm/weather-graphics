@@ -380,9 +380,12 @@ def art_tropical(cv, box):
     asym = 0.22 * np.cos(th + np.pi / 4) * np.exp(-(((r - 0.35) / 0.3) ** 2))      # stronger toward the upper right
     inten = np.clip(ring * 0.95 + bands + asym + nz * 0.25, 0, 1.15)
     inten = inten * (1 - 0.88 * np.exp(-((r / 0.075) ** 2)))                        # eye
-    stops = [0, 0.18, 0.40, 0.62, 0.82, 1.0, 1.15]
-    cols = np.array([(52, 78, 128), (60, 150, 120), (150, 205, 70), (245, 215, 60), (242, 130, 40), (200, 45, 36), (120, 18, 24)])
-    img = np.stack([np.interp(inten, stops, cols[:, k]) for k in range(3)], -1)
+    # visible-satellite look: white cloud tops over dark ocean (the eye shows the water through it)
+    cover = np.clip(inten * 1.8 + nz * 0.2, 0, 1) * np.clip((1.02 - r) * 4, 0, 1)
+    shade = np.clip(0.80 + 0.20 * inten + nz * 0.25, 0.55, 1.0)             # thicker cloud = brighter white
+    ocean = np.array([16, 40, 74])
+    cloud = np.stack([235 * shade, 240 * shade, 248 * shade], -1)
+    img = ocean[None, None, :] * (1 - cover[..., None]) + cloud * cover[..., None]
     alpha = np.clip((1.0 - r) * N * 0.08, 0, 1)
     rgba = np.dstack([img, alpha * 255]).astype("uint8")
     im = Image.fromarray(rgba, "RGBA")
@@ -390,7 +393,7 @@ def art_tropical(cv, box):
     d = ImageDraw.Draw(cv.img, "RGBA")
     # right-front quadrant highlight
     ov = Image.new("RGBA", cv.img.size, (0, 0, 0, 0)); od = ImageDraw.Draw(ov)
-    od.pieslice([z(cx - R), z(cy - R), z(cx + R), z(cy + R)], -90, 0, fill=(255, 255, 255, 105))
+    od.pieslice([z(cx - R), z(cy - R), z(cx + R), z(cy + R)], -90, 0, fill=(255, 70, 60, 85))
     cv.img.paste(ov, (0, 0), ov)
     cv.d = ImageDraw.Draw(cv.img, "RGBA")
     # crosshair
