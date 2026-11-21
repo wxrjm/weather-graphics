@@ -65,8 +65,8 @@ def _panels(cv, accent, items, art=None, art_frac_w=0.36, art_frac_h=0.30, hs=38
         _panel(cv, b, accent, head, text, hs, bs)
 
 
-def _bullets(cv, accent, items, art=None, size=40, art_frac_w=0.34):
-    abox, cbox = _split(cv, art, art_frac_w, 0.28)
+def _bullets(cv, accent, items, art=None, size=40, art_frac_w=0.34, art_frac_h=0.28):
+    abox, cbox = _split(cv, art, art_frac_w, art_frac_h)
     _art(cv, art, abox)
     x, y, w, h = cbox
     cv.rect(x, y, w, h, C["panel"], r=18)
@@ -169,6 +169,28 @@ def art_bow(cv, box):
         arrow(cv, ax, cy + dy * R * 1.5, x + w - 8, cy + dy * R * 1.5, WHITE, 8, 26)
 
 
+_RADAR = {}
+
+
+def art_radar(cv, box):
+    """NWS radar of the June 29, 2023 derecho (the 1:30 PM line), cut out of the supplied image."""
+    from pathlib import Path
+
+    from PIL import Image, ImageDraw
+    from .theme import z
+    if "d" not in _RADAR:
+        _RADAR["d"] = Image.open(Path(__file__).parent / "assets" / "derecho_radar.png").convert("RGBA")
+    im = _RADAR["d"]
+    x, y, w, h = box
+    cap = 54
+    sc = min(z(w * 0.95) / im.width, z(h - cap - 8) / im.height)
+    nw, nh = int(im.width * sc), int(im.height * sc)
+    im2 = im.resize((nw, nh), Image.LANCZOS)
+    cv.img.paste(im2, (z(x + w / 2) - nw // 2, z(y + (h - cap) / 2) - nh // 2), im2)
+    cv.d = ImageDraw.Draw(cv.img, "RGBA")
+    cv.text(x + w / 2, y + h - cap / 2, "JUNE 29, 2023 DERECHO · 1:30 PM RADAR", 22, "bold", WHITE, anchor="mm", maxw=w - 10)
+
+
 def art_shelf(cv, box):
     x, y, w, h = box
     base = y + h * 0.84
@@ -186,20 +208,69 @@ def art_shelf(cv, box):
 
 
 def art_waterspout(cv, box):
+    """Painted-photo style waterspout: stormy sky, textured cloud base, rope funnel, spray ring, sea with glare."""
+    import numpy as np
+    from PIL import Image, ImageChops, ImageDraw, ImageFilter
+    from .theme import z
     x, y, w, h = box
-    cx, wl = x + w * 0.5, y + h * 0.78
-    ell(cv, cx, y + h * 0.16, w * 0.40, h * 0.12, (78, 86, 108))
-    ell(cv, cx - w * 0.18, y + h * 0.22, w * 0.26, h * 0.09, (96, 106, 130))
-    poly(cv, [(cx - w * 0.16, y + h * 0.24), (cx + w * 0.16, y + h * 0.24), (cx + w * 0.03, wl), (cx - w * 0.03, wl)],
-         (200, 210, 224))
-    poly(cv, [(cx - w * 0.10, y + h * 0.26), (cx + w * 0.02, y + h * 0.26), (cx + w * 0.01, wl), (cx - w * 0.02, wl)],
-         (160, 172, 190))
-    cv.rect(x, wl, w, y + h - wl, (*WATER, 255), r=0)
-    ell(cv, cx, wl, w * 0.16, h * 0.03, (225, 235, 245))
-    for i in range(4):
-        yy = wl + h * 0.05 * (i + 1)
-        cv.line([(x + w * 0.1, yy), (x + w * 0.35, yy)], (130, 185, 245), 4)
-        cv.line([(x + w * 0.62, yy + 8), (x + w * 0.9, yy + 8)], (130, 185, 245), 4)
+    W, H = z(w), z(h)
+    rnd = np.random.RandomState(4)
+    hor = int(H * 0.74)                                   # horizon / sea line
+    # sky gradient (dark slate at top to a lighter, yellow-gray haze at the horizon)
+    t = np.linspace(0, 1, H)[:, None]
+    top, mid = np.array([38, 46, 66]), np.array([150, 158, 168])
+    sky = (top[None, None, :] * (1 - t[:, :, None]) + mid[None, None, :] * t[:, :, None]) * np.ones((H, W, 3))
+    img = Image.fromarray(np.clip(sky, 0, 255).astype("uint8"), "RGB").convert("RGBA")
+    # cloud deck: many soft dark blobs forming a lowering wall cloud
+    deck = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(deck)
+    for _ in range(70):
+        cx_, cy_ = rnd.uniform(-0.05, 1.05) * W, rnd.uniform(0.02, 0.26) * H
+        rx, ry = rnd.uniform(0.10, 0.26) * W, rnd.uniform(0.04, 0.10) * H
+        g = int(rnd.uniform(46, 96))
+        d.ellipse([cx_ - rx, cy_ - ry, cx_ + rx, cy_ + ry], fill=(g, g + 6, g + 16, int(rnd.uniform(140, 230))))
+    deck = deck.filter(ImageFilter.GaussianBlur(W * 0.018))
+    img.alpha_composite(deck)
+    # funnel: centerline with a gentle S-curve, width grows toward the cloud
+    fx0, fx_base = W * 0.52, W * 0.46
+    ytop, ybase = int(H * 0.20), hor
+    fun = Image.new("RGBA", (W, H), (0, 0, 0, 0)); fd = ImageDraw.Draw(fun)
+    for yy in range(ytop, ybase):
+        u = (yy - ytop) / (ybase - ytop)                   # 0 at cloud, 1 at sea
+        cx_ = fx0 + (fx_base - fx0) * u + np.sin(u * 5.2 + 0.6) * W * 0.03 * (1 - u * 0.4)
+        half = W * (0.012 + 0.085 * (1 - u) ** 1.6) + W * 0.006
+        shade = 235 - int(60 * u)
+        fd.line([(cx_ - half, yy), (cx_ + half, yy)], fill=(shade, shade + 4, shade + 10, 235))
+        fd.line([(cx_ + half * 0.25, yy), (cx_ + half, yy)], fill=(shade - 62, shade - 58, shade - 46, 235))   # shaded side
+    fun_soft = fun.filter(ImageFilter.GaussianBlur(W * 0.004))
+    # translucent condensation halo around the funnel
+    halo = fun.filter(ImageFilter.GaussianBlur(W * 0.02)); halo.putalpha(halo.getchannel("A").point(lambda v: v // 3))
+    img.alpha_composite(halo); img.alpha_composite(fun_soft)
+    # sea: gradient + wave streaks + reflection of the funnel
+    sea = np.zeros((H - hor, W, 3))
+    for i in range(H - hor):
+        k = i / max(1, H - hor)
+        sea[i, :, :] = (np.array([112, 126, 136]) * (1 - k) + np.array([22, 52, 74]) * k)
+    seai = Image.fromarray(sea.astype("uint8"), "RGB").convert("RGBA")
+    sd = ImageDraw.Draw(seai)
+    for _ in range(150):
+        yy = rnd.uniform(0, 1) ** 1.6 * (H - hor); xx = rnd.uniform(0, W); ln = rnd.uniform(0.02, 0.09) * W * (0.4 + yy / (H - hor))
+        sd.line([(xx, yy), (xx + ln, yy)], fill=(190, 205, 215, int(rnd.uniform(40, 120))), width=max(1, int(1 + yy / (H - hor) * 4)))
+    img.paste(seai, (0, hor))
+    # spray ring / mist where the vortex meets the water
+    mist = Image.new("RGBA", (W, H), (0, 0, 0, 0)); md = ImageDraw.Draw(mist)
+    for _ in range(55):
+        mx = fx_base + rnd.normal(0, W * 0.07); my = hor + rnd.normal(-0.01, 0.012) * H
+        r = rnd.uniform(0.03, 0.08) * W
+        md.ellipse([mx - r, my - r * 0.5, mx + r, my + r * 0.5], fill=(232, 238, 242, int(rnd.uniform(60, 140))))
+    img.alpha_composite(mist.filter(ImageFilter.GaussianBlur(W * 0.014)))
+    # glare on the water below the funnel
+    gl = Image.new("RGBA", (W, H), (0, 0, 0, 0)); gd = ImageDraw.Draw(gl)
+    gd.ellipse([fx_base - W * 0.10, hor + H * 0.01, fx_base + W * 0.10, hor + H * 0.12], fill=(235, 240, 245, 90))
+    img.alpha_composite(gl.filter(ImageFilter.GaussianBlur(W * 0.02)))
+    # clip to the art box with rounded corners and draw it
+    mask = Image.new("L", (W, H), 0); ImageDraw.Draw(mask).rounded_rectangle([0, 0, W - 1, H - 1], radius=z(10), fill=255)
+    cv.img.paste(img.convert("RGB"), (z(x), z(y)), mask)
+    cv.d = ImageDraw.Draw(cv.img, "RGBA")
 
 
 def art_tidal(cv, box):
@@ -238,17 +309,24 @@ def art_hail(cv, box):
         ell(cv, sx - r * 0.25, sy - r * 0.25, r * 0.35, r * 0.35, WHITE)
 
 
+_OVER = {}
+
+
 def art_overpass(cv, box):
+    """Isometric overpass scene (cut out of the supplied NOAA 'Tornadoes and Road Safety' graphic)."""
+    from pathlib import Path
+
+    from PIL import Image, ImageDraw
+    from .theme import z
+    if "i" not in _OVER:
+        _OVER["i"] = Image.open(Path(__file__).parent / "assets" / "overpass_scene.png").convert("RGBA")
+    im = _OVER["i"]
     x, y, w, h = box
-    gy = y + h * 0.86
-    poly(cv, [(x + w * 0.02, y + h * 0.30), (x + w * 0.98, y + h * 0.30), (x + w * 0.98, y + h * 0.46), (x + w * 0.02, y + h * 0.46)],
-         (150, 156, 170))
-    for px in (0.18, 0.5, 0.82):
-        cv.rect(x + w * px - 14, y + h * 0.46, 28, gy - y - h * 0.46, (118, 124, 140))
-    cv.rect(x, gy, w, 8, (90, 96, 108))
-    cx, cy, r = x + w * 0.5, y + h * 0.50, min(w, h) * 0.32
-    ell(cv, cx, cy, r, r, None, outline=RED, w=14)
-    cv.line([(cx - r * 0.7, cy - r * 0.7), (cx + r * 0.7, cy + r * 0.7)], RED, 14)
+    sc = min(z(w) / im.width, z(h) / im.height)
+    nw, nh = int(im.width * sc), int(im.height * sc)
+    im2 = im.resize((nw, nh), Image.LANCZOS)
+    cv.img.paste(im2, (z(x + w / 2) - nw // 2, z(y + h / 2) - nh // 2), im2)
+    cv.d = ImageDraw.Draw(cv.img, "RGBA")
 
 
 def _car(cv, x, base, w, col=(205, 210, 222)):
@@ -281,13 +359,72 @@ def _tornado_funnel(cv, cx, top, bot, w):
 
 
 def art_tropical(cv, box):
+    """Four-quadrant view of a hurricane (satellite-style) with the right-front quadrant highlighted."""
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter
+    from .theme import z
     x, y, w, h = box
-    cx, cy = x + w * 0.5, y + h * 0.42
-    for i, (r, a) in enumerate(((0.44, 90), (0.34, 120), (0.24, 160), (0.13, 200))):
-        ell(cv, cx, cy, w * r, w * r * 0.55, (225, 232, 245, a))
-    ell(cv, cx, cy, w * 0.04, w * 0.025, (20, 28, 46))
-    _tornado_funnel(cv, x + w * 0.78, y + h * 0.58, y + h * 0.90, w * 0.06)
-    ell(cv, x + w * 0.78, y + h * 0.55, w * 0.11, h * 0.05, (96, 106, 130))
+    D = min(w * 0.80, h * 0.80)
+    cx, cy = x + w * 0.55, y + h * 0.50
+    R = D / 2
+    N = z(D)
+    c = (np.arange(N) - N / 2 + 0.5) / (N / 2)
+    xx, yy = np.meshgrid(c, c)
+    r = np.hypot(xx, yy); th = np.arctan2(yy, xx)
+    rnd = np.random.RandomState(7)
+    noise = Image.fromarray((rnd.rand(N // 8 + 1, N // 8 + 1) * 255).astype("uint8")).resize((N, N), Image.BICUBIC).filter(ImageFilter.GaussianBlur(N * 0.01))
+    nz = np.asarray(noise).astype(float) / 255 - 0.5
+    spiral = 0.5 + 0.5 * np.sin(3 * th + 7.5 * np.log(r + 0.12))
+    ring = np.exp(-(((r - 0.20) / 0.11) ** 2))
+    bands = np.exp(-(((r - 0.52) / 0.28) ** 2)) * (0.30 + 0.45 * spiral)
+    asym = 0.22 * np.cos(th + np.pi / 4) * np.exp(-(((r - 0.35) / 0.3) ** 2))      # stronger toward the upper right
+    inten = np.clip(ring * 0.95 + bands + asym + nz * 0.25, 0, 1.15)
+    inten = inten * (1 - 0.88 * np.exp(-((r / 0.075) ** 2)))                        # eye
+    stops = [0, 0.18, 0.40, 0.62, 0.82, 1.0, 1.15]
+    cols = np.array([(52, 78, 128), (60, 150, 120), (150, 205, 70), (245, 215, 60), (242, 130, 40), (200, 45, 36), (120, 18, 24)])
+    img = np.stack([np.interp(inten, stops, cols[:, k]) for k in range(3)], -1)
+    alpha = np.clip((1.0 - r) * N * 0.08, 0, 1)
+    rgba = np.dstack([img, alpha * 255]).astype("uint8")
+    im = Image.fromarray(rgba, "RGBA")
+    cv.img.paste(im, (z(cx - R), z(cy - R)), im)
+    d = ImageDraw.Draw(cv.img, "RGBA")
+    # right-front quadrant highlight
+    ov = Image.new("RGBA", cv.img.size, (0, 0, 0, 0)); od = ImageDraw.Draw(ov)
+    od.pieslice([z(cx - R), z(cy - R), z(cx + R), z(cy + R)], -90, 0, fill=(255, 255, 255, 105))
+    cv.img.paste(ov, (0, 0), ov)
+    cv.d = ImageDraw.Draw(cv.img, "RGBA")
+    # crosshair
+    cv.line([(cx - R * 1.02, cy), (cx + R * 1.02, cy)], (255, 255, 255, 235), 4)
+    cv.line([(cx, cy - R * 1.02), (cx, cy + R * 1.02)], (255, 255, 255, 235), 4)
+    ell(cv, cx, cy, R * 0.035, R * 0.035, (240, 244, 250))
+    # counter-clockwise flow arrows, one per quadrant
+    import math
+    for a0 in (-65, 205, 115, 25):          # start angle (deg, screen coords, y down)
+        pts, rr = [], R * 0.58
+        for k in range(9):
+            a = math.radians(a0 - 40 * k / 8)
+            pts.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
+        cv.line(pts, (255, 255, 255, 215), 9)
+        (x1, y1), (x0, y0) = pts[-1], pts[-3]
+        ang = math.atan2(y1 - y0, x1 - x0); hd = R * 0.1
+        poly(cv, [(x1 + math.cos(ang) * hd, y1 + math.sin(ang) * hd),
+                  (x1 + math.cos(ang + 2.4) * hd * 0.8, y1 + math.sin(ang + 2.4) * hd * 0.8),
+                  (x1 + math.cos(ang - 2.4) * hd * 0.8, y1 + math.sin(ang - 2.4) * hd * 0.8)], (255, 255, 255, 215))
+    # labels
+    def pill(px, py, lines, anchor="mm", size=24):
+        wd = max(cv.width(t_, size, "bold") for t_ in lines) + 30
+        ht = len(lines) * size * 1.25 + 18
+        x0_ = px - wd / 2 if anchor == "mm" else px
+        cv.rect(x0_, py - ht / 2, wd, ht, (10, 12, 20, 235), r=14)
+        for i, t_ in enumerate(lines):
+            cv.text(x0_ + wd / 2, py - ht / 2 + 9 + size * 0.625 + i * size * 1.25, t_, size, "bold", WHITE, anchor="mm")
+    fs = 30 if cv.tall else 24
+    raw0 = getattr(cv, "_raw", False)
+    cv._raw = True                       # fixed-size labels (social mode would otherwise rescale or drop them)
+    pill(cx + R * 0.45, y + h * 0.075, ["RIGHT-FRONT", "QUADRANT"], size=fs)
+    pill(x + w * 0.2, y + h * 0.93, ["DIRECTION", "OF MOVEMENT"], size=fs - 2)
+    cv._raw = raw0
+    arrow(cv, x + w * 0.2, y + h * 0.80, x + w * 0.2, y + h * 0.30, WHITE, 8, 26)
 
 
 # ------------------------------------------------------------------ graphics
@@ -313,7 +450,7 @@ def _svr_watch_warning(cv, a):
 def _derecho(cv, a):
     _panels(cv, a, [("What it is", "A long-lived windstorm from a fast-moving line of storms"),
                     ("How wide", "Damage swath at least 240 miles long with gusts of 58+ mph"),
-                    ("What to do", "Go indoors early, stay away from windows, secure loose items")], art_bow)
+                    ("What to do", "Go indoors early, stay away from windows, secure loose items")], art_radar, 0.36, 0.42)
 
 
 def _shelf(cv, a):
@@ -372,7 +509,7 @@ def _waterspouts(cv, a):
 def _tropical_tornadoes(cv, a):
     _bullets(cv, a, ["Tropical systems can spin up quick tornadoes", "Most common in the right-front quadrant",
                      "Often brief, weak and hidden in heavy rain", "They can happen far from the storm's center",
-                     "Treat every Tornado Warning seriously"], art_tropical)
+                     "Treat every Tornado Warning seriously"], art_tropical, art_frac_w=0.46, art_frac_h=0.46)
 
 
 def _vehicle(cv, a):

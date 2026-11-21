@@ -528,35 +528,100 @@ def _art_leaves(cv, box):
         cv.line([(cx - s * 0.46, cy - s * 0.1 + k * s * 0.1), (cx - s * 0.28 + k * s * 0.03, cy - s * 0.1 + k * s * 0.1)], (160, 205, 255, 200), 4)
 
 
+def _wind_lines(cv, x0, y0, n, ln, gap, col=(160, 205, 255, 200)):
+    for k in range(n):
+        cv.line([(x0, y0 + k * gap), (x0 + ln - (k % 2) * ln * 0.25, y0 + k * gap)], col, 4)
+
+
 def _art_chair(cv, box):
+    """Patio table standing, resin patio chair blown over onto its back."""
     x, y, w, h = box
-    cx, cy, s = x + w / 2, y + h / 2, min(w, h)
-    gy = cy + s * 0.34
-    cv.line([(cx - s * 0.46, gy), (cx + s * 0.46, gy)], (150, 200, 150, 255), 5)
-    # table
-    rrect(cv, cx - s * 0.42, gy - s * 0.28, s * 0.4, s * 0.04, (150, 170, 190))
-    cv.line([(cx - s * 0.22, gy - s * 0.24), (cx - s * 0.22, gy)], (150, 170, 190), 6)
-    # toppling chair
-    ch = [(cx + 0.02 * s, gy - 0.02 * s), (cx + 0.32 * s, gy - 0.02 * s), (cx + 0.32 * s, gy - 0.1 * s), (cx + 0.02 * s, gy - 0.1 * s)]
-    back = [(cx + 0.02 * s, gy - 0.1 * s), (cx + 0.07 * s, gy - 0.1 * s), (cx + 0.07 * s, gy - 0.36 * s), (cx + 0.02 * s, gy - 0.36 * s)]
-    pivot = (cx + 0.32 * s, gy)
-    for pts in (ch, back):
-        poly(cv, rot(pts, *pivot, 28), (186, 160, 128), (120, 100, 80), 2)
-    for k in range(3):
-        cv.line([(cx - s * 0.46, cy - s * 0.3 + k * s * 0.09), (cx - s * 0.26, cy - s * 0.3 + k * s * 0.09)], (160, 205, 255, 200), 4)
+    cx, cy, s = x + w / 2, y + h / 2, min(w, h) * 0.9
+    gy = cy + s * 0.40
+    cv.line([(cx - s * 0.5, gy), (cx + s * 0.5, gy)], (150, 200, 150, 255), 5)
+    # ---- table (glass top, pedestal)
+    tx, ty = cx - s * 0.28, gy - s * 0.37
+    ell(cv, tx, gy + 2, s * 0.17, s * 0.022, (0, 0, 0, 70))
+    for lx0, lx1 in ((-0.17, -0.20), (0.17, 0.20), (-0.08, -0.10), (0.08, 0.10)):
+        cv.line([(tx + lx0 * s, ty + s * 0.02), (tx + lx1 * s, gy)], (120, 130, 146) if abs(lx0) > 0.1 else (92, 100, 114), 5)
+    ell(cv, tx, ty + s * 0.016, s * 0.21, s * 0.045, (96, 106, 122))              # rim / thickness
+    ell(cv, tx, ty, s * 0.21, s * 0.045, (160, 196, 220))                          # glass
+    ell(cv, tx - s * 0.04, ty - s * 0.008, s * 0.12, s * 0.02, (205, 228, 244, 200))  # glare
+    ell(cv, tx, ty, s * 0.21, s * 0.045, None, (96, 106, 122), 3)
+    # ---- chair, built upright (units of s, ground y=0, facing viewer) then tipped over backwards-right
+    WHT, SHD, LEG = (230, 234, 240), (190, 198, 210), (150, 158, 174)
+    parts = []
+
+    def r(x0, y0, x1, y1, col):
+        parts.append(([(x0, y0), (x1, y0), (x1, y1), (x0, y1)], col))
+    for lx in (-0.125, 0.105):
+        r(lx - 0.004, -0.30, lx + 0.024, 0.0, LEG)                      # front legs
+    for lx in (-0.105, 0.085):
+        r(lx - 0.004, -0.30, lx + 0.02, -0.03, (126, 134, 150))        # rear legs (further away)
+    r(-0.16, -0.31, 0.16, -0.27, SHD)                                    # seat front edge
+    parts.append(([(-0.15, -0.31), (0.15, -0.31), (0.12, -0.36), (-0.12, -0.36)], WHT))   # seat top
+    r(-0.135, -0.72, -0.105, -0.36, WHT)                                 # back posts
+    r(0.105, -0.72, 0.135, -0.36, WHT)
+    for sy in (-0.43, -0.50, -0.57, -0.64):
+        r(-0.105, sy - 0.026, 0.105, sy, SHD if sy in (-0.43, -0.57) else WHT)   # slats
+    r(-0.15, -0.76, 0.15, -0.715, WHT)                                   # top rail
+    for ax in (-0.185, 0.145):
+        r(ax, -0.49, ax + 0.04, -0.46, WHT)                              # arm rests
+        r(ax + 0.012, -0.46, ax + 0.028, -0.31, SHD)                     # arm posts
+    ang, piv = 82, (0.16, 0.0)
+    cs = 0.66
+    rp = [(rot(pts, *piv, ang), col) for pts, col in parts]
+    top = max(py for pts, _ in rp for _, py in pts)
+    ox, oy = cx + s * 0.02, gy - top * s * cs
+    for pts, col in rp:
+        poly(cv, [(ox + px * s * cs, oy + py * s * cs) for px, py in pts], col, (110, 118, 134), 1)
+    _wind_lines(cv, cx - s * 0.5, cy - s * 0.38, 3, s * 0.2, s * 0.09)
 
 
 def _art_branch(cv, box):
+    """Tree trunk with a limb snapped off (pale splintered break) lying on the ground, leaves scattered."""
+    import random
+    rnd = random.Random(11)
     x, y, w, h = box
-    cx, cy, s = x + w / 2, y + h / 2, min(w, h)
-    poly(cv, [(cx - s * 0.1, cy + s * 0.42), (cx + s * 0.1, cy + s * 0.42), (cx + s * 0.07, cy - s * 0.4), (cx - s * 0.07, cy - s * 0.4)], (104, 76, 54))
-    poly(cv, [(cx - s * 0.07, cy - s * 0.12), (cx - s * 0.06, cy + s * 0.0), (cx - s * 0.32, cy + s * 0.22), (cx - s * 0.37, cy + s * 0.14)], (130, 96, 68))
-    for dx, dy in ((-0.34, 0.2), (-0.26, 0.28), (-0.4, 0.28)):
-        ell(cv, cx + dx * s, cy + dy * s, s * 0.08, s * 0.06, (82, 160, 88))
-    for dx, dy, r in ((0.0, -0.4, 0.18), (0.16, -0.32, 0.14), (-0.14, -0.32, 0.14)):
-        ell(cv, cx + dx * s, cy + dy * s, r * s, r * s, (82, 160, 88))
-    for k in range(3):
-        cv.line([(cx + s * 0.28, cy - s * 0.2 + k * s * 0.1), (cx + s * 0.48, cy - s * 0.2 + k * s * 0.1)], (160, 205, 255, 200), 4)
+    cx, cy, s = x + w / 2, y + h / 2, min(w, h) * 0.8
+    gy = cy + s * 0.5
+    tx = cx + s * 0.24                                   # trunk axis
+    BARK, BARK_D, LEAF = (104, 76, 54), (78, 56, 40), [(70, 140, 80), (88, 168, 92), (60, 122, 74), (104, 182, 100)]
+    # trunk with root flare
+    L = [(-0.15, 0.44), (-0.085, 0.34), (-0.07, 0.0), (-0.065, -0.46)]
+    R = [(0.15, 0.44), (0.085, 0.34), (0.07, 0.0), (0.065, -0.46)]
+    poly(cv, [(tx + a * s, cy + b * s) for a, b in L + R[::-1]], BARK)
+    poly(cv, [(tx + 0.0 * s, cy + (-0.46) * s), (tx + 0.065 * s, cy - 0.46 * s), (tx + 0.07 * s, cy), (tx + 0.085 * s, cy + 0.34 * s), (tx + 0.15 * s, cy + 0.44 * s), (tx + 0.02 * s, cy + 0.44 * s), (tx + 0.02 * s, cy)], BARK_D)
+    for k in range(7):  # bark furrows
+        bx = -0.055 + k * 0.018
+        cv.line([(tx + bx * s * (1.15 if k in (0, 6) else 1), cy - 0.44 * s + rnd.uniform(0, 0.08) * s),
+                 (tx + (bx * 1.25) * s, cy + 0.38 * s - rnd.uniform(0, 0.1) * s)], (66, 48, 34), 2)
+    # canopy
+    for _ in range(18):
+        ell(cv, tx + rnd.uniform(-0.22, 0.2) * s, cy + rnd.uniform(-0.56, -0.40) * s, rnd.uniform(0.07, 0.11) * s, rnd.uniform(0.06, 0.09) * s, rnd.choice(LEAF))
+    # broken stub with splintered face
+    sx0, sy0 = tx - 0.068 * s, cy - 0.20 * s
+    poly(cv, [(sx0, sy0), (sx0 - 0.1 * s, sy0 - 0.045 * s), (sx0 - 0.1 * s, sy0 + 0.03 * s), (sx0, sy0 + 0.065 * s)], BARK)
+    poly(cv, [(sx0 - 0.1 * s, sy0 - 0.045 * s), (sx0 - 0.075 * s, sy0 - 0.075 * s), (sx0 - 0.06 * s, sy0 - 0.035 * s), (sx0 - 0.05 * s, sy0 - 0.065 * s), (sx0 - 0.03 * s, sy0 - 0.02 * s), (sx0 - 0.1 * s, sy0 + 0.03 * s)], (226, 196, 150))
+    # fallen limb: tapered, pale break end near the trunk side, forks and leafy twigs toward the tip
+    bx0, by0 = tx - 0.30 * s, gy - 0.075 * s
+    bx1, by1 = cx - s * 0.36, gy - 0.02 * s
+    def limb(ax, ay, bx, by, wa, wb, col):
+        import math
+        a = math.atan2(by - ay, bx - ax); nx, ny = -math.sin(a), math.cos(a)
+        poly(cv, [(ax + nx * wa, ay + ny * wa), (bx + nx * wb, by + ny * wb), (bx - nx * wb, by - ny * wb), (ax - nx * wa, ay - ny * wa)], col)
+    limb(bx0, by0, bx1, by1 - 0.015 * s, s * 0.034, s * 0.008, BARK)
+    limb(bx0, by0, bx0 - s * 0.05, by0 - s * 0.005, s * 0.034, s * 0.034, (226, 196, 150))   # break face
+    for fx, fy in ((0.42, -0.12), (0.62, -0.10), (0.80, -0.11)):    # side twigs
+        px, py = bx0 + (bx1 - bx0) * fx, by0 + (by1 - by0) * fx
+        limb(px, py, px - s * 0.07, py + fy * s, s * 0.012, s * 0.004, BARK)
+        for _ in range(5):
+            ell(cv, px - s * 0.07 + rnd.uniform(-0.05, 0.03) * s, py + fy * s + rnd.uniform(-0.04, 0.04) * s, s * 0.04, s * 0.025, rnd.choice(LEAF))
+    for _ in range(9):   # leaves along / around the limb tip
+        ell(cv, bx1 + rnd.uniform(-0.02, 0.1) * s, by1 + rnd.uniform(-0.07, 0.0) * s, s * 0.045, s * 0.027, rnd.choice(LEAF))
+    cv.line([(cx - s * 0.5, gy), (cx + s * 0.5, gy)], (150, 200, 150, 255), 5)
+    ell(cv, tx - s * 0.12, gy + 3, s * 0.3, s * 0.015, (0, 0, 0, 60))
+    _wind_lines(cv, cx - s * 0.46, cy - s * 0.42, 3, s * 0.2, s * 0.09)
 
 
 def _art_roof(cv, box):
@@ -726,16 +791,63 @@ def _art_house(cv, box):
 
 
 def _art_mobile(cv, box):
+    """Single-wide manufactured home: lap siding, skirting, low-pitch roof, door with steps, windows, AC unit, hitch."""
     x, y, w, h = box
     cx, cy, s = x + w / 2, y + h / 2, min(w, h * 1.7)
-    rrect(cv, cx - s * 0.42, cy - s * 0.1, s * 0.84, s * 0.2, (170, 176, 188), r=4)
-    for fx in (-0.34, -0.18, 0.06, 0.2):
-        rrect(cv, cx + fx * s, cy - s * 0.06, s * 0.08, s * 0.08, (206, 226, 252), r=2)
-    cv.line([(cx - s * 0.46, cy + s * 0.1), (cx + s * 0.46, cy + s * 0.1)], (110, 70, 54, 255), 6)
-    ell(cv, cx + s * 0.34, cy - s * 0.3, s * 0.1, s * 0.1, (230, 60, 60))
-    cv.line([(cx + s * 0.3, cy - s * 0.34), (cx + s * 0.38, cy - s * 0.26)], WHITE, 5)
-    cv.line([(cx + s * 0.38, cy - s * 0.34), (cx + s * 0.3, cy - s * 0.26)], WHITE, 5)
-    arrow(cv, cx - s * 0.1, cy + s * 0.24, cx + s * 0.34, cy + s * 0.24, (255, 120, 90), 7, 22)
+    gy = cy + s * 0.22                       # ground
+    L, R = cx - s * 0.44, cx + s * 0.44
+    sk, bt = s * 0.07, s * 0.24              # skirting height, body height
+    ell(cv, cx, gy + 3, s * 0.5, s * 0.025, (0, 0, 0, 80))
+    # hitch / tongue on the left
+    poly(cv, [(L, gy - sk - 4), (L - s * 0.1, gy - sk + 2), (L - s * 0.1, gy - sk + 6), (L, gy - sk + 1)], (96, 102, 114))
+    cv.line([(L - s * 0.09, gy - sk + 5), (L - s * 0.09, gy)], (96, 102, 114), 5)
+    # skirting
+    rrect(cv, L, gy - sk, R - L, sk, (150, 156, 170))
+    for i in range(1, 26):
+        cv.line([(L + (R - L) * i / 26, gy - sk), (L + (R - L) * i / 26, gy)], (120, 126, 140), 2)
+    # body with lap siding
+    top = gy - sk - bt
+    rrect(cv, L, top, R - L, bt, (214, 204, 178))
+    for i in range(1, 11):
+        yy = top + bt * i / 11
+        cv.line([(L, yy), (R, yy)], (184, 174, 148), 2)
+    rrect(cv, L, top, s * 0.014, bt, (246, 246, 248))                     # corner trim
+    rrect(cv, R - s * 0.014, top, s * 0.014, bt, (246, 246, 248))
+    rrect(cv, L, gy - sk - s * 0.012, R - L, s * 0.012, (246, 246, 248))  # belly trim
+    # low-pitch roof with overhang and fascia
+    poly(cv, [(L - s * 0.03, top + 2), (L + s * 0.04, top - s * 0.075), (R - s * 0.04, top - s * 0.075), (R + s * 0.03, top + 2)], (108, 116, 130))
+    poly(cv, [(L + s * 0.04, top - s * 0.075), (R - s * 0.04, top - s * 0.075), (R - s * 0.05, top - s * 0.06), (L + s * 0.05, top - s * 0.06)], (140, 148, 162))
+    rrect(cv, L - s * 0.03, top - 1, R - L + s * 0.06, s * 0.012, (246, 246, 248))
+    rrect(cv, cx - s * 0.16, top - s * 0.115, s * 0.016, s * 0.045, (92, 98, 110))   # vent pipe
+    # windows (white frame, glass, mullion, sill) and an AC unit under the left one
+    for wx in (-0.36, -0.16, 0.06):
+        fx, fy, fw, fh = cx + wx * s, top + bt * 0.2, s * 0.13, bt * 0.5
+        rrect(cv, fx - 3, fy - 3, fw + 6, fh + 6, (248, 248, 250), r=2)
+        rrect(cv, fx, fy, fw, fh, (140, 184, 222), r=1)
+        poly(cv, [(fx, fy), (fx + fw * 0.45, fy), (fx, fy + fh * 0.7)], (198, 226, 246))
+        cv.line([(fx + fw / 2, fy), (fx + fw / 2, fy + fh)], (248, 248, 250), 3)
+        rrect(cv, fx - 5, fy + fh + 3, fw + 10, s * 0.012, (236, 236, 240))
+    rrect(cv, cx - s * 0.365, top + bt * 0.77, s * 0.1, bt * 0.2, (170, 176, 188), r=2)
+    for k in range(4):
+        cv.line([(cx - s * 0.355, top + bt * (0.8 + 0.04 * k)), (cx - s * 0.275, top + bt * (0.8 + 0.04 * k))], (120, 126, 140), 2)
+    # door with window, awning, steps and railing
+    dx = cx + s * 0.27
+    rrect(cv, dx - 3, top + bt * 0.16, s * 0.1 + 6, bt * 0.84 + sk * 0.0, (248, 248, 250), r=2)
+    rrect(cv, dx, top + bt * 0.2, s * 0.1, bt * 0.8, (122, 92, 72), r=1)
+    rrect(cv, dx + s * 0.02, top + bt * 0.28, s * 0.06, bt * 0.28, (160, 196, 226), r=1)
+    ell(cv, dx + s * 0.085, top + bt * 0.62, 3, 3, (220, 190, 80))
+    poly(cv, [(dx - s * 0.04, top + bt * 0.14), (dx + s * 0.14, top + bt * 0.14), (dx + s * 0.16, top + bt * 0.04), (dx - s * 0.02, top + bt * 0.04)], (176, 80, 72))
+    rrect(cv, dx - s * 0.05, gy - sk - s * 0.01, s * 0.18, s * 0.02, (150, 112, 82))          # deck
+    for k in range(3):
+        rrect(cv, dx - s * 0.05 - k * s * 0.025, gy - sk + s * 0.01 + k * (sk - s * 0.01) / 3, s * 0.07 - k * 0.0, (sk - s * 0.01) / 3, (170, 128, 94))
+    cv.line([(dx + s * 0.13, gy - sk - s * 0.01), (dx + s * 0.13, gy - sk - s * 0.09)], (248, 248, 250), 3)
+    cv.line([(dx + s * 0.13, gy - sk - s * 0.09), (dx + s * 0.02, gy - sk - s * 0.09)], (248, 248, 250), 3)
+    cv.line([(dx + s * 0.13, gy - sk - s * 0.05), (dx + s * 0.02, gy - sk - s * 0.05)], (248, 248, 250), 2)
+    cv.line([(L - s * 0.06, gy), (R + s * 0.06, gy)], (110, 70, 54, 255), 6)
+    ell(cv, cx + s * 0.38, cy - s * 0.34, s * 0.09, s * 0.09, (230, 60, 60))
+    cv.line([(cx + s * 0.34, cy - s * 0.38), (cx + s * 0.42, cy - s * 0.3)], WHITE, 5)
+    cv.line([(cx + s * 0.42, cy - s * 0.38), (cx + s * 0.34, cy - s * 0.3)], WHITE, 5)
+    arrow(cv, cx - s * 0.1, gy + s * 0.1, cx + s * 0.34, gy + s * 0.1, (255, 120, 90), 7, 22)
 
 
 def _art_multi(cv, box):
