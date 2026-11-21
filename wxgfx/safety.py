@@ -269,9 +269,9 @@ def hurricane_hunters(pkg, cfg):
     boxes = _boxes(cv, 3)
     bw0, bh0 = boxes[0][2], boxes[0][3]
     k = bw0 * (0.335 if cv.tall else 0.88) / 118  # px per foot, set by the longest aircraft (P-3, 116.8 ft)
-    data = [("WP-3D ORION", "p3", "99.6 ft", "27,000 ft", "Flies into the eye of the storm, measuring its intensity"),
-            ("NOAA G-IV", "g4", "77.8 ft", "45,000 ft", "Flies at high altitude around the storm's edges, sampling the environment"),
-            ("AIR FORCE C-130", "c130", "132.6 ft", "33,000 ft", "Flies into the eye of the storm, measuring its intensity")]
+    data = [("AIR FORCE C-130", "c130", "132.6 ft", "33,000 ft", "Flies into the eye of the storm, measuring its intensity"),
+            ("WP-3D ORION", "p3", "99.6 ft", "27,000 ft", "Flies into the eye of the storm, measuring its intensity"),
+            ("NOAA G-IV", "g4", "77.8 ft", "45,000 ft", "Flies at high altitude around the storm's edges, sampling the environment")]
     for box, (nm, kind, ws, ceil, job) in zip(boxes, data):
         rows = [("WINGSPAN", 22, "medium", C["muted"]), (ws, 54, "bold", WHITE), ("CEILING", 22, "medium", C["muted"]),
                 (ceil, 54, "bold", WHITE), (job, 26, "regular", C["muted"])]
