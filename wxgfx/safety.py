@@ -158,15 +158,15 @@ def _footer(cv, pkg, src):
 # ------------------------------------------------------------------ 1. hurricane hunters
 def _plane(kind, k):
     """Plan view, nose to the right. -> art(cv, box). k = pixels per foot (shared so the sizes compare)."""
-    spec = {  # length, span, fuselage width, wing LE from nose, root chord, tip chord, sweep(ft back at tip), props, jets
-        "p3": (116.8, 99.6, 11.5, 40, 16.5, 8.0, 3, (0.30, 0.62), False),
-        "g4": (88.3, 77.8, 7.7, 32, 15.0, 5.0, 16, (), True),
-        "c130": (97.8, 132.6, 12.0, 30, 16.5, 12.5, 1, (0.26, 0.62), False),
-    }[kind]
-    L, span, fw, le, cr, ct, sw, props, jets = spec
-    body = {"p3": (240, 244, 250), "g4": (246, 248, 252), "c130": (150, 158, 170)}[kind]
-    wing = {"p3": (214, 222, 236), "g4": (226, 232, 242), "c130": (128, 136, 148)}[kind]
-    edge = (96, 112, 140)
+    # length, span, fuselage width, wing leading edge from nose, root chord, tip chord, tip sweep (ft), nose length (ft), tail taper start (ft)
+    spec = {"p3": (116.8, 99.6, 11.0, 38, 17.0, 8.5, 4, 11, 84),
+            "g4": (88.3, 77.8, 7.0, 33, 15.0, 5.0, 17, 17, 54),
+            "c130": (97.8, 132.6, 10.5, 28, 16.0, 11.0, 2, 9, 70)}[kind]
+    L, span, fw, le, cr, ct, sw, nose, tt = spec
+    body = {"p3": (246, 248, 252), "g4": (248, 250, 254), "c130": (150, 158, 170)}[kind]
+    wing = {"p3": (228, 233, 244), "g4": (236, 240, 248), "c130": (132, 140, 152)}[kind]
+    edge = {"p3": (92, 108, 138), "g4": (96, 112, 140), "c130": (84, 92, 106)}[kind]
+    accent = (255, 140, 0)
 
     def art(cv, box):
         bx, by, bw, bh = box
@@ -174,30 +174,59 @@ def _plane(kind, k):
         n0 = cx + L * k / 2  # nose x
         f = lambda ft: n0 - ft * k
         hs = span / 2 * k
-        # wings
+        # wings (tapered, swept), with flap / aileron lines
         for sgn in (-1, 1):
-            poly(cv, [(f(le), cy + sgn * fw * k / 2), (f(le + cr), cy + sgn * fw * k / 2),
-                      (f(le + sw + ct), cy + sgn * hs), (f(le + sw), cy + sgn * hs)], wing, edge, 1.5)
-        # tail plane
-        ts, tc_ = span * (0.36 if kind != "g4" else 0.34), 8.0
-        tx = L - tc_ - (2 if kind != "g4" else 3)
+            r0, r1 = (f(le), cy + sgn * fw * k / 2), (f(le + cr), cy + sgn * fw * k / 2)
+            t0, t1 = (f(le + sw), cy + sgn * hs), (f(le + sw + ct), cy + sgn * hs)
+            poly(cv, [r0, t0, (t1[0], t1[1]), r1], wing, edge, 1.5)
+            mid = lambda a, b, t: (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+            cv.line([mid(r0, r1, 0.72), mid(t0, t1, 0.72)], (*edge, 110), 1.5)  # flap / aileron hinge line
+            cv.line([mid(r0, t0, 0.62), mid(r1, t1, 0.62)], (*edge, 70), 1.2)
+            if kind != "c130":  # NOAA orange wingtips
+                poly(cv, [mid(r0, t0, 0.93), t0, t1, mid(r1, t1, 0.93)], accent)
+        # horizontal tailplane
+        ts = span * (0.40 if kind == "c130" else 0.34 if kind == "p3" else 0.30)
+        tx = L - (10 if kind != "g4" else 9)
         for sgn in (-1, 1):
-            poly(cv, [(f(tx), cy + sgn * fw * k * 0.3), (f(tx + tc_), cy + sgn * fw * k * 0.3),
-                      (f(tx + tc_ + (4 if kind == "g4" else 1)), cy + sgn * ts / 2 * k), (f(tx + (4 if kind == "g4" else 1)), cy + sgn * ts / 2 * k)],
-                 wing, edge, 1.5)
-        # fuselage
-        rrect(cv, f(L), cy - fw * k / 2, L * k, fw * k, body, r=fw * k / 2, outline=edge, ow=1.5)
+            poly(cv, [(f(tx - 1), cy + sgn * fw * k * 0.28), (f(tx + 8), cy + sgn * fw * k * 0.28),
+                      (f(tx + 6 + (4 if kind == "g4" else 0)), cy + sgn * ts / 2 * k), (f(tx - 2 + (6 if kind == "g4" else 0)), cy + sgn * ts / 2 * k)], wing, edge, 1.5)
+        # fuselage: rounded nose, straight barrel, tapered tail cone
+        N, pts_t, pts_b = 60, [], []
+        for i in range(N + 1):
+            ft = L * i / N
+            if ft < nose:
+                wf = max(0.06, math.sqrt(max(0.0, 1 - ((nose - ft) / nose) ** 2)) ** (1.0 if kind != "g4" else 1.5))
+            elif ft > tt:
+                wf = 1 - 0.86 * ((ft - tt) / (L - tt)) ** 1.25
+            else:
+                wf = 1.0
+            pts_t.append((f(ft), cy - fw * k / 2 * wf))
+            pts_b.append((f(ft), cy + fw * k / 2 * wf))
+        poly(cv, pts_t + pts_b[::-1], body, edge, 1.8)
+        cv.line([(f(nose * 1.3), cy), (f(tt + 6), cy)], (255, 255, 255, 90), max(2, fw * k * 0.22))  # highlight along the top
+        poly(cv, [(f(nose * 0.62), cy - fw * k * 0.2), (f(nose * 1.05), cy - fw * k * 0.3), (f(nose * 1.05), cy + fw * k * 0.3), (f(nose * 0.62), cy + fw * k * 0.2)], (54, 70, 96))  # cockpit glass
         if kind == "p3":
-            cv.line([(f(L * 0.92), cy), (f(L * 0.12), cy)], (255, 140, 0, 255), max(2, fw * k * 0.12))  # NOAA orange stripe
-        # engines / props
-        for fr in props:
+            cv.line([(f(nose * 1.5), cy - fw * k * 0.5 + 1), (f(tt), cy - fw * k * 0.4)], (*accent, 255), max(2, fw * k * 0.07))  # orange cheat-line
+            cv.line([(f(nose * 1.5), cy + fw * k * 0.5 - 1), (f(tt), cy + fw * k * 0.4)], (*accent, 255), max(2, fw * k * 0.07))
+            poly(cv, [(f(L - 1), cy - 0.7 * k), (f(L + 12), cy - 0.25 * k), (f(L + 12), cy + 0.25 * k), (f(L - 1), cy + 0.7 * k)], body, edge, 1.2)  # MAD tail boom
+        # vertical fin seen from above
+        poly(cv, [(f(tx - 4), cy - 0.8 * k), (f(tx + 9), cy - 0.5 * k), (f(tx + 9), cy + 0.5 * k), (f(tx - 4), cy + 0.8 * k)], wing, edge, 1.2)
+        # engines
+        if kind == "g4":
             for sgn in (-1, 1):
-                ex, ey = f(le + sw * fr * 2 - 5), cy + sgn * hs * (fr + 0.1) * (1 if kind == "p3" else 1.0)
-                ell(cv, ex, ey, 6.5 * k, 2.4 * k, (110, 120, 140), edge, 1)
-                cv.line([(ex + 6 * k, ey - 8 * k), (ex + 6 * k, ey + 8 * k)], (60, 70, 90, 150), 2.5)
-        if jets:
-            for sgn in (-1, 1):
-                ell(cv, f(L - 24), cy + sgn * (fw * k / 2 + 3.6 * k), 8 * k, 2.6 * k, (150, 160, 180), edge, 1)
+                ey = cy + sgn * (fw * k / 2 + 2.6 * k)
+                rrect(cv, f(L - 18), ey - 1.8 * k, 13 * k, 3.6 * k, (214, 222, 236), r=1.8 * k, outline=edge, ow=1.2)
+                cv.line([(f(L - 19), ey), (f(L - 19), ey)], edge, 1)
+                cv.line([(f(L - 12), cy + sgn * fw * k * 0.5), (f(L - 12), ey - sgn * 1.6 * k)], (*edge, 255), 2)  # pylon
+                ell(cv, f(L - 17), ey, 0.7 * k, 1.6 * k, (60, 70, 92))  # intake
+        else:
+            for fr in (0.30, 0.62):
+                for sgn in (-1, 1):
+                    yy = cy + sgn * hs * fr
+                    xle = f(le + sw * fr)
+                    rrect(cv, xle - 7 * k, yy - 2.0 * k, 22 * k, 4.0 * k, (120, 130, 150) if kind == "c130" else (200, 208, 224), r=2 * k, outline=edge, ow=1.2)  # nacelle
+                    ell(cv, xle - 9 * k, yy, 0.9 * k, 6.8 * k, (230, 236, 248, 70), (255, 255, 255, 110), 1)  # prop disc
+                    ell(cv, xle - 8 * k, yy, 1.1 * k, 1.1 * k, (50, 58, 78))  # spinner
         # span bracket
         bxl = cx - L * k / 2 - 18
         cv.line([(bxl, cy - hs), (bxl, cy + hs)], (255, 255, 255, 120), 2)
@@ -305,13 +334,14 @@ def high_risk_damage(pkg, cfg):
             if cv.tall:
                 lx, ly, anc = cx + R * 0.2, cy + R + 56, "mm"
             ex, ey = (cx + R, cy) if not cv.tall else (cx, cy + R)
-        elif nm == "OTHER":
-            lx, ly, anc = cx + 40, cy - R - 44, "lm"
+        elif nm == "OTHER":  # slices sit just left of 12 o'clock: labels go up-left, MODERATE above OTHER, lines never cross
+            lx, ly, anc = cx - R * 0.31 - 150, cy - R * 0.78, "rm"
             ex, ey = px, py
         else:
-            lx, ly, anc = cx - 150, cy - R - 12, "rm"
+            lx, ly, anc = cx - R * 0.07 - 110, cy - R - 40, "rm"
             ex, ey = px, py
         cv.line([(ex, ey), (lx - (12 if anc == "lm" else -12 if anc == "rm" else 0), ly)], (255, 255, 255, 200), 2.5)
+        ell(cv, ex, ey, 5, 5, WHITE)
         t = f"{nm} ({pct}%)"
         tw = cv.width(t, 30, "bold") + 36
         bx = lx if anc == "lm" else lx - tw if anc == "rm" else lx - tw / 2
@@ -503,21 +533,39 @@ def _art_branch(cv, box):
 
 
 def _art_roof(cv, box):
+    """Single-story house; shingles are peeling off the roof and blowing away."""
     x, y, w, h = box
-    cx, cy, s = x + w / 2, y + h / 2, min(w, h)
-    top, bot = cy - s * 0.3, cy + s * 0.3
-    poly(cv, [(cx - s * 0.5, bot), (cx - s * 0.18, top), (cx + s * 0.18, top), (cx + s * 0.5, bot)], (186, 112, 84), (120, 70, 54), 2)
-    for r in range(4):
-        yy = top + (bot - top) * (r + 1) / 4
-        fx = (yy - top) / (bot - top)
-        xl, xr = cx - s * (0.18 + 0.32 * fx), cx + s * (0.18 + 0.32 * fx)
-        cv.line([(xl, yy), (xr, yy)], (120, 70, 54, 200), 2.5)
-    poly(cv, [(cx - s * 0.08, cy - s * 0.02), (cx + s * 0.12, cy - s * 0.02), (cx + s * 0.14, cy + s * 0.1), (cx - s * 0.1, cy + s * 0.1)], (54, 44, 44))
-    for dx, dy, a in ((0.22, -0.34, 20), (0.34, -0.2, -15), (0.12, -0.44, 35)):
+    cx, cy, s = x + w / 2, y + h / 2, min(w, h * 1.15)
+    gy = cy + s * 0.36
+    wall_top = gy - s * 0.26
+    rrect(cv, cx - s * 0.36, wall_top, s * 0.72, gy - wall_top, (226, 212, 184))  # siding
+    for k in range(1, 5):
+        cv.line([(cx - s * 0.36, wall_top + k * s * 0.052), (cx + s * 0.36, wall_top + k * s * 0.052)], (190, 176, 150, 200), 2)
+    rrect(cv, cx - s * 0.06, gy - s * 0.17, s * 0.12, s * 0.17, (84, 62, 52))  # door
+    for fx in (-0.25, 0.15):
+        rrect(cv, cx + fx * s, wall_top + s * 0.06, s * 0.1, s * 0.09, (206, 228, 250), r=2, outline=(250, 250, 250), ow=2)
+    cv.line([(cx - s * 0.5, gy), (cx + s * 0.5, gy)], (130, 190, 130, 255), 4)
+    ax, ay = cx, wall_top - s * 0.3  # roof apex
+    ex0, ex1, ey = cx - s * 0.43, cx + s * 0.43, wall_top + s * 0.03
+    roof, edge, dark = (158, 100, 78), (104, 64, 50), (74, 56, 52)
+    poly(cv, [(ex0, ey), (ax, ay), (ex1, ey)], roof, edge, 2)
+    rows = 6
+    for r in range(1, rows + 1):  # shingle courses with staggered joints
+        yy = ay + (ey - ay) * r / rows
+        half = (ex1 - ex0) / 2 * (yy - ay) / (ey - ay)
+        cv.line([(cx - half, yy), (cx + half, yy)], (*edge, 220), 2)
+        step = s * 0.085
+        xx = cx - half + (step / 2 if r % 2 else 0)
+        while xx < cx + half - 2:
+            if xx > cx - half + 2:
+                cv.line([(xx, yy - (ey - ay) / rows), (xx, yy)], (*edge, 150), 1.5)
+            xx += step
+    poly(cv, [(cx + s * 0.04, ay + s * 0.2), (cx + s * 0.2, ay + s * 0.2), (cx + s * 0.26, ay + s * 0.3), (cx + s * 0.02, ay + s * 0.3)], dark)  # bare patch
+    for dx, dy, a in ((0.3, -0.3, 25), (0.42, -0.18, -18), (0.2, -0.42, 40)):  # flying shingles
         sx, sy = cx + dx * s, cy + dy * s
-        poly(cv, rot([(sx - s * 0.06, sy - s * 0.035), (sx + s * 0.06, sy - s * 0.035), (sx + s * 0.06, sy + s * 0.035), (sx - s * 0.06, sy + s * 0.035)], sx, sy, a), (186, 112, 84), (120, 70, 54), 2)
-    for k in range(2):
-        cv.line([(cx - s * 0.5, cy - s * 0.4 + k * s * 0.1), (cx - s * 0.3, cy - s * 0.4 + k * s * 0.1)], (160, 205, 255, 200), 4)
+        poly(cv, rot([(sx - s * 0.055, sy - s * 0.032), (sx + s * 0.055, sy - s * 0.032), (sx + s * 0.055, sy + s * 0.032), (sx - s * 0.055, sy + s * 0.032)], sx, sy, a), roof, edge, 2)
+    for k in range(3):
+        cv.line([(cx - s * 0.5, cy - s * 0.38 + k * s * 0.09), (cx - s * 0.3 + (k % 2) * s * 0.06, cy - s * 0.38 + k * s * 0.09)], (160, 205, 255, 200), 4)
 
 
 def wind_impacts(pkg, cfg):
@@ -555,8 +603,9 @@ def how_hail_forms(pkg, cfg):
     cv.text(x + dw - 16, fl - 16, "FREEZING LEVEL", 22 if not cv.tall else 18, "bold", (255, 120, 135), anchor="rs", stroke=3, stroke_fill=(40, 50, 90))
     arrow(cv, ccx + s * 0.02, fl + dh * 0.22, ccx + s * 0.02, ccy - s * 0.2, (255, 190, 80), 14, 40)  # updraft
     cv.text(ccx + s * 0.1, fl + dh * 0.2, "UPDRAFT", 22 if not cv.tall else 18, "bold", (255, 214, 140), anchor="lm", stroke=3, stroke_fill=(70, 50, 20))
-    arrow(cv, ccx - s * 0.46, ccy + s * 0.04, ccx - s * 0.62, ccy + s * 0.5 + dh * 0.08, (60, 90, 240), 14, 40)  # downdraft
-    cv.text(ccx - s * 0.62, fl - 14, "DOWNDRAFT", 22 if not cv.tall else 18, "bold", (170, 200, 255), anchor="rm", stroke=3, stroke_fill=(20, 30, 90))
+    dxr = ccx + s * 0.52  # downdraft: starts inside the cloud's right side and drops straight to the ground
+    arrow(cv, dxr, ccy + s * 0.05, dxr, gy - 26, (60, 90, 240), 14, 40)
+    cv.text(dxr + 30, fl + dh * 0.24, "DOWNDRAFT", 22 if not cv.tall else 18, "bold", (170, 200, 255), anchor="lm", stroke=3, stroke_fill=(20, 30, 90))
     for dx in (-0.06, 0.12):  # raindrops below freezing level
         poly(cv, [(ccx + dx * s, fl + dh * 0.1), (ccx + dx * s - 8, fl + dh * 0.1 + 18), (ccx + dx * s + 8, fl + dh * 0.1 + 18)], (130, 195, 250))
         ell(cv, ccx + dx * s, fl + dh * 0.1 + 20, 9, 9, (130, 195, 250))
@@ -568,8 +617,8 @@ def how_hail_forms(pkg, cfg):
         cv.d.arc([z(lcx - lr), z(lcy - lr), z(lcx + lr), z(lcy + lr)], 40, 330, fill=(240, 200, 40, 255), width=z(5))
         ax_, ay_ = lcx + lr * math.cos(math.radians(40)), lcy + lr * math.sin(math.radians(40))
         poly(cv, [(ax_ + 12, ay_ - 4), (ax_ - 10, ay_ - 12), (ax_ - 2, ay_ + 12)], (240, 200, 40))
-    for (hx, hy, r) in ((-0.62, 0.52, 14), (-0.55, 0.64, 18), (-0.7, 0.6, 11)):  # falling hail
-        ell(cv, ccx + hx * s, ccy + hy * s + dh * 0.04, r, r, (232, 236, 244), (150, 160, 178), 2)
+    for (hx, hy, r) in ((0, -190, 15), (-34, -118, 12), (-30, -62, 17)):  # falling hail along the downdraft
+        ell(cv, dxr + hx, gy + hy, r, r, (232, 236, 244), (150, 160, 178), 2)
     # explainer
     ex, ey, ew, eh = (x + dw + 20, y, w - dw - 20, h) if not cv.tall else (x, y + dh + 18, w, h - dh - 18)
     cv.rect(ex, ey, ew, eh, C["panel"], r=14)
@@ -597,6 +646,33 @@ def severe_risk_levels(pkg, cfg):
     data = [("MARGINAL", (76, 175, 96), "NO", "ONCE OR TWICE"), ("SLIGHT", (246, 208, 60), "POSSIBLY", "EVERY FEW HOURS"),
             ("ENHANCED", (240, 130, 40), "PROBABLY", "EVERY HOUR"), ("MODERATE", (228, 62, 62), "YES", "CONSTANTLY"),
             ("HIGH", (214, 64, 232), "YES", "CONSTANTLY")]
+    if not cv.tall:  # wide: every card uses the same rows, so the questions and answers line up across all five
+        boxes = _boxes(cv, 5, gap=18)
+        cw = boxes[0][2] - 40
+        words = [wd for d in data for wd in (d[2] + " " + d[3]).split()]
+        asz = 56
+        while asz > 30 and max(cv.width(wd, asz, "bold") for wd in words) > cw:
+            asz -= 2
+        qsz = 26
+        for (x0, y0, w0, h0), (nm, col, plans, check) in zip(boxes, data):
+            cv.rect(x0, y0, w0, h0, C["panel"], r=14)
+            band = 96
+            cv.rect(x0, y0, w0, band, (*col, 255), r=14)
+            cv.rect(x0, y0 + 40, w0, band - 40, (*col, 255))
+            cv.text(x0 + w0 / 2, y0 + band / 2, nm, 40, "bold", on(col), anchor="mm", maxw=w0 - 24)
+            half = (h0 - band) / 2
+            for i, (q, a) in enumerate((("SHOULD I CANCEL MY PLANS?", plans), ("HOW OFTEN SHOULD I CHECK THE WEATHER?", check))):
+                top = y0 + band + i * half
+                ql = cv.wrap(q, qsz, "bold", w0 - 50)
+                for j, l in enumerate(ql):
+                    cv.text(x0 + w0 / 2, top + 36 + j * qsz * 1.3, l, qsz, "bold", C["muted"], anchor="mm")
+                al = cv.wrap(a, asz, "bold", w0 - 30)
+                ay0 = top + 36 + 2 * qsz * 1.3 + (half - 36 - 2 * qsz * 1.3 - 24) / 2  # answer centred in the space under the question
+                for j, l in enumerate(al):
+                    cv.text(x0 + w0 / 2, ay0 + (j - (len(al) - 1) / 2) * asz * 1.12, l, asz, "bold", (*col, 255), anchor="mm")
+            cv.line([(x0 + 30, y0 + band + half), (x0 + w0 - 30, y0 + band + half)], (255, 255, 255, 40), 2)
+        _footer(cv, pkg, "NOAA Storm Prediction Center categories")
+        return cv
     for box, (nm, col, plans, check) in zip(_boxes(cv, 5, gap=14), data):
         big = col if lum(col) > 100 else col
         rows = [("SHOULD I CANCEL MY PLANS?", 26 if not cv.tall else 28, "bold", C["muted"]), (plans, 62 if not cv.tall else 60, "bold", (*big, 255)),
@@ -667,6 +743,10 @@ MAKERS = [("safety_hurricane_hunters", hurricane_hunters), ("safety_urban_floodi
           ("safety_tire_pressure", tire_pressure), ("safety_freezing_rain", freezing_rain), ("safety_wind_impacts", wind_impacts),
           ("safety_how_hail_forms", how_hail_forms), ("safety_severe_risk_levels", severe_risk_levels),
           ("safety_tornado_safety", tornado_safety)]
+
+
+from .safetyslides import SLIDES  # noqa: E402  (slide-style set; imports helpers from this module)
+MAKERS += SLIDES
 
 
 def safety_graphics(pkg, cfg):
