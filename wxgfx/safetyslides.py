@@ -374,7 +374,7 @@ def art_tropical(cv, box):
     rnd = np.random.RandomState(7)
     noise = Image.fromarray((rnd.rand(N // 8 + 1, N // 8 + 1) * 255).astype("uint8")).resize((N, N), Image.BICUBIC).filter(ImageFilter.GaussianBlur(N * 0.01))
     nz = np.asarray(noise).astype(float) / 255 - 0.5
-    spiral = 0.5 + 0.5 * np.sin(3 * th + 7.5 * np.log(r + 0.12))
+    spiral = 0.5 + 0.5 * np.sin(3 * th - 7.5 * np.log(r + 0.12))
     ring = np.exp(-(((r - 0.20) / 0.11) ** 2))
     bands = np.exp(-(((r - 0.52) / 0.28) ** 2)) * (0.30 + 0.45 * spiral)
     asym = 0.22 * np.cos(th + np.pi / 4) * np.exp(-(((r - 0.35) / 0.3) ** 2))      # stronger toward the upper right
