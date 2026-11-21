@@ -155,6 +155,33 @@ def _footer(cv, pkg, src):
     cv.footer(pkg, source=src)
 
 
+# photo cutouts (supplied photos, background removed) for the Hurricane Hunters comparison.
+# (length in feet, pixels that length spans in the 2x cutout, or None = whole width)
+_PHOTO = {"p3": (116.8, None), "g4": (88.3, 880), "c130": (97.8, None)}
+_PHOTO_CACHE = {}
+
+
+def _photo(kind, k):
+    """art(cv, box): the aircraft cutout, scaled by true length (k = pixels per foot) and centered in the box."""
+    from pathlib import Path
+
+    from PIL import Image
+
+    def art(cv, box):
+        if kind not in _PHOTO_CACHE:
+            _PHOTO_CACHE[kind] = Image.open(Path(__file__).parent / "assets" / "planes" / f"{kind}.png").convert("RGBA")
+        im = _PHOTO_CACHE[kind]
+        ft, span = _PHOTO[kind]
+        pw = span or im.width
+        sc = z(ft * k) / pw
+        w, h = int(im.width * sc), int(im.height * sc)
+        im2 = im.resize((max(1, w), max(1, h)), Image.LANCZOS)
+        x, y, bw, bh = box
+        cv.img.paste(im2, (z(x + bw / 2) - w // 2, z(y + bh / 2) - h // 2), im2)
+        cv.d = ImageDraw.Draw(cv.img, "RGBA")
+    return art
+
+
 # ------------------------------------------------------------------ 1. hurricane hunters
 def _plane(kind, k):
     """Plan view, nose to the right. -> art(cv, box). k = pixels per foot (shared so the sizes compare)."""
@@ -241,14 +268,14 @@ def hurricane_hunters(pkg, cfg):
     _header(cv, "HURRICANE HUNTERS", "PLANE COMPARISONS", red)
     boxes = _boxes(cv, 3)
     bw0, bh0 = boxes[0][2], boxes[0][3]
-    k = min(((bh0 * 0.50) if not cv.tall else (bh0 - 30)) * 0.9 / 135, (bw0 * (0.34 if cv.tall else 0.84)) / 125)
+    k = bw0 * (0.335 if cv.tall else 0.88) / 118  # px per foot, set by the longest aircraft (P-3, 116.8 ft)
     data = [("WP-3D ORION", "p3", "99.6 ft", "27,000 ft", "Flies into the eye of the storm, measuring its intensity"),
             ("NOAA G-IV", "g4", "77.8 ft", "45,000 ft", "Flies at high altitude around the storm's edges, sampling the environment"),
             ("AIR FORCE C-130", "c130", "132.6 ft", "33,000 ft", "Flies into the eye of the storm, measuring its intensity")]
     for box, (nm, kind, ws, ceil, job) in zip(boxes, data):
         rows = [("WINGSPAN", 22, "medium", C["muted"]), (ws, 54, "bold", WHITE), ("CEILING", 22, "medium", C["muted"]),
                 (ceil, 54, "bold", WHITE), (job, 26, "regular", C["muted"])]
-        _card(cv, box, red, nm, _plane(kind, k), rows, title_size=36 if not cv.tall else 32, art_frac=0.5)
+        _card(cv, box, red, nm, _photo(kind, k), rows, title_size=36 if not cv.tall else 32, art_frac=0.5)
     _footer(cv, pkg, "NOAA Aircraft Operations Center / 53rd WRS")
     return cv
 
