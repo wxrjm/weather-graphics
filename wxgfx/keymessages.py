@@ -227,4 +227,5 @@ def key_messages(pkg, cfg):
     for i, (_, kind, title, text) in enumerate(items):
         _card(cv, (px, py + i * (ch + gap), pw_, ch), i + 1, kind, title, text)
     cv.footer(pkg, source="National Weather Service (NDFD)" if "SAMPLE" not in pkg.get("source", "") else "SAMPLE DATA")
+    cv.used_split = False  # its own card layout: no map-only twin
     return cv
