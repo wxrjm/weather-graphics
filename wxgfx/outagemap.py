@@ -1,6 +1,9 @@
-"""POWER OUTAGE RISK MAP: NDFD peak-gust field (next 24 h) shaded by outage-risk level, with a Hampton Roads
+"""POWER OUTAGE RISK MAP: NDFD peak-gust field for the windiest day of the period (outage_days, default 5) shaded by outage-risk level, with a Hampton Roads
 side panel.  Uses the same levels as the 7-day Power Outage Risk cards (outagerisk.LEVELS); no shading = low risk.
 Advisory guidance from forecast gusts only, not a utility forecast.  Config: outage_map_always (draw even when calm)."""
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from . import ndfdmap, outlookmap
 from .alertmap import _paste_rounded
 from .outagerisk import LEVELS, RANGES, _level
@@ -16,14 +19,25 @@ def outage_map(pkg, cfg):
         return None
     view = ndfdmap._wind_box(cfg)
     ext = tuple(view)
-    rng = ndfdmap._plotted_range(f, ext)
-    if not rng:
-        return None
+    day = None
+    for d in data.get("gust_days") or []:  # the windiest day of the period (peak gust inside the map area)
+        r = ndfdmap._plotted_range(d, ext)
+        if r and (day is None or r[1] > day[1][1]):
+            day = (d, r)
+    if day:
+        f, rng = day[0], day[1]
+        dd = day[0]["date"]
+        when = ("TODAY" if dd == datetime.now(ZoneInfo(cfg["timezone"])).date() else dd.strftime("%A").upper()) + dd.strftime(" %b %-d").upper()
+    else:
+        rng = ndfdmap._plotted_range(f, ext)
+        when = "NEXT 24 HOURS"
+        if not rng:
+            return None
     if rng[1] < LEVELS[1][3] and not cfg.get("outage_map_always"):
         print("  - outage_map: gusts below outage-risk threshold, skipped")
         return None
     cv = Canvas(cfg)
-    title, sub = "POWER OUTAGE RISK", "NEXT 24 HOURS  ·  FROM FORECAST PEAK WIND GUSTS  ·  NATIONAL WEATHER SERVICE"
+    title, sub = "POWER OUTAGE RISK", (f"WINDIEST DAY  ·  {when}" if day else when) + "  ·  FROM FORECAST PEAK WIND GUSTS"
     cv.header(title, sub)
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
     lay = outlookmap.draw_map([], mw, mh, cfg, outline=False,

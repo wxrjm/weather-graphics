@@ -176,7 +176,8 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
     cache = Path(cache_dir)
     cache.mkdir(parents=True, exist_ok=True)
     sectors = cfg.get("ndfd_sectors", ["midatlan", "conus"])
-    want = {"snow": ("snow", cfg.get("snow_hours", 72)), "wind": ("wspd", 24), "gust": ("wgust", 24)}
+    want = {"snow": ("snow", cfg.get("snow_hours", 72)), "wind": ("wspd", 24),
+            "gust": ("wgust", max(24, 24 * cfg.get("outage_days", 5)))}  # gust: also per-day fields for the outage map
     for key, (elem, hours) in want.items():
         if key != "snow" and key not in (cfg.get("wind_maps") or ["wind", "gust"]):
             continue
@@ -203,7 +204,16 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
                 if key == "snow":
                     field = np.nansum(stack, axis=0) * 39.3701  # m -> in
                 else:
-                    field = np.nanmax(stack, axis=0) * 2.23694  # m/s -> mph
+                    first = [g for t, g in grids if t <= now_utc + timedelta(hours=24)] or [grids[0][1]]
+                    field = np.nanmax(np.stack(first), axis=0) * 2.23694  # m/s -> mph (next 24 h)
+                    if key == "gust":
+                        from zoneinfo import ZoneInfo
+                        tz = ZoneInfo(cfg["timezone"])
+                        byday = {}
+                        for t, g in grids:
+                            byday.setdefault(t.astimezone(tz).date(), []).append(g)
+                        out["gust_days"] = [{"date": d, "lat": lat, "lon": lon, "val": np.nanmax(np.stack(v), axis=0) * 2.23694,
+                                             "start": now_utc, "end": end, "sector": sector} for d, v in sorted(byday.items())]
                 out[key] = {"lat": lat, "lon": lon, "val": field,
                             "start": min(t for t, _ in grids) - (timedelta(hours=6) if key == "snow" else timedelta()),
                             "end": max(t for t, _ in grids), "sector": sector}
@@ -453,4 +463,10 @@ def sample(now_utc):
     gust = wind * 1.45 + 3
     mk = lambda v, hrs: {"lat": lat, "lon": lon, "val": v, "start": now_utc, "end": now_utc + timedelta(hours=hrs),
                          "sector": "sample"}
-    return {"snow": mk(np.clip(snow, 0, None), 48), "wind": mk(wind, 24), "gust": mk(gust, 24), "errors": []}
+    from datetime import date
+    days = []
+    for i, k in enumerate((0.8, 1.15, 0.9, 0.7, 0.6)):  # synthetic: day 2 is the windiest
+        d = mk(gust * k, 24)
+        d["date"] = (now_utc + timedelta(days=i)).date()
+        days.append(d)
+    return {"snow": mk(np.clip(snow, 0, None), 48), "wind": mk(wind, 24), "gust": mk(gust, 24), "gust_days": days, "errors": []}

@@ -268,7 +268,7 @@ def fetch_fields(cfg, cache_dir, now_utc, debug=False):
             snow_end, lat, lon = None, None, None
             for elem, (key, how, conv) in plan.items():
                 for vp in ("001-003", "004-007"):
-                    if elem in ("wspd", "wgust", "td", "snow") and vp == "004-007":
+                    if elem in ("td", "snow") and vp == "004-007":
                         continue  # hourly / 6-hourly fields: the next 3 days are plenty
                     try:
                         path = ndfdmap._download(ndfdmap.TGFTP.format(sector=sector, vp=vp, elem=elem),
@@ -306,6 +306,12 @@ def fetch_fields(cfg, cache_dir, now_utc, debug=False):
             if not res["highs"] and not res["lows"]:
                 raise RuntimeError("no highs/lows in the forecast")
             snow = res.pop("snow").get("total")
+            est = set()  # days 4-5: NDFD has no gust grid that far out -> estimate from the sustained-wind grid
+            for dd, w in res["wind"].items():
+                if dd not in res["gust"]:
+                    res["gust"][dd] = f32(w * cfg.get("gust_factor_est", 1.45))
+                    est.add(dd)
+            out["gust_est"] = est
             out.update(res)
             out.update({"lat": lat, "lon": lon, "snow": snow, "snow_end": snow_end, "sector": sector})
             if debug:
@@ -327,7 +333,7 @@ def sample_fields(now_utc, tz):
     lat, lon = base["lat"], base["lon"]
     blob = lambda cx, cy, sx, sy: np.exp(-(((lon - cx) / sx) ** 2 + ((lat - cy) / sy) ** 2))
     today = now_utc.astimezone(tz).date()
-    days = [today + timedelta(days=i) for i in range(4)]
+    days = [today + timedelta(days=i) for i in range(5)]
     f = lambda a: np.asarray(a, dtype=np.float32)
     pop = {d: f(np.clip(15 + 70 * blob(-77.2 + 1.2 * i, 36.2 + 0.4 * i, 2.2, 1.4) + 8 * i, 0, 100)) for i, d in enumerate(days)}
     wind = {d: f(9 + (6 + 5 * i) * blob(-75.6, 36.2, 2.2, 1.6) + 5 * blob(-80.5, 37.5, 1.5, 1.0)) for i, d in enumerate(days)}
@@ -532,8 +538,9 @@ def state_field_graphics(pkg, cfg):
         ("dew", "state_dew", "DEW POINTS", DEW_BINS, "°F", "PEAK DEW POINT (°F)", lambda v: f"{round(v)}°"),
     ]
     for key, name, title, bins, unit, ltitle, fmt in specs:
-        for i, d in enumerate(_daylist(fd.get(key) or {}, n), 1):
-            sub = f"VA & NC  ·  {_day_name(d, today)}, {d.strftime('%b').upper()} {d.day}  ·  NWS NDFD"
+        for i, d in enumerate(_daylist(fd.get(key) or {}, cfg.get("state_gust_days", 5) if key == "gust" else n), 1):
+            est = key == "gust" and d in (fd.get("gust_est") or ())
+            sub = f"VA & NC  ·  {_day_name(d, today)}, {d.strftime('%b').upper()} {d.day}  ·  " + ("EST. FROM NDFD WINDS" if est else "NWS NDFD")
             grid = fd[key][d]
             if key == "pop":  # shade by the same nearest-10% value that is printed, so nothing under 20% is coloured
                 import numpy as np

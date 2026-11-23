@@ -1,8 +1,7 @@
-"""Power outage risk: 7-day cards from forecast peak wind gusts (one level higher on wet soil + strong gusts).
+"""Power outage risk: 7-day cards from forecast peak wind gusts (level set by peak gust only).
 
 Levels (peak gust, mph): LOW < 30, ISOLATED 30-40, SCATTERED 41-50, NUMEROUS 51-60, EXTENSIVE 61+.
-Advisory guidance only, not a utility forecast.  Config: outage_wet_gust (45), outage_wet_qpf (1.5).
-"""
+Advisory guidance only, not a utility forecast.  """
 import math
 
 from PIL import ImageDraw
@@ -80,19 +79,16 @@ def outage_risk_graphic(pkg, cfg):
     days = [d for d in (pkg.get("days") or [])[:7] if d.get("max_gust") is not None]
     if len(days) < 3:
         return None
-    wet_g, wet_q = cfg.get("outage_wet_gust", 45), cfg.get("outage_wet_qpf", 1.5)
     cv = Canvas(cfg)
     cv.header("POWER OUTAGE RISK", f"{pkg['location']['area'].upper()}  ·  BASED ON FORECAST PEAK WIND GUSTS")
     n = len(days)
     gap = 14
     cw = (cv.W - 2 * cv.M - gap * (n - 1)) / n
-    top, bot = 205, 852
+    top, bot = 205, cv.bottom - 4
     for i, dd in enumerate(days):
         g = int(dd["max_gust"])
         lv = _level(g)
-        wet = g >= wet_g and (dd.get("qpf") or 0) >= wet_q
-        if wet:
-            lv = min(4, lv + 1)
+        wet = False  # no wet-soil bump: the level comes from the peak gust alone
         name, col, desc, _ = LEVELS[lv]
         x = cv.M + i * (cw + gap)
         cv.rect(x, top, cw, bot - top, C["panel"], r=16)
@@ -105,24 +101,11 @@ def outage_risk_graphic(pkg, cfg):
         cv.rect(x + 10, by, cw - 20, bot - by - 10, (*col, 255), r=12)
         lum = 0.3 * col[0] + 0.59 * col[1] + 0.11 * col[2]
         tc = (20, 28, 46) if lum > 140 else (255, 255, 255)
-        cv.text(x + cw / 2, by + 16, "OUTAGE RISK", 14, "bold", tc, anchor="mt")
-        cv.text(x + cw / 2, by + 36, name, 26, "bold", tc, anchor="mt", maxw=cw - 30)
-        cv.paragraph(x + cw / 2, by + 78, desc + (" (wet soil)" if wet else ""), 18, "regular", cw - 28, max_lines=6, lh=1.22,
+        cv.text(x + cw / 2, by + 20, "OUTAGE RISK", 18, "bold", tc, anchor="mt")
+        cv.text(x + cw / 2, by + 50, name, 38, "bold", tc, anchor="mt", maxw=cw - 24)
+        cv.text(x + cw / 2, by + 104, RANGES[lv], 24, "bold", tc, anchor="mt")
+        cv.paragraph(x + cw / 2, by + 152, desc, 23, "medium", cw - 26, max_lines=8, lh=1.2,
                      fill=tc, anchor="ma")
-    # legend
-    lw = (cv.W - 2 * cv.M - 10 * 4) / 5
-    ly = 870
-    fs = 16
-    nl = max(len(cv.wrap(d, fs, "bold", lw - 28)) for _, _, d, _ in LEVELS)
-    lh = max(122, 80 + nl * fs * 1.22 + 16)  # grow the boxes so every description line fits
-    for i, (name, col, desc, _) in enumerate(LEVELS):
-        x = cv.M + i * (lw + 10)
-        cv.rect(x, ly, lw, lh, (*col, 255), r=12)
-        lum = 0.3 * col[0] + 0.59 * col[1] + 0.11 * col[2]
-        tc = (20, 28, 46) if lum > 140 else (255, 255, 255)
-        cv.text(x + lw / 2, ly + 14, name, 26, "bold", tc, anchor="mt")
-        cv.text(x + lw / 2, ly + 46, RANGES[i], 21, "bold", tc, anchor="mt")
-        cv.paragraph(x + lw / 2, ly + 78, desc, fs, "bold", lw - 28, max_lines=nl, lh=1.22, fill=tc, anchor="ma")
     src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "NWS POINT FORECAST GUSTS"
-    cv.footer(pkg, source=f"{src} · ONE LEVEL HIGHER WITH {wet_g}+ MPH GUSTS AND {wet_q}\" OR MORE OF RAIN (WET SOIL). ADVISORY GUIDANCE, NOT A UTILITY FORECAST")
+    cv.footer(pkg, source=f"{src} · ADVISORY GUIDANCE, NOT A UTILITY FORECAST")
     return cv

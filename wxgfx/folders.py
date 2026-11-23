@@ -21,7 +21,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
     ("Rain & Flooding", lambda n: n.startswith(("rain_totals", "wpc_qpf", "ero_", "state_qpf", "state_ero", "obs_rain", "state_pop", "ffg_", "rain_reports",
                                                    "storm_rain_reports", "river"))),
     ("Snow & Ice", lambda n: n.startswith(("snow", "state_snow", "ice_", "wssi", "storm_snow_reports"))),
-    ("Wind", lambda n: n.startswith(("state_wind", "state_gust")) or n in ("wind", "wind_map", "gust_map", "storm_wind_reports", "gust_table_48", "gust_peaks", "gust_bars_48", "gust_bars_48_dir", "outage_risk", "outage_map")),
+    ("Wind", lambda n: n.startswith(("state_wind", "state_gust")) or n in ("wind", "wind_map", "gust_map", "storm_wind_reports", "gust_table_48", "gust_peaks", "gust_bars_48", "gust_bars_48_dir", "outage_risk", "outage_map", "wind_color")),
     ("Tides & Coast", lambda n: n.startswith(("tides", "tide_error", "high_tides", "tidal_flood", "beach", "sound_flood"))),
     ("Tropical", lambda n: n.startswith(("tropics", "Tropical/"))),
     ("Long Range", lambda n: n.startswith("cpc_")),
@@ -66,7 +66,7 @@ TITLES = {
     "safety_ffw_watch_vs_warning": "Flash Flood Watch vs Warning",
     "safety_flood_depth": "How Deep Is Too Deep",
     "safety_tidal_flooding": "Tidal Flooding",  # whole-name / prefix overrides for the graphics whose snake_case doesn't title-case well
-    "tide_error": "Tide Forecast Check", "snow_probability": "Snow Probability", "temp_vs_normal": "Above or Below Average", "outage_risk": "Power Outage Risk", "outage_map": "Power Outage Risk Map", "sun_uv": "Sun & UV", "city_table": "City Forecast Table",
+    "tide_error": "Tide Forecast Check", "snow_probability": "Snow Probability", "temp_vs_normal": "Above or Below Average", "outage_risk": "Power Outage Risk", "outage_map": "Power Outage Risk Map", "wind_color": "Peak Wind Gusts - Color Coded", "sun_uv": "Sun & UV", "city_table": "City Forecast Table",
     "obs_rain": "Observed Rainfall", "gust_bars_48": "48 Hour Gust Bars", "gust_bars_48_dir": "48 Hour Gust Bars With Wind Direction", "gust_table_48": "48 Hour Gust Table",
     "gust_peaks": "Peak Gusts", "cpc_8_14": "CPC 8-14 Day", "cpc_3_7": "CPC 3-7 Day", "sound_flood": "Sound Side Flooding",
     "what_to_know": "What to Know", "key_messages": "Key Messages", "weather_aware": "Be Weather Aware", "feels_like": "Heat Index", "month_rain": "Rainfall So Far",

@@ -249,6 +249,11 @@ WIND_BANDS = [("LIGHT", 0, 15, (170, 215, 235), True), ("BREEZY", 15, 25, (95, 1
               ("DAMAGING", 58, 80, (120, 30, 120), False)]
 
 
+WIND_BANDS_COLOR = [("LIGHT", 0, 15, (72, 178, 98), False), ("BREEZY", 15, 25, (240, 205, 60), True),
+                    ("WINDY", 25, 40, (245, 150, 45), True), ("VERY WINDY", 40, 58, (228, 62, 62), False),
+                    ("DAMAGING", 58, 80, (160, 82, 210), False)]  # green / yellow / orange / red / purple
+
+
 def _chart_days(pkg, n):
     start = 1 if pkg.get("evening_mode") else 0
     return _days_from(pkg, start, n)
@@ -320,6 +325,16 @@ def wind(pkg, cfg):
     cv = Canvas(cfg)
     cv.header("PEAK WIND GUSTS", pkg["location"]["area"])
     _banded(cv, WIND_BANDS, [(d["dow"], d.get("max_gust")) for d in days])
+    cv.footer(pkg)
+    return cv
+
+
+def wind_color(pkg, cfg):
+    """Same chart as wind(), banded green / yellow / orange / red / purple by severity."""
+    days = _chart_days(pkg, 7)
+    cv = Canvas(cfg)
+    cv.header("PEAK WIND GUSTS", pkg["location"]["area"])
+    _banded(cv, WIND_BANDS_COLOR, [(d["dow"], d.get("max_gust")) for d in days])
     cv.footer(pkg)
     return cv
 
@@ -616,7 +631,7 @@ from . import extras as _extras  # noqa: E402
 GRAPHICS = {
     "daily": daily, "what_to_know": what_to_know, "7day": seven_day, "hourly": hourly,
     "feels_like": feels_like, "wind_chill": wind_chill, "dewpoints": dewpoints, "rain_totals": rain_totals,
-    "wind": wind, "current": current, "alerts": alerts, "alert_maps": alert_maps, "outlooks": outlook_graphics,
+    "wind": wind, "wind_color": wind_color, "current": current, "alerts": alerts, "alert_maps": alert_maps, "outlooks": outlook_graphics,
     "ndfd_maps": ndfd_maps, "winter_maps": winter_graphics, "cpc_hazards": cpc_graphics, "river_flooding": river_graphics, "tidal_flood_map": tidal_graphics, "holiday_countdown": holiday_countdown, "drought": drought_graphics_all, "safety_graphics": safety.safety_graphics, "spc_hazards": spchaz.hazard_graphics, "spc_3panel": spchaz.three_panel_graphics, "model_maps": models.model_graphics, "rrfs_maps": models.rrfs_graphics, "precip_timeline": timelines.precip_timeline, "today_vs_tomorrow": timelines.today_vs_tomorrow, "week_extremes": timelines.week_extremes, "what_to_expect": timelines.what_to_expect, "ffg": ffg_graphics, "reports": report_graphics, "tropical_pack": tropical_graphics, "frost_risk": frost_graphics, "temp_drop": tempdrop_graphics, "state_outlooks": state_outlook_graphics, "obs_rain": newgfx.obs_rain_graphics, "city_table": newgfx.city_table_graphics, "rain_timing": newgfx.rain_timing_graphic, "state_fields": newgfx.state_field_graphics, "hr_temps": newgfx.hr_temp_graphics, "aurora": newgfx.aurora_graphic, "tide_error": tideerr.tide_error_graphic, "outage_risk": outagerisk.outage_risk_graphic, "temp_vs_normal": tempnormal.temp_vs_normal_graphic, "holiday_forecast": holidayfx.holiday_forecast_graphics, "snow_probability": snowruler.snow_probability_graphic, "sunset_quality": newgfx.sunset_quality_graphic, "degree_days": newgfx.degree_days_graphic, "state_temps": state_temp_graphics, "state_windchill": state_windchill_graphics, "hazout": hazout_graphics, "asos_temps": asos_graphics, "pressure": pressure_graphics, "nbm_temps": nbm_graphics, "month_calendars": monthcal_graphics, "temp_drop_highs": tempdrop_highs_graphics, "frost_region": frost_region_graphics, "freeze_potential": freeze_potential_graphics, "fronts": fronts_graphics, "gust_table_48": gust_table_48, "gust_peaks": gust_peaks, "gust_bars_48": gust_bars_48, "gust_bars_48_dir": gust_bars_48_dir, "sound_flood": sound_flood, "nadocast": nadocast_graphics, "rain_big": rainbig.rain_big_graphics, "key_messages": keymessages.key_messages, "outage_map": outagemap.outage_map, "what_to_expect_impacts": expectimpacts.what_to_expect_impacts,
     **_extras.GRAPHICS,
 }
