@@ -443,7 +443,8 @@ def main():
         else:
             print("Fetching NDFD lows, wind and sky cover for frost risk...")
             pkg["_frost"] = frost.fetch(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
-    if "ndfd_maps" in (cfg.get("graphics") or []) and (only_set is None or "ndfd_maps" in only_set):
+    _nd = ("ndfd_maps", "outage_map", "key_messages")
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in _nd):
         from wxgfx import ndfdmap
         utc_now = now.astimezone(timezone.utc)
         if args.sample:
