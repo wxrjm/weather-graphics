@@ -10,6 +10,7 @@ W, H, S = 1920, 1080, 2
 # output formats: wide = TV/OBS/YouTube, vertical = Stories/Reels/TikTok (9:16), post = FB/IG feed (4:5)
 FORMATS = {"wide": (1920, 1080), "vertical": (1080, 1920), "post": (1080, 1350), "square": (1080, 1080)}
 FMT = "wide"
+CLEAN = False  # map-only twin pass: split() gives the map the whole body and the side panel is not drawn
 
 
 def set_format(name):
@@ -164,6 +165,9 @@ class Canvas:
     def split(self):
         """(map_box, panel_box) for map + side-panel graphics: side by side when wide, stacked when tall."""
         top, M = self.top, self.M
+        self.used_split = True
+        if CLEAN:  # map fills the body; the panel box is parked off-canvas so anything drawn into it is clipped away
+            return (M, top, self.W - 2 * M, self.bottom - top), (self.W + 50, self.H + 50, 400, 400)
         if not self.tall:
             return (70, top, 1020, 800), (1120, top, 730, 800)
         mw = self.W - 2 * M

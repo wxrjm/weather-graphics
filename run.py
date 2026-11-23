@@ -93,6 +93,8 @@ def render(pkg, cfg, out_dir, only=None):
                 if fmt == formats[0]:
                     print(f"  - {name}: not relevant today, skipped")
                 continue
+            clean_pass = fmt != "wide" and cfg.get("clean_maps", True) and any(
+                getattr(c, "used_split", False) for _, c in (cv if isinstance(cv, list) else [(name, cv)]))
             for fname, c in (cv if isinstance(cv, list) else [(name, cv)]):
                 path = folders.path_for(out_dir, fname, fmt, cfg)  # "<Category>/<Size>/<name>.png"
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,6 +129,22 @@ def render(pkg, cfg, out_dir, only=None):
                         print(f"  + {bpath.relative_to(out_dir)}")
                     except Exception as e:
                         print(f"  ! {fname}_big ({fmt}) failed: {e!r}")
+            if clean_pass:  # "Clean" twin: just the map and its legend (no side panel text) for social sizes
+                theme.CLEAN = True
+                try:
+                    cc = fn(pkg, cfg)
+                    for fname, c in (cc if isinstance(cc, list) else [(name, cc)]):
+                        if c is None or not getattr(c, "used_split", False):
+                            continue
+                        cpath = folders.path_for(out_dir, fname, fmt, cfg)
+                        cpath = cpath.with_name(f"{cpath.stem}{' Clean' if cfg.get('pretty_filenames') is not False else '_clean'}.png")
+                        c.save(cpath)
+                        made.append(cpath)
+                        print(f"  + {cpath.relative_to(out_dir)}")
+                except Exception as e:
+                    print(f"  ! {name} clean ({fmt}) failed: {e!r}")
+                finally:
+                    theme.CLEAN = False
     theme.set_format("wide")
     saved = {k: v for k, v in pkg.items() if not k.startswith("_")}
     prev = latest_dir(cfg) / "forecast.json"

@@ -202,6 +202,9 @@ def _legend_chips(cv, x, y, items, maxw):
 
 
 def _side(cv, x, y, w, h, head_col, head_label, head_value, meaning, rows, row_title):
+    from . import theme
+    if theme.CLEAN:
+        return
     meaning = "" if cv.minimal else meaning
     compact = h < 440  # short panel under a stacked map (square / 4:5)
     cv.rect(x, y, w, h, C["panel"], r=18)
