@@ -81,6 +81,9 @@ def outage_risk_graphic(pkg, cfg):
         return None
     cv = Canvas(cfg)
     cv.header("POWER OUTAGE RISK", f"{pkg['location']['area'].upper()}  ·  BASED ON FORECAST PEAK WIND GUSTS")
+    if cv.tall:
+        _tall(cv, pkg, days)
+        return cv
     n = len(days)
     gap = 14
     cw = (cv.W - 2 * cv.M - gap * (n - 1)) / n
@@ -102,10 +105,38 @@ def outage_risk_graphic(pkg, cfg):
         lum = 0.3 * col[0] + 0.59 * col[1] + 0.11 * col[2]
         tc = (20, 28, 46) if lum > 140 else (255, 255, 255)
         cv.text(x + cw / 2, by + 20, "OUTAGE RISK", 18, "bold", tc, anchor="mt")
-        cv.text(x + cw / 2, by + 50, name, 38, "bold", tc, anchor="mt", maxw=cw - 24)
+        cv.text(x + cw / 2, by + 52, name, 34, "bold", tc, anchor="mt", maxw=cw - 44)
         cv.text(x + cw / 2, by + 104, RANGES[lv], 24, "bold", tc, anchor="mt")
-        cv.paragraph(x + cw / 2, by + 152, desc, 23, "medium", cw - 26, max_lines=8, lh=1.2,
+        cv.paragraph(x + cw / 2, by + 152, desc, 22, "medium", cw - 46, max_lines=8, lh=1.2,
                      fill=tc, anchor="ma")
     src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "NWS POINT FORECAST GUSTS"
     cv.footer(pkg, source=f"{src} · ADVISORY GUIDANCE, NOT A UTILITY FORECAST")
     return cv
+
+
+def _tall(cv, pkg, days):
+    """Social / tall layout: one row per day -- day, peak gust, and a colour-coded box with level, range and impact text."""
+    n = len(days)
+    gap = 12
+    top, bot = cv.top, cv.bottom - 4
+    rh = (bot - top - gap * (n - 1)) / n
+    x0, wtot = cv.M, cv.W - 2 * cv.M
+    dw, gw = 190, 230  # day column, gust column
+    for i, dd in enumerate(days):
+        g = int(dd["max_gust"])
+        lv = _level(g)
+        name, col, desc, _ = LEVELS[lv]
+        y = top + i * (rh + gap)
+        cv.rect(x0, y, wtot, rh, C["panel"], r=14)
+        cv.text(x0 + dw / 2, y + rh * 0.38, dd["dow"], 40, "bold", anchor="mm")
+        cv.text(x0 + dw / 2, y + rh * 0.74, dd["date_label"].upper(), 22, "medium", C["muted"], anchor="mm")
+        cv.text(x0 + dw + gw / 2 - 30, y + rh * 0.46, str(g), 66, "bold", anchor="mm")
+        cv.text(x0 + dw + gw / 2 - 30, y + rh * 0.82, "MPH GUSTS", 17, "medium", C["muted"], anchor="mm")
+        bx = x0 + dw + gw
+        bw = wtot - dw - gw - 12
+        cv.rect(bx, y + 10, bw, rh - 20, (*col, 255), r=12)
+        lum = 0.3 * col[0] + 0.59 * col[1] + 0.11 * col[2]
+        tc = (20, 28, 46) if lum > 140 else (255, 255, 255)
+        cv.text(bx + 20, y + rh * 0.3, name, 34, "bold", tc, anchor="lm", maxw=bw * 0.5)
+        cv.text(bx + bw - 20, y + rh * 0.3, RANGES[lv], 22, "bold", tc, anchor="rm", maxw=bw * 0.45)
+        cv.paragraph(bx + 20, y + rh * 0.52, desc, 21, "medium", bw - 40, max_lines=2, lh=1.18, fill=tc, anchor="la")
