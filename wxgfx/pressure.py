@@ -106,7 +106,7 @@ def trend_graphic(pkg, cfg):
         y = Y(g)
         cv.rect(px0, y, px1 - px0, 1.5, (255, 255, 255, 28))
         cv.text(px0 - 14, y, f"{_inhg(g):.2f}", 18, "bold", C["muted"], anchor="rm")
-        cv.text(px1 + 14, y, f"{round(g)}", 16, "medium", C["muted"], anchor="lm")
+        cv.text(px1 + 14, y, f"{round(g)}", 18, "bold", C["muted"], anchor="lm")
         g += step
     cv.text(px0 - 14, py0 - 40, "inHg", 16, "bold", C["muted"], anchor="rm")
     cv.text(px1 + 14, py0 - 40, "mb", 16, "bold", C["muted"], anchor="lm")
@@ -136,10 +136,10 @@ def trend_graphic(pkg, cfg):
         d.ellipse([z(x - 9), z(y - 9), z(x + 9), z(y + 9)], fill=(13, 21, 38, 255), outline=(255, 255, 255, 255), width=z(3))
         col = (88, 170, 255) if kind == "H" else (228, 60, 60)
         ty = y - 30 if kind == "H" else y + 30
-        cv.text(x, ty, f"{kind}  {_inhg(p):.2f}\"", 24, "bold", col, anchor="mm", stroke=3, stroke_fill=(13, 21, 38, 255))
+        cv.text(min(max(x, px0 + 150), px1 - 150), ty, f"{kind}  {_inhg(p):.2f}\"  ·  {p:.0f} mb", 24, "bold", col, anchor="mm", stroke=3, stroke_fill=(13, 21, 38, 255))
     # key
     kx = px0 + 20
-    for col, lab in (((255, 255, 255), "STEADY"), ((245, 150, 40), f"FALLING FAST (≥{round(_inhg(fast), 2):.2f}\" / 24 HR)"),
+    for col, lab in (((255, 255, 255), "STEADY"), ((245, 150, 40), f"FALLING FAST (≥{round(_inhg(fast), 2):.2f}\" / {fast:g} mb IN 24 HR)"),
                      ((70, 200, 190), "RISING FAST")):
         cv.rect(kx, y0 + 26, 34, 8, (*col, 255), r=4)
         cv.text(kx + 44, y0 + 30, lab, 17, "bold", C["muted"], anchor="lm")

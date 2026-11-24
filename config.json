@@ -81,6 +81,7 @@
     "rain_big",
     "state_fields",
     "hr_temps",
+    "hr_gusts",
     "aurora",
     "tide_error",
     "outage_risk",

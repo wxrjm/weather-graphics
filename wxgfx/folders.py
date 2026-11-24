@@ -11,7 +11,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
     ("Holidays", lambda n: n == "holiday_countdown" or n.endswith("_forecast")),
     ("Model Data", lambda n: n.startswith(("model_", "rrfs_"))),
     ("Forecast", lambda n: n in ("daily", "what_to_know", "key_messages", "7day", "hourly", "current", "commute", "weekend",
-                                    "holiday_countdown", "rain_timing", "sunset_quality", "precip_timeline", "pressure_trend", "aches_pains", "today_vs_tomorrow", "today_vs_tomorrow_pm", "week_warmest_vs_coldest_morning", "week_warmest_vs_coldest_afternoon", "what_to_expect", "what_to_expect_impacts") or n.startswith(("fronts_", "city_table"))),
+                                    "holiday_countdown", "rain_timing", "sunset_quality", "precip_timeline", "pressure_trend", "aches_pains", "today_vs_tomorrow", "today_vs_tomorrow_pm", "week_warmest_vs_coldest_morning", "week_warmest_vs_coldest_afternoon", "what_to_expect", "what_to_expect_impacts") or n.startswith(("fronts_", "city_table", "rain_timing_event"))),
     ("Hazard Outlooks", lambda n: n.startswith("hazout")),
     ("Safety Graphics", lambda n: n.startswith("safety_")),
     ("SPC Outlooks", lambda n: n.startswith(("spc_", "state_spc"))),
@@ -21,7 +21,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
     ("Rain & Flooding", lambda n: n.startswith(("rain_totals", "wpc_qpf", "ero_", "state_qpf", "state_ero", "obs_rain", "state_pop", "ffg_", "rain_reports",
                                                    "storm_rain_reports", "river"))),
     ("Snow & Ice", lambda n: n.startswith(("snow", "state_snow", "ice_", "wssi", "storm_snow_reports"))),
-    ("Wind", lambda n: n.startswith(("state_wind", "state_gust")) or n in ("wind", "wind_map", "gust_map", "storm_wind_reports", "gust_table_48", "gust_peaks", "gust_bars_48", "gust_bars_48_dir", "outage_risk", "outage_map", "wind_color", "peak_wind_hourly", "gust_peak_map")),
+    ("Wind", lambda n: n.startswith(("state_wind", "state_gust", "hr_gust")) or n in ("wind", "wind_map", "gust_map", "storm_wind_reports", "gust_table_48", "gust_peaks", "gust_bars_48", "gust_bars_48_dir", "outage_risk", "outage_map", "wind_color", "peak_wind_hourly", "gust_peak_map")),
     ("Tides & Coast", lambda n: n.startswith(("tides", "tide_error", "high_tides", "tidal_flood", "beach", "sound_flood"))),
     ("Tropical", lambda n: n.startswith(("tropics", "Tropical/"))),
     ("Long Range", lambda n: n.startswith("cpc_")),
@@ -44,6 +44,8 @@ RAW_PREFIX = ("alert_", "river_")  # kept lower-case with their number so OBS ca
 
 
 TITLES = {
+    **{f"rain_timing_event{_i}": f"Rain Timing - Event {_i}" for _i in range(1, 6)},
+    **{f"hr_gust_day{_i}": f"Hampton Roads Gusts Day {_i}" for _i in range(1, 8)},
     "spc_tornado_day1": "SPC Day 1 Tornado Outlook", "spc_wind_day1": "SPC Day 1 Damaging Wind Outlook", "spc_hail_day1": "SPC Day 1 Large Hail Outlook", "spc_tornado_day2": "SPC Day 2 Tornado Outlook", "spc_wind_day2": "SPC Day 2 Damaging Wind Outlook", "spc_hail_day2": "SPC Day 2 Large Hail Outlook", "spc_3panel_day1": "SPC Day 1 Severe Risks Hampton Roads 3 Panel", "spc_3panel_day2": "SPC Day 2 Severe Risks Hampton Roads 3 Panel", 
     "model_compare_rain": "Model Rainfall Comparison", "model_compare_gust": "Model Wind Gust Comparison", "model_compare_rain_5day": "5 Day Model Rainfall Comparison", "model_compare_ai_rain": "GFS and Euro vs AI Models Rainfall", "model_compare_ai_wind": "GFS and Euro vs AI Models Max Winds", "model_compare_gust_5day": "5 Day Model Max Wind Gust Comparison",
     "rrfs_rain": "RRFS Rainfall Forecast", "rrfs_gust": "RRFS Peak Gusts", "rrfs_wind": "RRFS Sustained Winds", "rrfs_radar": "RRFS Future Radar",

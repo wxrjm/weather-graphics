@@ -600,6 +600,60 @@ def hr_temp_graphics(pkg, cfg):
     return out or None
 
 
+def hr_gust_graphics(pkg, cfg):
+    """Hampton Roads close-up of the peak wind gust map, one per forecast day (same labels / colors as the state map)."""
+    fd = pkg.get("_fields") or {}
+    if "lat" not in fd or not fd.get("gust"):
+        return None
+    today = _today(pkg, cfg)
+    view = tuple(cfg.get("hr_temp_view") or HR_VIEW)
+    round5 = lambda v: int(5 * round(v / 5))
+    out = []
+    for i, d in enumerate(_daylist(fd["gust"], cfg.get("state_gust_days", 5)), 1):
+        est = d in (fd.get("gust_est") or ())
+        sub = (f"HAMPTON ROADS & OBX  ·  {_day_name(d, today)}, {d.strftime('%b').upper()} {d.day}  ·  "
+               + ("EST. FROM NDFD WINDS" if est else "NWS NDFD"))
+        g = {"lat": fd["lat"], "lon": fd["lon"], "val": fd["gust"][d]}
+        out.append((f"hr_gust_day{i}", _field_graphic(
+            cfg, pkg, "WIND GUSTS", sub, g, ndfdmap.WIND_BINS, "MPH", "PEAK WIND GUST (MPH)", lambda v: f"{round5(v)}",
+            "NWS NDFD", view=view, tags=False, city_pool=HR_CITIES, smooth=1, region=HR_REGION,
+            after=lambda cv, cities: _hr_gust_panel(cv, cities), legend=_hr_gust_legend)))
+    return out or None
+
+
+def _hr_gust_legend(cv):
+    """Wide: key sits under the town list (clear of the map). Tall: bottom strip, as on the other close-ups."""
+    if cv.W >= 1500:
+        bins = ndfdmap.WIND_BINS
+        bw = 720
+        x, y = cv.W - cv.M - bw - 10, 962
+        cv.rect(x - 10, y - 30, bw + 20, 100, (13, 21, 38, 215), r=12)
+        cv.text(x + 4, y - 22, "PEAK WIND GUST (MPH)", 17, "bold", C["muted"], anchor="lt")
+        ndfdmap._color_bar(cv, x, y, bins, "MPH", bw)
+    else:
+        _bar_legend(cv, ndfdmap.WIND_BINS, "MPH", "PEAK WIND GUST (MPH)")
+
+
+def _hr_gust_panel(cv, cities):
+    if cv.W < 1500:
+        return
+    px, py, pw_, ph_ = 940, 196, cv.W - cv.M - 940, 730
+    cv.rect(px, py, pw_, ph_, C["panel"], r=18)
+    cv.text(px + 26, py + 22, "PEAK GUSTS BY TOWN", 21, "bold", C["muted"], anchor="lt")
+    rows = sorted([(n, float(t)) for n, la, lo, tier, t in cities if t], key=lambda r: -r[1])
+    rows = [r for r in rows if r[0] != "Eastern Shore"][:16]
+    half = (len(rows) + 1) // 2
+    cw_ = (pw_ - 52 - 30) / 2
+    for i, (n, v) in enumerate(rows):
+        col, k = divmod(i, half)
+        x = px + 26 + col * (cw_ + 30)
+        y = py + 62 + k * 66
+        cv.rect(x, y, cw_, 56, (20, 31, 54, 235), r=10)
+        cv.rect(x, y, 8, 56, (*(_bin(v, ndfdmap.WIND_BINS) or (120, 120, 120)), 255), r=3)
+        cv.text(x + 24, y + 28, n.upper(), 19, "bold", anchor="lm", maxw=cw_ - 130)
+        cv.text(x + cw_ - 16, y + 28, f"{v:.0f}", 28, "bold", anchor="rm")
+
+
 def HR_REGION(cv):
     """Wide: map on the left with the town list on the right. Tall / square: the map takes the full width above the legend."""
     if cv.W >= 1500:
@@ -721,16 +775,47 @@ def _intensity(q):
     return c
 
 
-def rain_timing_graphic(pkg, cfg):
-    hrs = (pkg.get("hourly_ext") or [])[:cfg.get("rain_timing_hours", 48)]
-    if len(hrs) < 12:
-        return None
+def _rain_rows(pkg, cfg, n=None):
     tz = _tz(cfg)
-    rows = [{"t": datetime.fromisoformat(h["time"]).astimezone(tz), "pop": h.get("pop") or 0, "q": h.get("qpf") or 0.0} for h in hrs]
+    hrs = (pkg.get("hourly_ext") or [])
+    hrs = hrs[:n] if n else hrs
+    return [{"t": datetime.fromisoformat(h["time"]).astimezone(tz), "pop": h.get("pop") or 0, "q": h.get("qpf") or 0.0} for h in hrs]
+
+
+def rain_timing_graphic(pkg, cfg):
+    """The next-48-hour chart, plus one chart per rain event (any wet spell in the extended hourly data) framed start to finish."""
+    rows = _rain_rows(pkg, cfg, cfg.get("rain_timing_hours", 48))
+    if len(rows) < 12:
+        return None
+    out = [("rain_timing", _rain_chart(pkg, cfg, rows, "WHEN WILL IT RAIN?", f"NEXT {len(rows)} HOURS", True))]
+    allrows = _rain_rows(pkg, cfg)
+    gap, pad = cfg.get("rain_event_gap_hrs", 6), cfg.get("rain_event_pad_hrs", 3)
+    wet_i = [i for i, r in enumerate(allrows) if r["pop"] >= 40 or r["q"] >= 0.01]
+    events = []
+    for i in wet_i:
+        if events and i - events[-1][1] <= gap:
+            events[-1][1] = i
+        else:
+            events.append([i, i])
+    for k, (a, b) in enumerate(events, 1):
+        if sum(r["q"] for r in allrows[a:b + 1]) < cfg.get("rain_event_min_in", 0.02) and max(r["pop"] for r in allrows[a:b + 1]) < 60:
+            continue
+        seg = allrows[max(0, a - pad):b + 1 + pad]
+        if len(seg) < 12:  # pad short events out to a readable window
+            extra = 12 - len(seg)
+            lo_i = max(0, a - pad - extra // 2)
+            seg = allrows[lo_i:lo_i + 12]
+        t0, t1 = seg[0]["t"], seg[-1]["t"]
+        f = lambda t: t.strftime("%a %I %p").upper().replace(" 0", " ")
+        out.append((f"rain_timing_event{k}", _rain_chart(pkg, cfg, seg, "RAIN TIMING", f"{f(allrows[a]['t'])} TO {f(allrows[b]['t'])}  ·  FULL EVENT", False)))
+    return out
+
+
+def _rain_chart(pkg, cfg, rows, title, sub, window):
     wet = [r for r in rows if r["pop"] >= 40 or r["q"] >= 0.01]
     total = sum(r["q"] for r in rows)
     cv = Canvas(cfg)
-    cv.header("WHEN WILL IT RAIN?", f"NEXT {len(rows)} HOURS" + ("" if cv.social else f"  ·  {pkg['location']['area'].upper()}  ·  NWS NDFD"))
+    cv.header(title, sub + ("" if cv.social else f"  ·  {pkg['location']['area'].upper()}  ·  NWS NDFD"))
     fmt = lambda t: t.strftime("%a %I %p").lstrip("0").upper().replace(" 0", " ")
     # summary tiles
     if wet:
@@ -739,7 +824,7 @@ def rain_timing_graphic(pkg, cfg):
         tiles = [("RAIN STARTS", fmt(start) if start > rows[0]["t"] else "NOW", (88, 170, 255)),
                  ("RAIN ENDS", fmt(end) if end < rows[-1]["t"] else "AFTER THIS WINDOW", (88, 170, 255)),
                  ("WETTEST HOUR", fmt(peak["t"]), (253, 149, 0)),
-                 (f"{len(rows)}-HR RAIN TOTAL", f'{total:.2f}"' if total >= 0.01 else "TRACE", (4, 233, 231))]
+                 (f"{len(rows)}-HR RAIN TOTAL" if window else "EVENT RAIN TOTAL", f'{total:.2f}"' if total >= 0.01 else "TRACE", (4, 233, 231))]
         summary = (f"Rain is most likely from {fmt(start)} to {fmt(end)}"
                    + (f", with the heaviest rain around {fmt(peak['t'])}." if peak["q"] >= 0.02 else "."))
     else:

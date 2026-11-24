@@ -416,7 +416,7 @@ def main():
         else:
             print("Fetching observed rainfall (NWS MRMS radar estimates)...")
             pkg["_obsrain"] = newgfx.fetch_obs_rain(cfg, ROOT / "cache", utc_now, debug=args.outlook_debug)
-    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("state_fields", "city_table", "hr_temps")):
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("state_fields", "city_table", "hr_temps", "hr_gusts")):
         from wxgfx import newgfx
         utc_now = now.astimezone(timezone.utc)
         if args.sample:
