@@ -209,10 +209,17 @@ def tides(pkg, cfg):
         c, r = divmod(k, per)
         cx, yy = sx + 26 + c * (cw + 30), ty + r * rh
         hl = t["type"] == "H"
-        cv.text(cx, yy + rh / 2, "HIGH" if hl else "LOW", min(24, rh * 0.5), "bold", (88, 200, 255) if hl else C["muted"], anchor="lm")
-        cv.text(cx + cw * 0.28, yy + rh / 2, f"{t['time'].strftime('%a')} {_t(t['time'])}", min(24, rh * 0.5), "medium", anchor="lm")
+        tcat = X.flood_category(t["ft"], td["stages"]) if (hl and td.get("stages")) else None
+        boxed = tcat in ("minor", "moderate", "major")  # tides in a flood category get a colored box
+        ink = (255, 255, 255)
+        if boxed:
+            bcol = FLOOD_WORDS[tcat][1]
+            cv.rect(cx - 10, yy + 2, cw + 20, rh - 4, (*bcol, 255), r=8)
+            ink = _ink(bcol)
+        cv.text(cx, yy + rh / 2, "HIGH" if hl else "LOW", min(24, rh * 0.5), "bold", ink if boxed else (88, 200, 255) if hl else C["muted"], anchor="lm")
+        cv.text(cx + cw * 0.28, yy + rh / 2, f"{t['time'].strftime('%a')} {_t(t['time'])}", min(24, rh * 0.5), "medium", ink if boxed else (255, 255, 255), anchor="lm")
         cv.text(cx + cw, yy + rh / 2, f"{t['ft']:.1f} ft" + ("*" if t.get("src") else ""), min(24, rh * 0.5), "bold",
-                anchor="rm")
+                ink if boxed else (255, 255, 255), anchor="rm")
     footer(cv, pkg)
     return cv
 
