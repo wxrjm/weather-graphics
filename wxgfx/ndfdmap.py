@@ -176,8 +176,8 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
     cache = Path(cache_dir)
     cache.mkdir(parents=True, exist_ok=True)
     sectors = cfg.get("ndfd_sectors", ["midatlan", "conus"])
-    want = {"snow": ("snow", cfg.get("snow_hours", 72)), "wind": ("wspd", 24),
-            "gust": ("wgust", max(24, 24 * cfg.get("outage_days", 5)))}  # gust: also per-day fields for the outage map
+    want = {"snow": ("snow", cfg.get("snow_hours", 72)), "wind": ("wspd", max(24, 24 * cfg.get("outage_days", 5))),
+            "gust": ("wgust", max(24, 24 * cfg.get("outage_days", 5)))}  # wind / gust: also per-day fields (windiest day)
     for key, (elem, hours) in want.items():
         if key != "snow" and key not in (cfg.get("wind_maps") or ["wind", "gust"]):
             continue
@@ -206,13 +206,13 @@ def fetch(cfg, cache_dir, now_utc, debug=False):
                 else:
                     first = [g for t, g in grids if t <= now_utc + timedelta(hours=24)] or [grids[0][1]]
                     field = np.nanmax(np.stack(first), axis=0) * 2.23694  # m/s -> mph (next 24 h)
-                    if key == "gust":
+                    if key in ("gust", "wind"):
                         from zoneinfo import ZoneInfo
                         tz = ZoneInfo(cfg["timezone"])
                         byday = {}
                         for t, g in grids:
                             byday.setdefault(t.astimezone(tz).date(), []).append(g)
-                        out["gust_days"] = [{"date": d, "lat": lat, "lon": lon, "val": np.nanmax(np.stack(v), axis=0) * 2.23694,
+                        out[f"{key}_days"] = [{"date": d, "lat": lat, "lon": lon, "val": np.nanmax(np.stack(v), axis=0) * 2.23694,
                                              "start": now_utc, "end": end, "sector": sector} for d, v in sorted(byday.items())]
                 out[key] = {"lat": lat, "lon": lon, "val": field,
                             "start": min(t for t, _ in grids) - (timedelta(hours=6) if key == "snow" else timedelta()),
@@ -373,7 +373,8 @@ def _snow_txt(v):
 
 
 def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pkg, cfg, fmt_row, view=None, smooth=0,
-                 rows_title="LOCAL FORECAST", source=None):
+                 rows_title="LOCAL FORECAST", source=None, fs=None):
+    """fs = optional (field, subtitle, head_txt, meaning): the Full Screen twin shows that field instead (e.g. the windiest day)."""
     cv = Canvas(cfg)
     cv.header(title, subtitle)
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
@@ -395,6 +396,13 @@ def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pk
            if "SAMPLE" in pkg.get("source", "") else (source or "National Weather Service (NDFD)"))
     cv.footer(pkg, source=src)
     from . import fullscreen
+    if fs:  # the Full Screen twin uses a different field / label
+        field, subtitle, head_txt, meaning = fs
+        lbins = _trim_bins(bins, _plotted_range(field, ext))
+        hv = _value_at(field, cfg["location"]["lon"], cfg["location"]["lat"])
+        head_col = _bin(hv or 0, bins) or (70, 86, 112)
+        side_rows = [(name, _bin(_value_at(field, lo, la) or 0, bins), fmt_row(_value_at(field, lo, la)))
+                     for name, la, lo in cfg.get("outlook_points") or outlookmap.POINTS]
     fullscreen.attach(cv, title=title, subtitle=subtitle,
                       map_fn=lambda pw, ph, view: outlookmap.draw_map([], pw, ph, cfg, outline=False,
                                                                        painter=_cell_painter(field, bins, smooth=smooth, ramp=cfg.get('map_color_mode') == 'smooth'), view=view),
@@ -404,6 +412,21 @@ def _map_graphic(field, bins, unit, title, subtitle, head_txt, meaning, rows, pk
                       overlay=lambda c, x, y, mw_: _color_bar(c, x, y, lbins, unit, mw_), source=src,
                       legend_fn=lambda ext: _plotted_range(field, ext), legend_bins=bins, legend_unit=unit)
     return cv
+
+
+def windiest_day(data, key, cfg):
+    """(field for the windiest local day of the period, 'FRIDAY NOV 27') -- the day with the highest value in the map area."""
+    from datetime import datetime
+    ext = tuple(_wind_box(cfg))
+    best = None
+    for d in (data or {}).get(f"{key}_days") or []:
+        r = _plotted_range(d, ext)
+        if r and (best is None or r[1] > best[1]):
+            best = (d, r[1])
+    if not best:
+        return None
+    dd = best[0]["date"]
+    return best[0], dd.strftime("%A %b %-d").upper(), dd
 
 
 def _when(t, tz):
@@ -438,16 +461,29 @@ def ndfd_maps(pkg, cfg):
             continue
         step = cfg.get("gust_round_to", 5) if key == "gust" else 1  # gusts: nearest 5 mph (10, 15, 20...)
         rnd = lambda v, step=step: int(step * round(v / step))
-        out.append((f"{key}_map", _map_graphic(
-            f, WIND_BINS, "MPH", "WIND FORECAST" if key == "wind" else "PEAK WIND GUSTS",
-            f"{'MAX ' if key == 'wind' else ''}{label}  ·  NEXT 24 HOURS  ·  NATIONAL WEATHER SERVICE",
-            lambda v: f"{rnd(v)} MPH" if v is not None else "N/A",
-            (lambda v: f"Strongest sustained winds in the Hampton Roads area over the next 24 hours: around {rnd(v)} mph."
-             if v is not None else "Wind data unavailable.") if key == "wind" else
-            (lambda v: f"Peak gusts in the Hampton Roads area over the next 24 hours: up to {rnd(v)} mph."
-             + (" Secure loose outdoor items." if v and v >= 35 else "") if v is not None else "Wind data unavailable."),
-            None, pkg, cfg, lambda v: f"{rnd(v)} mph" if v is not None else "--",
-            view=_wind_box(cfg), smooth=cfg.get("wind_smooth", 2))))
+        pre = "MAX " if key == "wind" else ""
+        what = "sustained winds" if key == "wind" else "peak gusts"
+        head = lambda v, rnd=rnd: f"{rnd(v)} MPH" if v is not None else "N/A"
+
+        def txt(day, key=key, rnd=rnd, what=what):
+            when = f"on {day.title()}" if day else "over the next 24 hours"
+            if key == "wind":
+                return lambda v: (f"Strongest sustained winds in the Hampton Roads area {when}: around {rnd(v)} mph."
+                                  if v is not None else "Wind data unavailable.")
+            return lambda v: ((f"Peak gusts in the Hampton Roads area {when}: up to {rnd(v)} mph."
+                               + (" Secure loose outdoor items." if v and v >= 35 else "")) if v is not None else "Wind data unavailable.")
+        wd = windiest_day(data, key, cfg)
+        title = "WIND FORECAST" if key == "wind" else "PEAK WIND GUSTS"
+        sub24 = f"{pre}{label}  ·  NEXT 24 HOURS  ·  NATIONAL WEATHER SERVICE"
+        subw = f"{pre}{label}  ·  WINDIEST DAY: {wd[1]}  ·  NATIONAL WEATHER SERVICE" if wd else None
+        kw = dict(view=_wind_box(cfg), smooth=cfg.get("wind_smooth", 2))
+        fmt = lambda v, rnd=rnd: f"{rnd(v)} mph" if v is not None else "--"
+        # normal graphic: next 24 hours; its Full Screen twin: the windiest day of the period
+        out.append((f"{key}_map", _map_graphic(f, WIND_BINS, "MPH", title, sub24, head, txt(None), None, pkg, cfg, fmt,
+                                               fs=(wd[0], subw, head, txt(wd[1])) if wd else None, **kw)))
+        if key == "gust" and wd:  # dedicated windiest-day gust map (normal + Full Screen)
+            out.append(("gust_peak_map", _map_graphic(wd[0], WIND_BINS, "MPH", "PEAK WIND GUSTS", subw, head, txt(wd[1]),
+                                                      None, pkg, cfg, fmt, **kw)))
     return out or None
 
 
@@ -464,9 +500,12 @@ def sample(now_utc):
     mk = lambda v, hrs: {"lat": lat, "lon": lon, "val": v, "start": now_utc, "end": now_utc + timedelta(hours=hrs),
                          "sector": "sample"}
     from datetime import date
-    days = []
+    days, wdays = [], []
     for i, k in enumerate((0.8, 1.15, 0.9, 0.7, 0.6)):  # synthetic: day 2 is the windiest
         d = mk(gust * k, 24)
         d["date"] = (now_utc + timedelta(days=i)).date()
         days.append(d)
-    return {"snow": mk(np.clip(snow, 0, None), 48), "wind": mk(wind, 24), "gust": mk(gust, 24), "gust_days": days, "errors": []}
+        w = mk(wind * k, 24)
+        w["date"] = d["date"]
+        wdays.append(w)
+    return {"snow": mk(np.clip(snow, 0, None), 48), "wind": mk(wind, 24), "gust": mk(gust, 24), "gust_days": days, "wind_days": wdays, "errors": []}

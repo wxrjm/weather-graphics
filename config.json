@@ -28,6 +28,7 @@
     "rain_totals",
     "wind",
     "wind_color",
+    "peak_wind_hourly",
     "gust_bars_48",
     "gust_bars_48_dir",
     "spc_hazards",
