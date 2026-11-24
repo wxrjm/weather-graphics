@@ -18,7 +18,7 @@ from PIL import ImageChops, Image, ImageDraw, ImageFilter
 from . import alertinfo
 from .alertmap import STENCIL, STENCIL_EDGE, _paste_rounded, draw_cities
 from .outlookmap import _legend_chips, _side, _view
-from .theme import Canvas, C, z
+from .theme import Canvas, C, font, z
 
 TIDAL_VIEW = (-77.45, -75.35, 36.55, 38.05)  # w, e, s, n: James/York/Rappahannock mouths to the Eastern Shore
 BAY_VIEW = (-77.25, -75.55, 36.7, 38.0)  # lower Bay: just north of Tangier Island down to Cape Henry / Hampton Roads (tidal_bay_view overrides)
@@ -87,7 +87,7 @@ def _km(lat1, lon1, lat2, lon2):
     return math.hypot((lon1 - lon2) * 111.32 * k, (lat1 - lat2) * 110.57)
 
 
-def draw_tidal_map(ev, pw, ph, cfg, view=None, radius=None):
+def draw_tidal_map(ev, pw, ph, cfg, view=None, radius=None, mark="ref"):
     W_, H_ = z(pw), z(ph)
     w, e, s, n = _view(pw, ph, tuple(view or cfg.get("tidal_view") or TIDAL_VIEW))
     proj = lambda x, y: ((x - w) / (e - w) * W_, (n - y) / (n - s) * H_)
@@ -153,8 +153,58 @@ def draw_tidal_map(ev, pw, ph, cfg, view=None, radius=None):
             d.line(pts_ + [pts_[0]], fill=(*STENCIL_EDGE[:3], 150), width=lw)
     for ln in alertinfo.state_lines():
         d.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 230), width=max(3, z(1.8 * cfg.get("state_line_scale", 2.2))), joint="curve")
-    draw_cities(d, proj, W_, H_, cfg, bottom_pad=80)
+    plan = _gauge_plan(d, proj, W_, H_, ev["points"], all_=(mark == "all")) if mark else []
+    from . import alertmap
+    alertmap.KEEP_OUT[:] = [tuple(v / z(1) for v in b) for _, b, _ in plan]  # city names stay clear of the plotted levels
+    try:
+        draw_cities(d, proj, W_, H_, cfg, bottom_pad=80)
+    finally:
+        alertmap.KEEP_OUT[:] = []
+    _draw_gauges(d, plan)
     return lay
+
+
+def _is_sewells(p):
+    return "sewells" in p["name"].lower()
+
+
+def _short(n):
+    return "SEWELLS POINT" if "sewells" in n.lower() else n.split(",")[0].strip().upper()[:16]
+
+
+def _gauge_plan(d, proj, W_, H_, pts, all_=False):
+    """Choose which gauges get a label (Sewells Point first, then worst-flooding first; overlapping labels are skipped)."""
+    ordered = sorted(pts, key=lambda p: (not _is_sewells(p), -p["idx"]))
+    if not all_:
+        ordered = [p for p in ordered if _is_sewells(p)][:1]
+    placed, plan = [], []
+    for p in ordered:
+        big = _is_sewells(p)
+        x, y = proj(p["lon"], p["lat"])
+        if not (z(20) < x < W_ - z(20) and z(20) < y < H_ - z(90)):
+            continue
+        fn, fv = (font("bold", 20), font("bold", 38)) if big else (font("bold", 17), font("bold", 30))
+        nm, val = _short(p["name"]), f"{p['ft']:.1f}'"
+        tw = max(d.textlength(nm, font=fn), d.textlength(val, font=fv))
+        th = z(30 if big else 26) + z(40 if big else 32)
+        box = (x - tw / 2 - z(6), y - th - z(18), x + tw / 2 + z(6), y + z(12))
+        if box[1] < z(8) or box[0] < z(8) or box[2] > W_ - z(8) or any(box[0] < b[2] and box[2] > b[0] and box[1] < b[3] and box[3] > b[1] for b in placed):
+            continue
+        placed.append(box)
+        plan.append((p, box, (x, y, big, nm, val, fn, fv)))
+    return plan
+
+
+def _draw_gauges(d, plan):
+    for p, box, (x, y, big, nm, val, fn, fv) in plan:
+        c = _cat_of(p["idx"])
+        col = c[3] if c else (70, 180, 100)
+        r = z(11 if big else 8)
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(*col, 255), outline=(255, 255, 255, 255), width=z(3 if big else 2.4))
+        vy = y - r - z(8) - fv.size * 0.5
+        d.text((x, vy), val, font=fv, fill=(255, 255, 255, 255), anchor="mm", stroke_width=z(3), stroke_fill=(13, 21, 38, 255))
+        d.text((x, vy - fv.size * 0.5 - fn.size * 0.75), nm, font=fn, fill=(255, 255, 255, 245), anchor="mm",
+               stroke_width=z(2.4), stroke_fill=(13, 21, 38, 255))
 
 
 def _window(ev, tz):
@@ -176,7 +226,7 @@ def tidal_graphic(ev, pkg, cfg, tz, bay=False, peak=False):
     title = "CHESAPEAKE BAY TIDAL FLOODING" if bay else "TIDAL FLOODING FORECAST"
     sub = _window(ev, tz)
     if peak:  # the single highest tide in the 72-hour cycle, with its day and time
-        pr = next((p for p in sorted(ev["points"], key=lambda p: -p["idx"]) if p["name"].lower().startswith("sewells")),
+        pr = next((p for p in sorted(ev["points"], key=lambda p: -p["idx"]) if "sewells" in p["name"].lower()),
                   sorted(ev["points"], key=lambda p: -p["idx"])[0])
         pt = pr["time"].astimezone(tz)
         title = "BAY HIGHEST TIDE · NEXT 72 HRS" if bay else "HIGHEST TIDE · NEXT 72 HOURS"
@@ -190,7 +240,7 @@ def tidal_graphic(ev, pkg, cfg, tz, bay=False, peak=False):
     chips = [(c[3], c[2]) for c in reversed(CATS) if ORDER.index(c[1]) >= ORDER.index(shade_from)]
     _legend_chips(cv, mx + 16, my + mh - 60, chips, mw - 32)
     pts = sorted(ev["points"], key=lambda p: -p["idx"])
-    ref = next((p for p in pts if p["name"].lower().startswith("sewells")), pts[0])
+    ref = next((p for p in pts if "sewells" in p["name"].lower()), pts[0])
     c = _cat_of(ref["idx"])
     head = f"{c[2]} FLOODING" if c and c[1] != "action" else ("NEAR FLOOD STAGE" if c else "NO FLOODING")
     head_col = c[3] if c else (70, 180, 100)
@@ -217,6 +267,26 @@ def tidal_graphic(ev, pkg, cfg, tz, bay=False, peak=False):
     return cv
 
 
+def tidal_values_graphic(ev, pkg, cfg, tz, bay=False):
+    """Just the map (no side panel): every gauge's forecast high tide plotted on it, colored by flood category."""
+    view = tuple((cfg.get("tidal_bay_view") if bay else cfg.get("tidal_view")) or (BAY_VIEW if bay else TIDAL_VIEW))
+    radius = cfg.get("tidal_bay_radius_km", 48) if bay else None
+    pr = next((p for p in ev["points"] if _is_sewells(p)), sorted(ev["points"], key=lambda p: -p["idx"])[0])
+    pt = pr["time"].astimezone(tz)
+    cv = Canvas(cfg)
+    cv.header("BAY HIGH TIDE LEVELS" if bay else "HIGH TIDE LEVELS",
+              f"{pt.strftime('%A').upper()} {pt.strftime('%I:%M %p').lstrip('0')}  ·  FEET MLLW  ·  NEXT 72 HOURS")
+    mx, my, mw, mh = cv.M, 196, cv.W - 2 * cv.M, cv.H - 196 - 70
+    _paste_rounded(cv, draw_tidal_map(ev, mw, mh, cfg, view=view, radius=radius, mark="all"), mx, my)
+    cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
+    shade_from = cfg.get("tidal_map_shade_from", "action")
+    chips = [(c[3], c[2]) for c in reversed(CATS) if ORDER.index(c[1]) >= ORDER.index(shade_from)]
+    _legend_chips(cv, mx + 16, my + mh - 60, chips, mw - 32)
+    src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "NWS tide gauge forecasts (shading interpolated between gauges)"
+    cv.footer(pkg, source=src)
+    return cv
+
+
 def tidal_graphics(pkg, cfg):
     from zoneinfo import ZoneInfo
     sites = (pkg.get("_extras") or {}).get("tidal_map")
@@ -240,10 +310,12 @@ def tidal_graphics(pkg, cfg):
         pe = top(events(sites, cfg))
         if pe:
             out.append(("tidal_flood_peak", tidal_graphic(pe, pkg, cfg, tz, peak=True)))
+            out.append(("tidal_flood_values", tidal_values_graphic(pe, pkg, cfg, tz)))
         if cfg.get("tidal_bay_map", True):
             pb = top(events(sites, cfg, max_lag_h=7))
             if pb:
                 out.append(("tidal_flood_peak_bay", tidal_graphic(pb, pkg, cfg, tz, bay=True, peak=True)))
+                out.append(("tidal_flood_values_bay", tidal_values_graphic(pb, pkg, cfg, tz, bay=True)))
     if cfg.get("tidal_bay_map", True):  # whole Chesapeake Bay + rivers: wider tide-lag window, wider interpolation reach
         bevs = [e for e in events(sites, cfg, max_lag_h=7) if e["max_idx"] >= need or cfg.get("tidal_map_always", False)]
         out += [(f"tidal_flood_bay_{i}", tidal_graphic(e, pkg, cfg, tz, bay=True))

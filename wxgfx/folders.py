@@ -44,6 +44,7 @@ RAW_PREFIX = ("alert_", "river_")  # kept lower-case with their number so OBS ca
 
 
 TITLES = {
+    "tidal_flood_values": "Tidal Flooding - Plotted Levels", "tidal_flood_values_bay": "Bay Tidal Flooding - Plotted Levels",
     **{f"rain_timing_event{_i}": f"Rain Timing - Event {_i}" for _i in range(1, 6)},
     **{f"hr_gust_day{_i}": f"Hampton Roads Gusts Day {_i}" for _i in range(1, 8)},
     "spc_tornado_day1": "SPC Day 1 Tornado Outlook", "spc_wind_day1": "SPC Day 1 Damaging Wind Outlook", "spc_hail_day1": "SPC Day 1 Large Hail Outlook", "spc_tornado_day2": "SPC Day 2 Tornado Outlook", "spc_wind_day2": "SPC Day 2 Damaging Wind Outlook", "spc_hail_day2": "SPC Day 2 Large Hail Outlook", "spc_3panel_day1": "SPC Day 1 Severe Risks Hampton Roads 3 Panel", "spc_3panel_day2": "SPC Day 2 Severe Risks Hampton Roads 3 Panel", 
