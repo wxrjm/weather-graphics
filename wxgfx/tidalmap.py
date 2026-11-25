@@ -232,6 +232,7 @@ def _gauge_plan(d, proj, W_, H_, pts, all_=False, style="plot", tz=None, only=No
             if any(box[0] - z(4) < b[2] and box[2] + z(4) > b[0] and box[1] - z(4) < b[3] and box[3] + z(4) > b[1] for b in placed):
                 continue
             placed.append(box)
+            placed.append((x - z(13), y - z(13), x + z(13), y + z(13)))  # keep later cards off this gauge's dot
             plan.append((p, box, (x, y, big, g)))
             break
     return plan
