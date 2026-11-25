@@ -30,8 +30,10 @@ def _hm(t):
 
 def _block_cells(pkg, cfg, tz, blocks):
     gust = {}
-    for h in pkg.get("hourly_ext") or []:
-        gust[datetime.fromisoformat(h["time"]).astimezone(tz)] = max(h.get("gust") or 0, h.get("wind") or 0)
+    # wind lives in pkg["wind_hourly"] (hourly_ext carries rain/temp only); hourly_ext is kept as a fallback
+    for h in (pkg.get("wind_hourly") or []) + (pkg.get("hourly_ext") or []):
+        t = datetime.fromisoformat(h["time"]).astimezone(tz)
+        gust[t] = max(gust.get(t, 0), h.get("gust") or 0, h.get("wind") or 0)
     td = (pkg.get("_extras") or {}).get("tides") or {}
     tides = [t for t in td.get("tides", []) if t["type"] == "H"]
     out = []
