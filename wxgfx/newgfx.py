@@ -815,7 +815,9 @@ def _rain_chart(pkg, cfg, rows, title, sub, window):
     wet = [r for r in rows if r["pop"] >= 40 or r["q"] >= 0.01]
     total = sum(r["q"] for r in rows)
     cv = Canvas(cfg)
-    cv.header(title, sub + ("" if cv.social else f"  ·  {pkg['location']['area'].upper()}  ·  NWS NDFD"))
+    # event charts: the top-line info (stat tiles on wide, the "start to end" subtitle) is off unless config turns it back on
+    show_top = window or cfg.get("rain_event_top_info", False)
+    cv.header(title, (sub + ("" if cv.social else f"  ·  {pkg['location']['area'].upper()}  ·  NWS NDFD")) if show_top else "")
     fmt = lambda t: t.strftime("%a %I %p").lstrip("0").upper().replace(" 0", " ")
     # summary tiles
     if wet:
@@ -846,7 +848,7 @@ def _rain_chart(pkg, cfg, rows, title, sub, window):
     soc = cv.social  # social sizes: no summary tiles or caption, one big takeaway line, larger chart type
     ty = 205
     tw = (cv.W - 2 * cv.M - 3 * 18) / 4
-    if not soc:
+    if not soc and show_top:
         for k, (lab, val, col) in enumerate(tiles):
             x = cv.M + k * (tw + 18)
             cv.rect(x, ty, tw, 100, (20, 31, 54, 235), r=12)
@@ -854,7 +856,7 @@ def _rain_chart(pkg, cfg, rows, title, sub, window):
             cv.text(x + 24, ty + 14, lab, 19, "bold", C["muted"], anchor="lt")
             cv.text(x + 24, ty + 48, val, 32, "bold", anchor="lt", maxw=tw - 40)
     # chart
-    top_ = ty if soc else ty + 122
+    top_ = (ty if soc else ty + 122) if show_top else 160  # no top-line info: chart moves up under the title
     cx, cy, cw, ch = cv.M, top_, cv.W - 2 * cv.M, cv.H - top_ - (215 if soc else 150)
     cv.rect(cx, cy, cw, ch, C["panel"], r=16)
     px0, px1, py0, py1 = cx + (110 if soc else 90), cx + cw - 30, cy + 30, cy + ch - (80 if soc else 70)
