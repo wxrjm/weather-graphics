@@ -184,14 +184,20 @@ def _card_geom(d, p, big, style, tz):
     col = c[3] if c else (70, 180, 100)
     cat = (c[2] if c else "NO FLOODING")
     sc = 1.18 if big else 1.0
-    fn, fv, ft_ = font("bold", int(17 * sc)), font("bold", int(36 * sc)), font("bold", int(18 * sc))
+    callout = style == "callout"
+    fn, fv, ft_ = (font("bold", int(15 * sc)), font("bold", int(32 * sc)), font("bold", int(16 * sc))) if callout else \
+        (font("bold", int(17 * sc)), font("bold", int(36 * sc)), font("bold", int(18 * sc)))
     nm, val = _short(p["name"]), f"{p['ft']:.1f}'"
     tm = p["time"].astimezone(tz) if tz else p["time"]
     tstr = f"{tm.strftime('%a').upper()} {tm.strftime('%I:%M %p').lstrip('0')}"
-    low = cat if style == "callout" else tstr
-    tw = max(d.textlength(nm, font=fn), d.textlength(val, font=fv), d.textlength(low, font=ft_)) + z(22)
+    low = tstr  # exact high-tide time on every card
+    cat_txt = cat if callout else None
+    tw = max(d.textlength(nm, font=fn), d.textlength(val, font=fv), d.textlength(low, font=ft_),
+             d.textlength(cat_txt or "", font=ft_)) + z(22)
     hh, vh, lh = z(28 * sc), z(50 * sc), z(28 * sc)
-    return dict(col=col, nm=nm, val=val, low=low, fn=fn, fv=fv, fl=ft_, w=tw, hh=hh, vh=vh, lh=lh, h=hh + vh + lh)
+    ch = z(26 * sc) if callout else 0
+    return dict(col=col, nm=nm, val=val, low=low, cat=cat_txt, fn=fn, fv=fv, fl=ft_, w=tw, hh=hh, ch=ch, vh=vh, lh=lh,
+                h=hh + ch + vh + lh)
 
 
 def _gauge_plan(d, proj, W_, H_, pts, all_=False, style="plot", tz=None, only=None):
@@ -247,13 +253,19 @@ def _draw_gauges(d, plan):
         d.rectangle([x0, y0, x1, y0 + g["hh"]], fill=(255, 255, 255, 255))
         d.text(((x0 + x1) / 2, y0 + g["hh"] / 2), g["nm"], font=g["fn"], fill=(14, 28, 66, 255), anchor="mm")
         vy0 = y0 + g["hh"]
-        d.rectangle([x0, vy0, x1, vy0 + g["vh"]], fill=(*col, 255))
         ink = _ink_on(col)
+        if g.get("cat"):
+            d.rectangle([x0, vy0, x1, vy0 + g["ch"]], fill=(*col, 255))
+            d.text(((x0 + x1) / 2, vy0 + g["ch"] / 2), g["cat"], font=g["fl"], fill=(*ink, 255), anchor="mm")
+            vy0 += g["ch"]
+        d.rectangle([x0, vy0, x1, vy0 + g["vh"]], fill=(*col, 255))
         d.text(((x0 + x1) / 2, vy0 + g["vh"] / 2), g["val"], font=g["fv"], fill=(*ink, 255), anchor="mm")
         ly0 = vy0 + g["vh"]
         d.rectangle([x0, ly0, x1, y1], fill=(14, 28, 52, 255))
         d.text(((x0 + x1) / 2, ly0 + g["lh"] / 2), g["low"], font=g["fl"], fill=(255, 255, 255, 255), anchor="mm")
-        d.ellipse([x - r, y - r, x + r, y + r], fill=(*col, 255), outline=(255, 255, 255, 255), width=z(3))
+    for p, box, (x, y, big, g) in plan:  # dots last so no card ever covers a gauge location
+        r = z(10 if big else 7.5)
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(*g["col"], 255), outline=(255, 255, 255, 255), width=z(3))
 
 
 def _window(ev, tz):
@@ -336,12 +348,13 @@ def tidal_values_graphic(ev, pkg, cfg, tz, bay=False):
     return cv
 
 
+HIGHEST_VIEW = (-76.95, -75.75, 36.7, 37.7)  # zoomed on Hampton Roads / lower Peninsula / Kiptopeke
 HIGHEST_SITES = ["sewells", "yorktown", "fort monroe", "smithfield", "lynnhaven", "kiptopeke", "windmill", "money point", "jamestown"]
 
 
 def tidal_highest_graphic(ev, pkg, cfg, tz):
     """Callout-card map of the highest tide in the forecast: name / category / level on each key gauge, no shading."""
-    view = tuple(cfg.get("tidal_view") or TIDAL_VIEW)
+    view = tuple(cfg.get("tidal_highest_view") or HIGHEST_VIEW)
     cv = Canvas(cfg)
     cv.header("HIGHEST TIDES", _window(ev, tz) + "  ·  FEET MLLW")
     mx, my, mw, mh = cv.M, 196, cv.W - 2 * cv.M, cv.H - 196 - 70
