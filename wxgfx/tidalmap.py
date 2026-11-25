@@ -87,7 +87,7 @@ def _km(lat1, lon1, lat2, lon2):
     return math.hypot((lon1 - lon2) * 111.32 * k, (lat1 - lat2) * 110.57)
 
 
-def draw_tidal_map(ev, pw, ph, cfg, view=None, radius=None, mark="ref"):
+def draw_tidal_map(ev, pw, ph, cfg, view=None, radius=None, mark="ref", shade=True, tz=None, only=None):
     W_, H_ = z(pw), z(ph)
     w, e, s, n = _view(pw, ph, tuple(view or cfg.get("tidal_view") or TIDAL_VIEW))
     proj = lambda x, y: ((x - w) / (e - w) * W_, (n - y) / (n - s) * H_)
@@ -144,7 +144,8 @@ def draw_tidal_map(ev, pw, ph, cfg, view=None, radius=None, mark="ref"):
         layer = Image.new("RGBA", (W_, H_), (*col, 0))
         layer.putalpha(band.point(lambda v: int(v * 0.86)))
         ov.alpha_composite(layer)
-    lay.alpha_composite(ov)
+    if shade:
+        lay.alpha_composite(ov)
     d = ImageDraw.Draw(lay, "RGBA")
     lw = max(1, z(1))
     for c in cs:
@@ -153,7 +154,8 @@ def draw_tidal_map(ev, pw, ph, cfg, view=None, radius=None, mark="ref"):
             d.line(pts_ + [pts_[0]], fill=(*STENCIL_EDGE[:3], 150), width=lw)
     for ln in alertinfo.state_lines():
         d.line([proj(x, y) for x, y in ln], fill=(214, 226, 244, 230), width=max(3, z(1.8 * cfg.get("state_line_scale", 2.2))), joint="curve")
-    plan = _gauge_plan(d, proj, W_, H_, ev["points"], all_=(mark == "all")) if mark else []
+    plan = _gauge_plan(d, proj, W_, H_, ev["points"], all_=(mark in ("all", "cards")), style=("callout" if mark == "cards" else "plot"),
+                       tz=tz, only=only) if mark else []
     from . import alertmap
     alertmap.KEEP_OUT[:] = [tuple(v / z(1) for v in b) for _, b, _ in plan]  # city names stay clear of the plotted levels
     try:
@@ -172,39 +174,86 @@ def _short(n):
     return "SEWELLS POINT" if "sewells" in n.lower() else n.split(",")[0].strip().upper()[:16]
 
 
-def _gauge_plan(d, proj, W_, H_, pts, all_=False):
-    """Choose which gauges get a label (Sewells Point first, then worst-flooding first; overlapping labels are skipped)."""
-    ordered = sorted(pts, key=lambda p: (not _is_sewells(p), -p["idx"]))
-    if not all_:
+def _ink_on(col):
+    return (20, 28, 46) if (0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2]) > 150 else (255, 255, 255)
+
+
+def _card_geom(d, p, big, style, tz):
+    """Card text + size (zoomed px): name header, then (callout) category cell + value, or (plot) value + high-tide time."""
+    c = _cat_of(p["idx"])
+    col = c[3] if c else (70, 180, 100)
+    cat = (c[2] if c else "NO FLOODING")
+    sc = 1.18 if big else 1.0
+    fn, fv, ft_ = font("bold", int(17 * sc)), font("bold", int(36 * sc)), font("bold", int(18 * sc))
+    nm, val = _short(p["name"]), f"{p['ft']:.1f}'"
+    tm = p["time"].astimezone(tz) if tz else p["time"]
+    tstr = f"{tm.strftime('%a').upper()} {tm.strftime('%I:%M %p').lstrip('0')}"
+    low = cat if style == "callout" else tstr
+    tw = max(d.textlength(nm, font=fn), d.textlength(val, font=fv), d.textlength(low, font=ft_)) + z(22)
+    hh, vh, lh = z(28 * sc), z(50 * sc), z(28 * sc)
+    return dict(col=col, nm=nm, val=val, low=low, fn=fn, fv=fv, fl=ft_, w=tw, hh=hh, vh=vh, lh=lh, h=hh + vh + lh)
+
+
+def _gauge_plan(d, proj, W_, H_, pts, all_=False, style="plot", tz=None, only=None):
+    """Pick which gauges get a card (Sewells Point first, then worst-flooding first). Each card is tried above, below, right
+    and left of its dot; a gauge is skipped when no spot is free, so nothing overlaps."""
+    ordered = sorted(pts, key=lambda p: (not _is_sewells(p), -p["idx"], -p["ft"]))
+    if only:
+        keys = [k.lower() for k in only]
+        ordered = [p for k in keys for p in ordered if k in p["name"].lower()][:len(keys) * 2]
+        seen, o2 = set(), []
+        for p in ordered:
+            if id(p) not in seen:
+                seen.add(id(p)); o2.append(p)
+        ordered = o2
+    elif not all_:
         ordered = [p for p in ordered if _is_sewells(p)][:1]
     placed, plan = [], []
+    gap = z(10)
     for p in ordered:
         big = _is_sewells(p)
         x, y = proj(p["lon"], p["lat"])
-        if not (z(20) < x < W_ - z(20) and z(20) < y < H_ - z(90)):
+        if not (z(10) < x < W_ - z(10) and z(10) < y < H_ - z(10)):
             continue
-        fn, fv = (font("bold", 20), font("bold", 38)) if big else (font("bold", 17), font("bold", 30))
-        nm, val = _short(p["name"]), f"{p['ft']:.1f}'"
-        tw = max(d.textlength(nm, font=fn), d.textlength(val, font=fv))
-        th = z(30 if big else 26) + z(40 if big else 32)
-        box = (x - tw / 2 - z(6), y - th - z(18), x + tw / 2 + z(6), y + z(12))
-        if box[1] < z(8) or box[0] < z(8) or box[2] > W_ - z(8) or any(box[0] < b[2] and box[2] > b[0] and box[1] < b[3] and box[3] > b[1] for b in placed):
-            continue
-        placed.append(box)
-        plan.append((p, box, (x, y, big, nm, val, fn, fv)))
+        g = _card_geom(d, p, big, style, tz)
+        w_, h_ = g["w"], g["h"]
+        spots = [(x - w_ / 2, y - h_ - gap), (x - w_ / 2, y + gap), (x + gap, y - h_ / 2), (x - w_ - gap, y - h_ / 2),
+                 (x + gap, y - h_ - gap * 0.2), (x - w_ - gap, y - h_ - gap * 0.2)]
+        for bx, by in spots:
+            box = (bx, by, bx + w_, by + h_)
+            if box[0] < z(6) or box[1] < z(6) or box[2] > W_ - z(6) or box[3] > H_ - z(70):
+                continue
+            if any(box[0] - z(4) < b[2] and box[2] + z(4) > b[0] and box[1] - z(4) < b[3] and box[3] + z(4) > b[1] for b in placed):
+                continue
+            placed.append(box)
+            plan.append((p, box, (x, y, big, g)))
+            break
     return plan
 
 
 def _draw_gauges(d, plan):
-    for p, box, (x, y, big, nm, val, fn, fv) in plan:
-        c = _cat_of(p["idx"])
-        col = c[3] if c else (70, 180, 100)
-        r = z(11 if big else 8)
-        d.ellipse([x - r, y - r, x + r, y + r], fill=(*col, 255), outline=(255, 255, 255, 255), width=z(3 if big else 2.4))
-        vy = y - r - z(8) - fv.size * 0.5
-        d.text((x, vy), val, font=fv, fill=(255, 255, 255, 255), anchor="mm", stroke_width=z(3), stroke_fill=(13, 21, 38, 255))
-        d.text((x, vy - fv.size * 0.5 - fn.size * 0.75), nm, font=fn, fill=(255, 255, 255, 245), anchor="mm",
-               stroke_width=z(2.4), stroke_fill=(13, 21, 38, 255))
+    for p, box, (x, y, big, g) in plan:
+        x0, y0, x1, y1 = box
+        col = g["col"]
+        r = z(10 if big else 7.5)
+        # stem from the card to the dot, then the dot
+        cx = min(max(x, x0 + z(8)), x1 - z(8))
+        ey = y0 + g["h"] if y0 + g["h"] <= y + z(2) else y0
+        if x0 <= x <= x1 and (y < y0 or y > y1):
+            d.line([(x, y), (x, y1 if y < y0 else y0)], fill=(255, 255, 255, 255), width=z(3))
+        elif not (x0 <= x <= x1):
+            d.line([(x, y), (x0 if x < x0 else x1, min(max(y, y0 + z(6)), y1 - z(6)))], fill=(255, 255, 255, 255), width=z(3))
+        d.rounded_rectangle([x0 - z(2), y0 - z(2), x1 + z(2), y1 + z(2)], radius=z(5), fill=(255, 255, 255, 255))
+        d.rectangle([x0, y0, x1, y0 + g["hh"]], fill=(255, 255, 255, 255))
+        d.text(((x0 + x1) / 2, y0 + g["hh"] / 2), g["nm"], font=g["fn"], fill=(14, 28, 66, 255), anchor="mm")
+        vy0 = y0 + g["hh"]
+        d.rectangle([x0, vy0, x1, vy0 + g["vh"]], fill=(*col, 255))
+        ink = _ink_on(col)
+        d.text(((x0 + x1) / 2, vy0 + g["vh"] / 2), g["val"], font=g["fv"], fill=(*ink, 255), anchor="mm")
+        ly0 = vy0 + g["vh"]
+        d.rectangle([x0, ly0, x1, y1], fill=(14, 28, 52, 255))
+        d.text(((x0 + x1) / 2, ly0 + g["lh"] / 2), g["low"], font=g["fl"], fill=(255, 255, 255, 255), anchor="mm")
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(*col, 255), outline=(255, 255, 255, 255), width=z(3))
 
 
 def _window(ev, tz):
@@ -234,7 +283,7 @@ def tidal_graphic(ev, pkg, cfg, tz, bay=False, peak=False):
     cv = Canvas(cfg)
     cv.header(title, sub)
     (mx, my, mw, mh), (px, py, pw_, ph_) = cv.split()
-    _paste_rounded(cv, draw_tidal_map(ev, mw, mh, cfg, view=view, radius=radius), mx, my)
+    _paste_rounded(cv, draw_tidal_map(ev, mw, mh, cfg, view=view, radius=radius, tz=tz), mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
     shade_from = cfg.get("tidal_map_shade_from", "action")
     chips = [(c[3], c[2]) for c in reversed(CATS) if ORDER.index(c[1]) >= ORDER.index(shade_from)]
@@ -260,7 +309,7 @@ def tidal_graphic(ev, pkg, cfg, tz, bay=False, peak=False):
     cv.footer(pkg, source=src)
     from . import fullscreen
     fullscreen.attach(cv, title=title, subtitle=sub,
-                      map_fn=lambda pw, ph, view: draw_tidal_map(ev, pw, ph, cfg, view=view, radius=radius),
+                      map_fn=lambda pw, ph, view: draw_tidal_map(ev, pw, ph, cfg, view=view, radius=radius, tz=tz),
                       box=view, head_label="SEWELLS POINT (NORFOLK)",
                       head_value=head, head_col=head_col, meaning=meaning, rows=shown,
                       overlay=lambda c, x, y, mw_: _legend_chips(c, x, y, chips, mw_), source=src)
@@ -277,12 +326,29 @@ def tidal_values_graphic(ev, pkg, cfg, tz, bay=False):
     cv.header("BAY HIGH TIDE LEVELS" if bay else "HIGH TIDE LEVELS",
               f"{pt.strftime('%A').upper()} {pt.strftime('%I:%M %p').lstrip('0')}  ·  FEET MLLW  ·  NEXT 72 HOURS")
     mx, my, mw, mh = cv.M, 196, cv.W - 2 * cv.M, cv.H - 196 - 70
-    _paste_rounded(cv, draw_tidal_map(ev, mw, mh, cfg, view=view, radius=radius, mark="all"), mx, my)
+    _paste_rounded(cv, draw_tidal_map(ev, mw, mh, cfg, view=view, radius=radius, mark="all", tz=tz), mx, my)
     cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
     shade_from = cfg.get("tidal_map_shade_from", "action")
     chips = [(c[3], c[2]) for c in reversed(CATS) if ORDER.index(c[1]) >= ORDER.index(shade_from)]
     _legend_chips(cv, mx + 16, my + mh - 60, chips, mw - 32)
     src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "NWS tide gauge forecasts (shading interpolated between gauges)"
+    cv.footer(pkg, source=src)
+    return cv
+
+
+HIGHEST_SITES = ["sewells", "yorktown", "fort monroe", "smithfield", "lynnhaven", "kiptopeke", "windmill", "money point", "jamestown"]
+
+
+def tidal_highest_graphic(ev, pkg, cfg, tz):
+    """Callout-card map of the highest tide in the forecast: name / category / level on each key gauge, no shading."""
+    view = tuple(cfg.get("tidal_view") or TIDAL_VIEW)
+    cv = Canvas(cfg)
+    cv.header("HIGHEST TIDES", _window(ev, tz) + "  ·  FEET MLLW")
+    mx, my, mw, mh = cv.M, 196, cv.W - 2 * cv.M, cv.H - 196 - 70
+    sites = cfg.get("tidal_highest_sites") or HIGHEST_SITES
+    _paste_rounded(cv, draw_tidal_map(ev, mw, mh, cfg, view=view, mark="cards", shade=False, tz=tz, only=sites), mx, my)
+    cv.d.rounded_rectangle([z(mx), z(my), z(mx + mw), z(my + mh)], radius=z(18), outline=(255, 255, 255, 90), width=z(2))
+    src = "SAMPLE DATA" if "SAMPLE" in pkg.get("source", "") else "NWS tide gauge forecasts"
     cv.footer(pkg, source=src)
     return cv
 
@@ -311,6 +377,7 @@ def tidal_graphics(pkg, cfg):
         if pe:
             out.append(("tidal_flood_peak", tidal_graphic(pe, pkg, cfg, tz, peak=True)))
             out.append(("tidal_flood_values", tidal_values_graphic(pe, pkg, cfg, tz)))
+            out.append(("tidal_flood_highest", tidal_highest_graphic(pe, pkg, cfg, tz)))
         if cfg.get("tidal_bay_map", True):
             pb = top(events(sites, cfg, max_lag_h=7))
             if pb:
