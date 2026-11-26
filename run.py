@@ -438,7 +438,7 @@ def main():
         else:
             print("Fetching Sewells Point observed tides + NWS forecast (AHPS / NWPS)...")
             pkg["_tideerr"] = tideerr.fetch(cfg, ROOT / "cache", now.astimezone(timezone.utc), debug=args.outlook_debug)
-    if "gust_peaks" in (cfg.get("graphics") or []) and (only_set is None or "gust_peaks" in only_set):
+    if any(k in (cfg.get("graphics") or []) and (only_set is None or k in only_set) for k in ("gust_peaks", "big_gust_24")):
         from wxgfx import gusts
         if args.sample:
             pkg["_gusts"] = gusts.sample(now, tz)

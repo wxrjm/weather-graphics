@@ -1,8 +1,6 @@
-"""Big-text 24 HOUR MAX WIND GUSTS: giant headline, one huge max-gust number (coloured by band), when it peaks and
-from which direction, a mini bar per hour for the next 24 h, and a navy tagline banner.
-Data: pkg["wind_hourly"] (NDFD gust, falling back to sustained wind).  Config: gust_big_hours (24)."""
-from datetime import datetime
-from zoneinfo import ZoneInfo
+"""Big-text OBSERVED 24 HOUR MAX WIND GUSTS: giant headline, one huge max-gust number (coloured by band), where and when it was recorded, a mini bar per hour for the next 24 h, and a navy tagline banner.
+Data: observed station gusts (pkg["_gusts"], api.weather.gov ASOS).  Config: gust_big_hours (24)."""
+from datetime import timedelta
 
 from .bigtext import NAVY, _wrap2
 from .peakwind import band
@@ -23,22 +21,40 @@ def _hour(t):
 
 
 def big_gust_24(pkg, cfg):
-    tz = ZoneInfo(cfg["timezone"])
-    rows = []
-    for h in (pkg.get("wind_hourly") or [])[:cfg.get("gust_big_hours", 24)]:
-        g = h.get("gust") if h.get("gust") is not None else h.get("wind")
-        if g is None:
-            continue
-        rows.append((datetime.fromisoformat(h["time"]).astimezone(tz), float(g), h.get("dir") or ""))
-    if len(rows) < 6:
+    """Observed: highest gust at any station (Norfolk Intl + nearby ASOS) in the past 24 hours."""
+    data = pkg.get("_gusts")
+    if not data or not data.get("stations"):
         return None
-    t0, tp, dp = max(rows, key=lambda r: (r[1], -r[0].timestamp()))
+    now = data["now"]
+    cut = now - timedelta(hours=cfg.get("gust_big_hours", 24))
+    best, hourly, sustained = None, {}, False
+    for s in data["stations"]:
+        for t, g, w in s["obs"]:
+            if t < cut or t > now:
+                continue
+            v = g if g is not None else w
+            if v is None:
+                continue
+            k = t.replace(minute=0, second=0, microsecond=0)
+            hourly[k] = max(hourly.get(k, 0), v)
+            if g is not None and (best is None or g > best[0]):
+                best = (g, t, s["name"])
+    if best is None:  # no gusts reported anywhere: show the strongest sustained wind instead
+        sustained = True
+        for s in data["stations"]:
+            for t, g, w in s["obs"]:
+                if t >= cut and w is not None and (best is None or w > best[0]):
+                    best = (w, t, s["name"])
+    if best is None or len(hourly) < 6:
+        return None
+    tp, t0, stn = best
+    rows = sorted((t, g) for t, g in hourly.items())
     gmax = int(round(tp))
     col, _ = band(gmax)
     cv = Canvas(cfg)
     W, H, M, tall = cv.W, cv.H, cv.M, cv.tall
     cv.logo(134 if not tall else 150)
-    title = "HOW STRONG WILL THE WIND GUSTS GET?"
+    title = "HOW STRONG WERE THE WIND GUSTS?"
     if tall:
         lines, size = _wrap2(cv, title, W - 2 * M - 260, 104)
     else:
@@ -56,7 +72,7 @@ def big_gust_24(pkg, cfg):
     ch = bottom - top - bars_h - gap
     cv.rect(M, top, W - 2 * M, ch, (255, 255, 255, 18), r=22)
     cv.rect(M, top + 22, 12, ch - 44, (*col, 255), r=6)
-    cv.text(M + 48, top + 28, "MAX GUST · NEXT 24 HOURS", 36, "bold", C["muted"], anchor="lt")
+    cv.text(M + 48, top + 28, ("MAX WIND SPEED" if sustained else "MAX GUST") + " · PAST 24 HOURS", 36, "bold", C["muted"], anchor="lt")
     num = str(gmax)
     nsize = cv.fit(num, 520 if not tall else 480, "bold", (W - 2 * M) * 0.42)
     cx = M + 48
@@ -67,12 +83,11 @@ def big_gust_24(pkg, cfg):
     if tall:
         ry = top + ch * 0.80
         cv.text(M + 48, ry - 6, _word(gmax), 54, "bold", anchor="lm", maxw=W - 2 * M - 96)
-        cv.text(M + 48, ry + 52, f"PEAKS ~{_hour(t0)}  ·  FROM THE {COMP.get(dp, dp)}".strip(" ·"), 32, "medium", C["muted"], anchor="lm", maxw=W - 2 * M - 96)
+        cv.text(M + 48, ry + 52, f"{stn.upper()}  ·  {t0.strftime('%a').upper()} {_hour(t0)}", 32, "medium", C["muted"], anchor="lm", maxw=W - 2 * M - 96)
     else:
         cv.text(rx, top + ch * 0.38, _word(gmax), 64, "bold", anchor="rm", maxw=(W - 2 * M) * 0.50)
-        cv.text(rx, top + ch * 0.38 + 66, f"PEAKS ~{_hour(t0)}", 40, "bold", col, anchor="rm")
-        if dp:
-            cv.text(rx, top + ch * 0.38 + 116, f"FROM THE {COMP.get(dp, dp)}", 30, "medium", C["muted"], anchor="rm", maxw=(W - 2 * M) * 0.5)
+        cv.text(rx, top + ch * 0.38 + 66, f"{t0.strftime('%a').upper()} {_hour(t0)}", 40, "bold", col, anchor="rm")
+        cv.text(rx, top + ch * 0.38 + 116, f"OBSERVED AT {stn.upper()}", 30, "medium", C["muted"], anchor="rm", maxw=(W - 2 * M) * 0.5)
     # hourly bars
     by = top + ch + gap
     cv.rect(M, by, W - 2 * M, bars_h, (255, 255, 255, 14), r=18)
@@ -81,7 +96,7 @@ def big_gust_24(pkg, cfg):
     base = by + bars_h - 46
     tp_ = by + 30
     vmax = max(gmax, 20) * 1.1
-    for i, (t, g, d) in enumerate(rows):
+    for i, (t, g) in enumerate(rows):
         x = M + 20 + slot * (i + 0.5)
         bh = max(4, (base - tp_) * g / vmax)
         cv.rect(x - slot * 0.36, base - bh, slot * 0.72, bh, (*band(g)[0], 255), r=4)
@@ -90,7 +105,7 @@ def big_gust_24(pkg, cfg):
     ty = H - tag_h
     cv.rect(0, ty, W, tag_h, (*NAVY, 255))
     cv.line([(0, ty), (W, ty)], (255, 255, 255, 200), 3)
-    tag = f"PEAK GUST {gmax} MPH · {_word(gmax)}"
+    tag = f"PAST 24 HR PEAK {gmax} MPH · {stn.upper()}"
     ts = cv.fit(tag, 50, "bold", W - 2 * M, floor=24)
     cv.text(W / 2, ty + tag_h / 2 + 2, tag, ts, "bold", (255, 255, 255), anchor="mm", maxw=W - 2 * M)
     return cv
