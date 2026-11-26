@@ -79,6 +79,7 @@
     "city_table",
     "rain_timing",
     "rain_big",
+    "big_gust_24",
     "state_fields",
     "hr_temps",
     "hr_gusts",
