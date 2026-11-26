@@ -189,7 +189,7 @@ def gust_peaks_24_big(pkg, cfg):
     cv.logo(134 if not tall else 150)
     title = "PEAK WIND GUSTS · PAST 24 HOURS"
     if tall:
-        lines, size = ("PEAK WIND GUSTS", "PAST 24 HOURS"), 100
+        lines, size = ("PEAK WIND GUSTS", "PAST 24 HOURS"), cv.fit("PEAK WIND GUSTS", 100, "bold", W - 2 * M - 270)
     else:
         size = cv.fit(title, 92, "bold", W - 2 * M - 330)
         lines = (title,)
