@@ -43,6 +43,7 @@
     "safety_graphics",
     "gust_table_48",
     "gust_peaks",
+    "gust_peaks_24",
     "current",
     "alerts",
     "alert_maps",

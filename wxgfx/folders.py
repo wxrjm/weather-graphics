@@ -21,7 +21,7 @@ CATEGORIES = [  # (folder, test on the graphic name with _full/_big removed) - f
     ("Rain & Flooding", lambda n: n.startswith(("rain_totals", "wpc_qpf", "ero_", "state_qpf", "state_ero", "obs_rain", "state_pop", "ffg_", "rain_reports",
                                                    "storm_rain_reports", "river"))),
     ("Snow & Ice", lambda n: n.startswith(("snow", "state_snow", "ice_", "wssi", "storm_snow_reports"))),
-    ("Wind", lambda n: n.startswith(("state_wind", "state_gust", "hr_gust", "big_gust")) or n in ("wind", "wind_map", "gust_map", "storm_wind_reports", "gust_table_48", "gust_peaks", "gust_bars_48", "gust_bars_48_dir", "outage_risk", "outage_map", "wind_color", "peak_wind_hourly", "gust_peak_map")),
+    ("Wind", lambda n: n.startswith(("state_wind", "state_gust", "hr_gust", "big_gust", "gust_peaks_24")) or n in ("wind", "wind_map", "gust_map", "storm_wind_reports", "gust_table_48", "gust_peaks", "gust_bars_48", "gust_bars_48_dir", "outage_risk", "outage_map", "wind_color", "peak_wind_hourly", "gust_peak_map")),
     ("Tides & Coast", lambda n: n.startswith(("tides", "tide_error", "high_tides", "tidal_flood", "beach", "sound_flood"))),
     ("Tropical", lambda n: n.startswith(("tropics", "Tropical/"))),
     ("Long Range", lambda n: n.startswith("cpc_")),
@@ -72,7 +72,7 @@ TITLES = {
     "safety_tidal_flooding": "Tidal Flooding",  # whole-name / prefix overrides for the graphics whose snake_case doesn't title-case well
     "tide_error": "Tide Forecast Check", "snow_probability": "Snow Probability", "temp_vs_normal": "Above or Below Average", "big_gust_24": "24 Hour Max Gusts - Big Text", "outage_risk": "Power Outage Risk", "outage_map": "Power Outage Risk Map", "wind_color": "Peak Wind Gusts - Color Coded", "peak_wind_hourly": "Peak Wind Day - Hourly Gusts", "gust_peak_map": "Peak Gust Map - Windiest Day", "sun_uv": "Sun & UV", "city_table": "City Forecast Table",
     "obs_rain": "Observed Rainfall", "gust_bars_48": "48 Hour Gust Bars", "gust_bars_48_dir": "48 Hour Gust Bars With Wind Direction", "gust_table_48": "48 Hour Gust Table",
-    "gust_peaks": "Peak Gusts", "cpc_8_14": "CPC 8-14 Day", "cpc_3_7": "CPC 3-7 Day", "sound_flood": "Sound Side Flooding",
+    "gust_peaks": "Peak Gusts", "gust_peaks_24": "Peak Gusts - 24 Hours", "gust_peaks_24_big": "Peak Gusts - 24 Hours - Big Text", "cpc_8_14": "CPC 8-14 Day", "cpc_3_7": "CPC 3-7 Day", "sound_flood": "Sound Side Flooding",
     "what_to_know": "What to Know", "key_messages": "Key Messages", "weather_aware": "Be Weather Aware", "feels_like": "Heat Index", "month_rain": "Rainfall So Far",
     "yesterday": "Climate Report", "aches_pains": "Aches and Pains Forecast", "nbm_10day": "NBM 10 Day Highs and Lows", "month_highs_cal": "Month Highs Calendar", "month_rain_cal": "Month Rainfall Calendar", "pressure_trend": "7 Day Pressure Trend", "frost_trend": "Frost & Freeze Forecast", "state_spc_day4_8": "SPC Day 4-8 Severe Outlook", "drought_stencil": "Drought Monitor VA NC Stencil", "drought": "Drought Monitor", "temp_drop": "Temperature Drop", "wpc_qpf": "Rainfall Potential", "rain_totals_big": "Rain Totals Big Text",
 }
